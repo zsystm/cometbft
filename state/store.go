@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cosmos/gogoproto/proto"
+	"github.com/google/orderedcode"
 
 	dbm "github.com/cometbft/cometbft-db"
 	"github.com/go-kit/kit/metrics"
@@ -34,16 +35,31 @@ var (
 
 //------------------------------------------------------------------------
 
-func calcValidatorsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("validatorsKey:%v", height))
+const (
+	// prefixes are unique across all tm db's
+	prefixValidators      = int64(5)
+	prefixConsensusParams = int64(6)
+	prefixABCIResponses   = int64(7)
+)
+
+func encodeKey(prefix int64, height int64) []byte {
+	res, err := orderedcode.Append(nil, prefix, height)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
-func calcConsensusParamsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
+func validatorsKey(height int64) []byte {
+	return encodeKey(prefixValidators, height)
 }
 
-func calcABCIResponsesKey(height int64) []byte {
-	return []byte(fmt.Sprintf("abciResponsesKey:%v", height))
+func consensusParamsKey(height int64) []byte {
+	return encodeKey(prefixConsensusParams, height)
+}
+
+func abciResponsesKey(height int64) []byte {
+	return encodeKey(prefixABCIResponses, height)
 }
 
 //----------------------
@@ -353,13 +369,13 @@ func (store dbStore) PruneStates(from int64, to int64, evidenceThresholdHeight i
 				if err != nil {
 					return err
 				}
-				err = batch.Set(calcValidatorsKey(h), bz)
+				err = batch.Set(validatorsKey(h), bz)
 				if err != nil {
 					return err
 				}
 			}
 		} else if h < evidenceThresholdHeight {
-			err = batch.Delete(calcValidatorsKey(h))
+			err = batch.Delete(validatorsKey(h))
 			if err != nil {
 				return err
 			}
@@ -386,19 +402,19 @@ func (store dbStore) PruneStates(from int64, to int64, evidenceThresholdHeight i
 					return err
 				}
 
-				err = batch.Set(calcConsensusParamsKey(h), bz)
+				err = batch.Set(consensusParamsKey(h), bz)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
-			err = batch.Delete(calcConsensusParamsKey(h))
+			err = batch.Delete(consensusParamsKey(h))
 			if err != nil {
 				return err
 			}
 		}
 
-		err = batch.Delete(calcABCIResponsesKey(h))
+		err = batch.Delete(abciResponsesKey(h))
 		if err != nil {
 			return err
 		}
@@ -489,7 +505,7 @@ func (store dbStore) LoadFinalizeBlockResponse(height int64) (*abci.ResponseFina
 		return nil, ErrFinalizeBlockResponsesNotPersisted
 	}
 
-	buf, err := store.db.Get(calcABCIResponsesKey(height))
+	buf, err := store.db.Get(abciResponsesKey(height))
 	if err != nil {
 		return nil, err
 	}
@@ -608,6 +624,7 @@ func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.Response
 
 func (store dbStore) getValue(key []byte) ([]byte, error) {
 	bz, err := store.db.Get(key)
+	err = store.db.SetSync(abciResponsesKey(height), bz)
 	if err != nil {
 		return nil, err
 	}
@@ -743,7 +760,7 @@ func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
 func loadValidatorsInfo(db dbm.DB, height int64) (*cmtstate.ValidatorsInfo, error) {
-	buf, err := db.Get(calcValidatorsKey(height))
+	buf, err := db.Get(validatorsKey(height))
 	if err != nil {
 		return nil, err
 	}
@@ -791,7 +808,7 @@ func (store dbStore) saveValidatorsInfo(height, lastHeightChanged int64, valSet 
 		return err
 	}
 
-	err = store.db.Set(calcValidatorsKey(height), bz)
+	err = store.db.Set(validatorsKey(height), bz)
 	if err != nil {
 		return err
 	}
@@ -833,7 +850,7 @@ func (store dbStore) LoadConsensusParams(height int64) (types.ConsensusParams, e
 }
 
 func (store dbStore) loadConsensusParamsInfo(height int64) (*cmtstate.ConsensusParamsInfo, error) {
-	buf, err := store.db.Get(calcConsensusParamsKey(height))
+	buf, err := store.db.Get(consensusParamsKey(height))
 	if err != nil {
 		return nil, err
 	}
@@ -869,7 +886,7 @@ func (store dbStore) saveConsensusParamsInfo(nextHeight, changeHeight int64, par
 		return err
 	}
 
-	err = store.db.Set(calcConsensusParamsKey(nextHeight), bz)
+	err = store.db.Set(consensusParamsKey(nextHeight), bz)
 	if err != nil {
 		return err
 	}
