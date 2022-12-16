@@ -1,11 +1,10 @@
-# Runs randomly generated E2E testnets nightly on main
-# manually run e2e tests
+# Manually runs randomly generated E2E testnets
 name: e2e-manual
 on:
   workflow_dispatch:
 
 jobs:
-  e2e-nightly-test:
+  e2e-manual-test:
     # Run parallel jobs for the listed testnet groups (must match the
     # ./build/generator -g flag)
     strategy:
