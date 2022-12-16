@@ -52,9 +52,17 @@ var (
 )
 
 // Generate generates random testnets using the given RNG.
-func Generate(r *rand.Rand, multiversion string) ([]e2e.Manifest, error) {
-	if multiversion != "" {
-		nodeVersions[multiversion] = 1
+//
+// If multiVersion is not an empty string, this generates a testnet whose nodes
+// are a mix of different versions of Tendermint. Two-thirds of the nodes will
+// be running the build from the branch under test, and one third will use the
+// supplied version number in multiVersion. When specified, this must
+// correspond to an existing published Tendermint Docker image tag, as per
+// https://hub.docker.com/r/tendermint/tendermint/tags, or the image version
+// must be available locally on the machine on which the tests are being run.
+func Generate(r *rand.Rand, multiVersion string) ([]e2e.Manifest, error) {
+	if multiVersion != "" {
+		nodeVersions[multiVersion] = 1
 	}
 	manifests := []e2e.Manifest{}
 	for _, opt := range combinations(testnetCombinations) {

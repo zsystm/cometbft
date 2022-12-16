@@ -84,7 +84,7 @@ type ManifestNode struct {
 	// Version specifies which version of Tendermint this node is. Specifying different
 	// versions for different nodes allows for testing the interaction of different
 	// node's compatibility. Note that in order to use a node at a particular version,
-	// there must be a docker image of the test app tagged with this version present
+	// there must be a Docker image of the test app tagged with this version present
 	// on the machine where the test is being run.
 	Version string `toml:"version"`
 
