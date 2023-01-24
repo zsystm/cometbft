@@ -152,9 +152,12 @@ mockery:
 ###                                Protobuf                                 ###
 ###############################################################################
 
+#GOGO-FASTER=github.com/gogo/protobuf/protoc-gen-gogofaster
+GOGO-FASTER=github.com/cosmos/gogoproto/protoc-gen-gogofaster
+
 check-proto-deps:
-ifeq (,$(shell which protoc-gen-gogofaster))
-	@go install github.com/cosmos/gogoproto/protoc-gen-gogofaster@latest
+ifneq ($(GOGO-FASTER), $(shell go version -m ~/go/bin/protoc-gen-gogofaster | grep path | awk '{print $2}'))
+	@go install $(GOGO-FASTER)@latest
 endif
 .PHONY: check-proto-deps
 
