@@ -32,7 +32,7 @@ config  data
 
 $ ls $HOME/.cometbft/config/
 
-config.toml  genesis.json  node_key.json  priv_validator.json
+config.toml  genesis.json  node_key.json  priv_validator_key.json
 ```
 
 For a single, local node, no further configuration is required.
@@ -46,13 +46,13 @@ Start CometBFT with a simple in-process application:
 cometbft node --proxy_app=kvstore
 ```
 
-> Note: `kvstore` is a non persistent app, if you would like to run an application with persistence run `--proxy_app=persistent_kvstore`
+> Note: `kvstore` is a non-persistent app, if you would like to run an application with persistence run `--proxy_app=persistent_kvstore`
 
 and blocks will start to stream in:
 
 ```sh
-I[01-06|01:45:15.592] Executed block                               module=state height=1 validTxs=0 invalidTxs=0
-I[01-06|01:45:15.624] Committed state                              module=state height=1 txs=0 appHash=
+I[2023-01-24|17:30:12.412] executed block     module=state height=1 num_valid_txs=0 num_invalid_txs=0
+I[2023-01-24|17:30:12.414] committed state    module=state height=1 num_txs=0 app_hash=0000000000000000
 ```
 
 Check the status with:
@@ -87,7 +87,31 @@ and query the key:
 curl -s 'localhost:26657/abci_query?data="name"'
 ```
 
-where the value is returned in hex.
+and a response is returned
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": -1,
+  "result": {
+    "response": {
+      "code": 0,
+      "log": "exists",
+      "info": "",
+      "index": "0",
+      "key": "bmFtZQ==",
+      "value": "c2F0b3NoaQ==",
+      "proofOps": null,
+      "height": "18",
+      "codespace": ""
+    }
+  }
+}
+```
+
+> **Note**: The `key` and `value` fields in the returned response are Base64 encoded,
+> for example `"key":"bmFtZQ==","value":"c2F0b3NoaQ=="`. The `key` field value `bmFtZQ==` Base64 decoded is `name`
+> and the `value` field value `c2F0b3NoaQ==` Base64 decoded is `satoshi`
 
 ## Cluster of Nodes
 
