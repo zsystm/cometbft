@@ -10,8 +10,17 @@ To download pre-built binaries, see the [releases page](https://github.com/comet
 
 ## From Source
 
-You'll need `go` [installed](https://golang.org/doc/install) and the required
-environment variables set, which can be done with the following commands:
+You'll need `go` [installed](https://golang.org/doc/install) (please ensure you have a go release version that is equal or higher
+than the one specified in the cometbft [go.mod](https://github.com/cometbft/cometbft/blob/main/go.mod) file, for example:
+
+**go.mod**
+```
+module github.com/cometbft/cometbft
+
+go 1.19
+```
+
+Also set these required environment variables, which can be done with the following commands:
 
 ```sh
 echo export GOPATH=\"\$HOME/go\" >> ~/.bash_profile
@@ -39,7 +48,7 @@ make build
 
 to put the binary in `./build`.
 
-_DISCLAIMER_ The binary of CometBFT is build/installed without the DWARF
+> **DISCLAIMER:** The binary of CometBFT is build/installed without the DWARF
 symbol table. If you would like to build/install CometBFT with the DWARF
 symbol and debug information, remove `-s -w` from `BUILD_FLAGS` in the make
 file.
