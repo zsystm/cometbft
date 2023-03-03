@@ -45,7 +45,7 @@ more details about [versioning](#versioning).
 
 In any case, if you intend to run CometBFT in production, we're happy to help.
 
-To contact us, you can also 
+To contact us, you can also
 [join the chat](https://discord.com/channels/669268347736686612/669283915743232011).
 
 More on how releases are conducted can be found [here](./RELEASES.md).
