@@ -31,7 +31,10 @@ Process *p*'s prepared proposal can differ in two different rounds where *p* is 
 Full execution of blocks at `PrepareProposal` time stands on CometBFT's critical path. Thus,
 Requirement 1 ensures the Application or operator will set a value for `TimeoutPropose` such that the time it takes
 to fully execute blocks in `PrepareProposal` does not interfere with CometBFT's propose timer.
-Note that violation of Requirement 1 may just lead to further rounds, but will not compromise liveness.
+Note that the violation of Requirement 1 may lead to further rounds, but will not 
+compromise liveness because even though `TimeoutPropose` is used as the initial
+value for proposal timeouts, CometBFT will be dynamically adjust these timeouts
+such that they will eventually be enough for completing `PrepareProposal`.
 
 * Requirement 2 [`PrepareProposal`, tx-size]: When *p*'s Application calls `ResponsePrepareProposal`, the
   total size in bytes of the transactions returned does not exceed `RequestPrepareProposal.max_tx_bytes`.
@@ -204,7 +207,8 @@ still received in sequence.
 #### FinalizeBlock
 
 When the consensus algorithm decides on a block, CometBFT uses `FinalizeBlock` to send the
-decided block's data to the Application, which uses it to transition its state.
+decided block's data to the Application, which uses it to transition its state, but MUST NOT persist it;
+persisting MUST be done during `Commit`.
 
 The Application must remember the latest height from which it
 has run a successful `Commit` so that it can tell CometBFT where to
@@ -356,7 +360,7 @@ For more information, see Section [State Sync](#state-sync).
 The Application is expected to return a list of
 [`ExecTxResult`](./abci%2B%2B_methods.md#exectxresult) in
 [`ResponseFinalizeBlock`](./abci%2B%2B_methods.md#finalizeblock). The list of transaction
-results must respect the same order as the list of transactions delivered via
+results MUST respect the same order as the list of transactions delivered via
 [`RequestFinalizeBlock`](./abci%2B%2B_methods.md#finalizeblock).
 This section discusses the fields inside this structure, along with the fields in
 [`ResponseCheckTx`](./abci%2B%2B_methods.md#checktx),
