@@ -410,6 +410,9 @@ type RPCConfig struct {
 	// supplied, a default value of 100 will be used. The maximum supported
 	// value is 100.
 	//
+	// The default number of items returned per page of paginated responses is
+	// the lower of either max_per_page or 30.
+	//
 	// High values here can result in greater vulnerability to DDoS attacks,
 	// and this needs to be tuned to your specific application's needs.
 	MaxPerPage int `mapstructure:"max_per_page"`

@@ -93,8 +93,6 @@ mechanisms.
 
 ### RPC
 
-#### Attack Exposure and Mitigation
-
 **It is generally not recommended for RPC endpoints to be exposed publicly, and
 especially so if the node in question is a validator**, as the CometBFT RPC does
 not currently provide advanced security features. Public exposure of RPC
@@ -113,18 +111,20 @@ attacks. Some examples of mitigation measures include, but are not limited to:
   services like [Cloudflare](https://www.cloudflare.com))
 - Only exposing the specific endpoints absolutely necessary for the relevant use
   cases (configurable via nginx/Cloudflare/etc.)
+- Choosing reasonable values for the `genesis_chunk_size_bytes` and
+  `max_per_page` values in the `[rpc]` section of the configuration file.
+
+Paginated endpoints will return up to a maximum of 100 items per page. The
+maximum number of items per page can be controlled by setting the `max_per_page`
+value in the `[rpc]` section of the configuration file. The default number of
+items per page, if not specified by the user, is the lower of either 30 or the
+`max_per_page` value. See the [RPC documentation](../rpc/) for more information.
 
 If no expertise is available to the operator to assist with securing nodes' RPC
 endpoints, it is strongly recommended to never expose those endpoints publicly.
 
 **Under no condition should any of the [unsafe RPC endpoints](../rpc/#/Unsafe)
 ever be exposed publicly.**
-
-#### Endpoints Returning Multiple Entries
-
-Endpoints returning multiple entries are limited by default to return 30
-elements (100 max). See the [RPC Documentation](https://docs.cometbft.com/main/rpc/)
-for more information.
 
 ## Debugging CometBFT
 
