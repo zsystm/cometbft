@@ -39,6 +39,12 @@ const (
 
 	DefaultNodeKeyName  = "node_key.json"
 	DefaultAddrBookName = "addrbook.json"
+
+	DefaultRPCPerPage               = 30               // Default number of items per page from paginated RPC endpoints
+	DefaultRPCMaxPerPage            = 100              // Default value for per_page in paginated RPC endpoints
+	MaxRPCMaxPerPage                = 100              // Max value for max_per_page
+	DefaultRPCGenesisChunkSizeBytes = 4 * 1024 * 1024  // 4MB
+	MaxRPCGenesisChunkSizeBytes     = 10 * 1024 * 1024 // 10MB
 )
 
 // NOTE: Most of the structs & relevant comments + the
@@ -392,6 +398,22 @@ type RPCConfig struct {
 	// Maximum size of request header, in bytes
 	MaxHeaderBytes int `mapstructure:"max_header_bytes"`
 
+	// The size of chunks, in bytes, returned by the `/genesis_chunked`
+	// endpoint. The default size is set as 4MB (4194304 bytes). High values
+	// here can result in greater vulnerability to DDoS attacks.
+	//
+	// The maximum supported value is 10MB (10485760).
+	GenesisChunkSizeBytes int `mapstructure:"genesis_chunk_size_bytes"`
+
+	// The maximum number of items to return per page for all paginated
+	// endpoints, imposing a hard limit on any user-supplied parameters. If not
+	// supplied, a default value of 100 will be used. The maximum supported
+	// value is 100.
+	//
+	// High values here can result in greater vulnerability to DDoS attacks,
+	// and this needs to be tuned to your specific application's needs.
+	MaxPerPage int `mapstructure:"max_per_page"`
+
 	// The path to a file containing certificate that is used to create the HTTPS server.
 	// Might be either absolute path or path related to CometBFT's config directory.
 	//
@@ -436,6 +458,9 @@ func DefaultRPCConfig() *RPCConfig {
 
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
+
+		GenesisChunkSizeBytes: DefaultRPCGenesisChunkSizeBytes,
+		MaxPerPage:            DefaultRPCMaxPerPage,
 
 		TLSCertFile: "",
 		TLSKeyFile:  "",
@@ -486,6 +511,19 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	}
 	if cfg.MaxHeaderBytes < 0 {
 		return errors.New("max_header_bytes can't be negative")
+	}
+	// If MaxPerPage was not specified, use the default value
+	if cfg.MaxPerPage <= 0 {
+		cfg.MaxPerPage = DefaultRPCMaxPerPage
+	}
+	if cfg.MaxPerPage > MaxRPCMaxPerPage {
+		return fmt.Errorf("max_per_page must be <= %d", MaxRPCMaxPerPage)
+	}
+	if cfg.GenesisChunkSizeBytes <= 0 {
+		cfg.GenesisChunkSizeBytes = DefaultRPCGenesisChunkSizeBytes
+	}
+	if cfg.GenesisChunkSizeBytes > MaxRPCGenesisChunkSizeBytes {
+		return fmt.Errorf("genesis_chunk_size_bytes must be <= %d", MaxRPCGenesisChunkSizeBytes)
 	}
 	return nil
 }

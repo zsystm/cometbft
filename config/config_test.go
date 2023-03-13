@@ -29,7 +29,6 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal("/foo/bar", cfg.GenesisFile())
 	assert.Equal("/opt/data", cfg.DBDir())
 	assert.Equal("/foo/wal/mem", cfg.Mempool.WalDir())
-
 }
 
 func TestConfigValidateBasic(t *testing.T) {
@@ -70,6 +69,9 @@ func TestRPCConfigValidateBasic(t *testing.T) {
 	cfg := config.TestRPCConfig()
 	assert.NoError(t, cfg.ValidateBasic())
 
+	assert.Equal(t, cfg.GenesisChunkSizeBytes, config.DefaultRPCGenesisChunkSizeBytes)
+	assert.Equal(t, cfg.MaxPerPage, config.DefaultRPCMaxPerPage)
+
 	fieldsToTest := []string{
 		"GRPCMaxOpenConnections",
 		"MaxOpenConnections",
@@ -85,6 +87,20 @@ func TestRPCConfigValidateBasic(t *testing.T) {
 		assert.Error(t, cfg.ValidateBasic())
 		reflect.ValueOf(cfg).Elem().FieldByName(fieldName).SetInt(0)
 	}
+}
+
+func TestRPCGenesisChunkSizeValidation(t *testing.T) {
+	cfg := config.TestRPCConfig()
+	cfg.GenesisChunkSizeBytes = config.MaxRPCGenesisChunkSizeBytes + 1
+	assert.Error(t, cfg.ValidateBasic())
+}
+
+func TestRPCPaginationValidation(t *testing.T) {
+	cfg := config.TestRPCConfig()
+
+	// Max per page hard limit
+	cfg.MaxPerPage = config.MaxRPCMaxPerPage + 1
+	assert.Error(t, cfg.ValidateBasic())
 }
 
 func TestP2PConfigValidateBasic(t *testing.T) {

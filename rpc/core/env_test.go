@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,15 +63,17 @@ func TestPaginationPerPage(t *testing.T) {
 		perPage    int
 		newPerPage int
 	}{
-		{5, 0, defaultPerPage},
+		{5, 0, config.DefaultRPCPerPage},
 		{5, 1, 1},
 		{5, 2, 2},
-		{5, defaultPerPage, defaultPerPage},
-		{5, maxPerPage - 1, maxPerPage - 1},
-		{5, maxPerPage, maxPerPage},
-		{5, maxPerPage + 1, maxPerPage},
+		{5, config.DefaultRPCPerPage, config.DefaultRPCPerPage},
+		{5, config.DefaultRPCMaxPerPage - 1, config.DefaultRPCMaxPerPage - 1},
+		{5, config.DefaultRPCMaxPerPage, config.DefaultRPCMaxPerPage},
+		{5, config.DefaultRPCMaxPerPage + 1, config.DefaultRPCMaxPerPage},
 	}
-	env := &Environment{}
+	env := &Environment{
+		Config: *config.DefaultRPCConfig(),
+	}
 	for _, c := range cases {
 		p := env.validatePerPage(&c.perPage)
 		assert.Equal(t, c.newPerPage, p, fmt.Sprintf("%v", c))
@@ -78,5 +81,5 @@ func TestPaginationPerPage(t *testing.T) {
 
 	// nil case
 	p := env.validatePerPage(nil)
-	assert.Equal(t, defaultPerPage, p)
+	assert.Equal(t, config.DefaultRPCPerPage, p)
 }

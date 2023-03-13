@@ -18,19 +18,9 @@ import (
 	"github.com/cometbft/cometbft/types"
 )
 
-const (
-	// see README
-	defaultPerPage = 30
-	maxPerPage     = 100
-
-	// SubscribeTimeout is the maximum time we wait to subscribe for an event.
-	// must be less than the server's write timeout (see rpcserver.DefaultConfig)
-	SubscribeTimeout = 5 * time.Second
-
-	// genesisChunkSize is the maximum size, in bytes, of each
-	// chunk in the genesis structure for the chunked API
-	genesisChunkSize = 16 * 1024 * 1024 // 16
-)
+// SubscribeTimeout is the maximum time we wait to subscribe for an event.
+// must be less than the server's write timeout (see rpcserver.DefaultConfig)
+const SubscribeTimeout = 5 * time.Second
 
 //----------------------------------------------
 // These interfaces are used by RPC and must be thread safe
@@ -118,6 +108,11 @@ func validatePage(pagePtr *int, perPage, totalCount int) (int, error) {
 }
 
 func (env *Environment) validatePerPage(perPagePtr *int) int {
+	defaultPerPage := cfg.DefaultRPCPerPage
+	if defaultPerPage > env.Config.MaxPerPage {
+		defaultPerPage = env.Config.MaxPerPage
+	}
+
 	if perPagePtr == nil { // no per_page parameter
 		return defaultPerPage
 	}
@@ -125,8 +120,8 @@ func (env *Environment) validatePerPage(perPagePtr *int) int {
 	perPage := *perPagePtr
 	if perPage < 1 {
 		return defaultPerPage
-	} else if perPage > maxPerPage {
-		return maxPerPage
+	} else if perPage > env.Config.MaxPerPage {
+		return env.Config.MaxPerPage
 	}
 	return perPage
 }
@@ -147,8 +142,8 @@ func (env *Environment) InitGenesisChunks() error {
 		return err
 	}
 
-	for i := 0; i < len(data); i += genesisChunkSize {
-		end := i + genesisChunkSize
+	for i := 0; i < len(data); i += env.Config.GenesisChunkSizeBytes {
+		end := i + env.Config.GenesisChunkSizeBytes
 
 		if end > len(data) {
 			end = len(data)

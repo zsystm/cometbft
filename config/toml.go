@@ -10,7 +10,7 @@ import (
 )
 
 // DefaultDirPerm is the default permissions used when creating directories.
-const DefaultDirPerm = 0700
+const DefaultDirPerm = 0o700
 
 var configTemplate *template.Template
 
@@ -61,7 +61,7 @@ func WriteConfigFile(configFilePath string, config *Config) {
 		panic(err)
 	}
 
-	cmtos.MustWriteFile(configFilePath, buffer.Bytes(), 0644)
+	cmtos.MustWriteFile(configFilePath, buffer.Bytes(), 0o644)
 }
 
 // Note: any changes to the comments/variables/mapstructure
@@ -241,6 +241,22 @@ max_body_bytes = {{ .RPC.MaxBodyBytes }}
 
 # Maximum size of request header, in bytes
 max_header_bytes = {{ .RPC.MaxHeaderBytes }}
+
+# The size of chunks, in bytes, returned by the /genesis_chunked
+# endpoint. The default size is set as 4MB (4194304 bytes). High values
+# here can result in greater vulnerability to DDoS attacks.
+#
+# The maximum supported value is 10MB (10485760).
+genesis_chunk_size_bytes = {{ .RPC.GenesisChunkSizeBytes }}
+
+# The maximum number of items to return per page for all paginated
+# endpoints, imposing a hard limit on any user-supplied parameters. If not
+# supplied, a default value of 100 will be used. The maximum supported
+# value is 100.
+#
+# High values here can result in greater vulnerability to DDoS attacks,
+# and this needs to be tuned to your specific application's needs.
+max_per_page = {{ .RPC.MaxPerPage }}
 
 # The path to a file containing certificate that is used to create the HTTPS server.
 # Might be either absolute path or path related to CometBFT's config directory.
