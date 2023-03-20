@@ -7,6 +7,18 @@ import "tendermint/abci/types.proto";
 import "tendermint/types/types.proto";
 import "tendermint/types/block.proto";
 
+message GetStatusRequest {}
+
+// GetStatusResponse provides the current status of the block service, which
+// includes information about which heights' blocks are stored by this node.
+message GetStatusResponse {
+    // The height of the latest committed block.
+    int64 height = 1;
+
+    // The height of the earliest committed block available via this service.
+    int64 base = 2;
+}
+
 message GetLatestHeightRequest {}
 
 // GetLatestHeightResponse is a lightweight indicator of the current height of

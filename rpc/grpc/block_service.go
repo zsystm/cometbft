@@ -58,6 +58,14 @@ func NewBlockServiceServer(cfg *BlockServiceServerConfig) (v1.BlockServiceServer
 	}, nil
 }
 
+// GetStatus implements v1.BlockServiceServer
+func (s *blockServiceServer) GetStatus(_ context.Context, _ *v1.GetStatusRequest) (*v1.GetStatusResponse, error) {
+	return &v1.GetStatusResponse{
+		Height: s.blockStore.Height(),
+		Base:   s.blockStore.Base(),
+	}, nil
+}
+
 // GetBlock implements v1.BlockServiceServer
 func (s *blockServiceServer) GetBlock(_ context.Context, req *v1.GetBlockRequest) (*v1.GetBlockResponse, error) {
 	height := req.Height

@@ -7,6 +7,9 @@ import "tendermint/services/block/v1/block.proto";
 
 // BlockService provides information about blocks.
 service BlockService {
+    // GetStatus returns the current status of the block service.
+    rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
+
     // GetLatestHeight returns a stream of the latest block heights as blocks
     // are committed at those heights.
     rpc GetLatestHeight(GetLatestHeightRequest) returns (stream GetLatestHeightResponse) {}
