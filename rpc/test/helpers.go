@@ -10,6 +10,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/proto/tendermint/rpc/grpc"
 
 	cfg "github.com/tendermint/tendermint/config"
 	cmtnet "github.com/tendermint/tendermint/libs/net"
@@ -18,7 +19,7 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	"github.com/tendermint/tendermint/rpc/grpc"
+	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 	rpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 )
 
@@ -112,7 +113,7 @@ func GetConfig(forceCreate ...bool) *cfg.Config {
 	return globalConfig
 }
 
-func GetGRPCClient() coregrpc.BroadcastAPIClient {
+func GetGRPCClient() grpc.BroadcastAPIClient {
 	grpcAddr := globalConfig.RPC.GRPCListenAddress
 	return coregrpc.StartGRPCClient(grpcAddr)
 }

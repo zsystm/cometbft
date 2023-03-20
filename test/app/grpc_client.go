@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"os"
 
-	"context"
-
 	cmtjson "github.com/tendermint/tendermint/libs/json"
+	"github.com/tendermint/tendermint/proto/tendermint/rpc/grpc"
 	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 )
 
@@ -27,7 +27,7 @@ func main() {
 	}
 
 	clientGRPC := coregrpc.StartGRPCClient(grpcAddr)
-	res, err := clientGRPC.BroadcastTx(context.Background(), &coregrpc.RequestBroadcastTx{Tx: txBytes})
+	res, err := clientGRPC.BroadcastTx(context.Background(), &grpc.RequestBroadcastTx{Tx: txBytes})
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

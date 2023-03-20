@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 
 	cmtnet "github.com/tendermint/tendermint/libs/net"
+	proto "github.com/tendermint/tendermint/proto/tendermint/rpc/grpc"
 )
 
 // StartGRPCServer starts a new gRPC server using the given net.Listener.
@@ -16,7 +17,7 @@ import (
 // Deprecated. Please use ServerBuilder instead.
 func StartGRPCServer(ln net.Listener) error {
 	grpcServer := grpc.NewServer()
-	RegisterBroadcastAPIServer(grpcServer, &broadcastAPI{})
+	proto.RegisterBroadcastAPIServer(grpcServer, &broadcastAPI{})
 	return grpcServer.Serve(ln)
 }
 
@@ -24,13 +25,13 @@ func StartGRPCServer(ln net.Listener) error {
 // BroadcastAPIClient.
 //
 // Deprecated.
-func StartGRPCClient(protoAddr string) BroadcastAPIClient {
+func StartGRPCClient(protoAddr string) proto.BroadcastAPIClient {
 	//nolint:staticcheck // SA1019 Existing use of deprecated but supported dial option.
 	conn, err := grpc.Dial(protoAddr, grpc.WithInsecure(), grpc.WithContextDialer(dialerFunc))
 	if err != nil {
 		panic(err)
 	}
-	return NewBroadcastAPIClient(conn)
+	return proto.NewBroadcastAPIClient(conn)
 }
 
 func dialerFunc(ctx context.Context, addr string) (net.Conn, error) {
