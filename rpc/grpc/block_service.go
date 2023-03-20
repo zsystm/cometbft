@@ -59,7 +59,7 @@ func NewBlockServiceServer(cfg *BlockServiceServerConfig) (v1.BlockServiceServer
 }
 
 // GetBlock implements v1.BlockServiceServer
-func (s *blockServiceServer) GetBlock(ctx context.Context, req *v1.GetBlockRequest) (*v1.GetBlockResponse, error) {
+func (s *blockServiceServer) GetBlock(_ context.Context, req *v1.GetBlockRequest) (*v1.GetBlockResponse, error) {
 	height := req.Height
 	if height <= 1 {
 		height = s.blockStore.Height()
@@ -88,7 +88,7 @@ func (s *blockServiceServer) GetBlock(ctx context.Context, req *v1.GetBlockReque
 }
 
 // GetBlockResults implements v1.BlockServiceServer
-func (s *blockServiceServer) GetBlockResults(ctx context.Context, req *v1.GetBlockResultsRequest) (*v1.GetBlockResultsResponse, error) {
+func (s *blockServiceServer) GetBlockResults(_ context.Context, req *v1.GetBlockResultsRequest) (*v1.GetBlockResultsResponse, error) {
 	height := req.Height
 	if height <= 1 {
 		height = s.blockStore.Height()
@@ -103,16 +103,16 @@ func (s *blockServiceServer) GetBlockResults(ctx context.Context, req *v1.GetBlo
 	// We have to convert these to pointers to deal with legacy non-pointer
 	// representations of these structs.
 	beginBlockEvents := make([]*abci.Event, len(results.BeginBlock.Events))
-	for _, ev := range results.BeginBlock.Events {
-		beginBlockEvents = append(beginBlockEvents, &ev)
+	for i := range results.BeginBlock.Events {
+		beginBlockEvents = append(beginBlockEvents, &results.BeginBlock.Events[i])
 	}
 	validatorUpdates := make([]*abci.ValidatorUpdate, len(results.EndBlock.ValidatorUpdates))
-	for _, vu := range results.EndBlock.ValidatorUpdates {
-		validatorUpdates = append(validatorUpdates, &vu)
+	for i := range results.EndBlock.ValidatorUpdates {
+		validatorUpdates = append(validatorUpdates, &results.EndBlock.ValidatorUpdates[i])
 	}
 	endBlockEvents := make([]*abci.Event, len(results.EndBlock.Events))
-	for _, ev := range results.EndBlock.Events {
-		endBlockEvents = append(endBlockEvents, &ev)
+	for i := range results.EndBlock.Events {
+		endBlockEvents = append(endBlockEvents, &results.BeginBlock.Events[i])
 	}
 	return &v1.GetBlockResultsResponse{
 		Height:                height,
@@ -147,7 +147,7 @@ func (s *blockServiceServer) removeSubsID(id int) {
 }
 
 // GetLatestHeight implements v1.BlockServiceServer
-func (s *blockServiceServer) GetLatestHeight(req *v1.GetLatestHeightRequest, stream v1.BlockService_GetLatestHeightServer) error {
+func (s *blockServiceServer) GetLatestHeight(_ *v1.GetLatestHeightRequest, stream v1.BlockService_GetLatestHeightServer) error {
 	subsID := s.nextSubsID()
 	defer s.removeSubsID(subsID)
 
