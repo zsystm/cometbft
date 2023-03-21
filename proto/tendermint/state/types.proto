@@ -78,3 +78,10 @@ message State {
   // the latest AppHash we've received from calling abci.Commit()
   bytes app_hash = 13;
 }
+
+// StoredAppRetainConfig is the on-disk representation of the application's
+// retention configuration.
+message StoredAppRetainConfig {
+    // The retain height as desired by the application.
+    int64 height = 1;
+}

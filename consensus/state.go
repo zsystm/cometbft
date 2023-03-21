@@ -1674,7 +1674,7 @@ func (cs *State) finalizeCommit(height int64) {
 
 	// Prune old heights, if requested by ABCI app.
 	if retainHeight > 0 {
-		pruned, err := cs.pruneBlocks(retainHeight)
+		pruned, err := cs.prune(retainHeight)
 		if err != nil {
 			logger.Error("failed to prune blocks", "retain_height", retainHeight, "err", err)
 		} else {
@@ -1705,7 +1705,26 @@ func (cs *State) finalizeCommit(height int64) {
 	// * cs.StartTime is set to when we will start round0.
 }
 
-func (cs *State) pruneBlocks(retainHeight int64) (uint64, error) {
+func (cs *State) prune(retainHeight int64) (uint64, error) {
+	retainCfgStore, ok := cs.blockExec.Store().(sm.RetainConfigStore)
+	if !ok {
+		panic("expected state store to also implement RetainConfigStore interface")
+	}
+	if err := retainCfgStore.SaveAppRetainHeight(retainHeight); err != nil {
+		return 0, fmt.Errorf("failed to save app retain height during pruning: %w", err)
+	}
+	dcrh, err := retainCfgStore.LoadDataCompanionRetainHeight()
+	if err != nil {
+		return 0, fmt.Errorf("failed to load data companion retain height during pruning: %w", err)
+	}
+	retainCfg := &sm.RetainConfig{
+		AppRetainHeight:           retainHeight,
+		DataCompanionRetainHeight: dcrh,
+	}
+
+	retainHeight = retainCfg.RetainHeight()
+	cs.Logger.Debug("Pruning retain height configuration", "retainCfg", retainCfg, "retainHeight", retainHeight)
+
 	base := cs.blockStore.Base()
 	if retainHeight <= base {
 		return 0, nil

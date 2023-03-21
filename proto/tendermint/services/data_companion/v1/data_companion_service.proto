@@ -1,0 +1,27 @@
+syntax = "proto3";
+package tendermint.services.data_companion.v1;
+
+option go_package = "github.com/tendermint/tendermint/proto/tendermint/services/data_companion/v1";
+
+import "tendermint/services/data_companion/v1/data_companion.proto";
+
+// DataCompanionService provides an interface for a single data companion to
+// manage the retain height.
+service DataCompanionService {
+    // GetRetainHeight returns the retain height set by the companion and that
+    // set by the application. This can give the companion an indication as to
+    // which heights' data are currently available.
+    rpc GetRetainHeight(GetRetainHeightRequest) returns (GetRetainHeightResponse);
+
+    // SetRetainHeight notifies the node of the minimum height whose data must
+    // be retained by the node. This data includes block data and block
+    // execution results.
+    //
+    // Setting a retain height lower than a previous setting will result in an
+    // error.
+    //
+    // The lower of this retain height and that set by the application in its
+    // Commit response will be used by the node to determine which heights' data
+    // can be pruned.
+    rpc SetRetainHeight(SetRetainHeightRequest) returns (SetRetainHeightResponse) {}
+}

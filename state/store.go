@@ -10,6 +10,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	cmtmath "github.com/tendermint/tendermint/libs/math"
 	cmtos "github.com/tendermint/tendermint/libs/os"
+	v1 "github.com/tendermint/tendermint/proto/tendermint/services/data_companion/v1"
 	cmtstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	cmtproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
@@ -40,7 +41,9 @@ func calcABCIResponsesKey(height int64) []byte {
 //----------------------
 
 var (
-	lastABCIResponseKey = []byte("lastABCIResponseKey")
+	lastABCIResponseKey          = []byte("lastABCIResponseKey")
+	appRetainHeightKey           = []byte("appRetainHeight")
+	dataCompanionRetainHeightKey = []byte("dataCompanionRetainHeight")
 )
 
 //go:generate ../scripts/mockery_generate.sh Store
@@ -78,6 +81,48 @@ type Store interface {
 	Close() error
 }
 
+// RetainConfig is a domain type representing the retention configuration for
+// both the application and the data companion. This influences the way that
+// blocks and block results are pruned by the node.
+//
+// If either value is -1, this means it has not yet been set by the
+// corresponding entity.
+type RetainConfig struct {
+	AppRetainHeight           int64
+	DataCompanionRetainHeight int64
+}
+
+// RetainHeight returns the lower of the application and data companion's
+// retain height configurations.
+func (cfg *RetainConfig) RetainHeight() int64 {
+	switch {
+	case cfg.AppRetainHeight >= 0 && cfg.DataCompanionRetainHeight >= 0:
+		// Both the app and data companion's retain heights have been saved.
+		return cmtmath.MinInt64(cfg.AppRetainHeight, cfg.DataCompanionRetainHeight)
+	case cfg.AppRetainHeight >= 0:
+		// Only the app's retain height has been saved so far, but the data
+		// companion's hasn't.
+		return cfg.AppRetainHeight
+	default:
+		// Neither the app, nor the data companion's retain heights have been
+		// saved yet.
+		return 0
+	}
+}
+
+// RetainConfigStore facilitates loading and saving of retention configuration
+// from/to the state store.
+type RetainConfigStore interface {
+	LoadRetainConfig() (*RetainConfig, error)
+	SaveRetainConfig(*RetainConfig) error
+
+	LoadAppRetainHeight() (int64, error)
+	SaveAppRetainHeight(int64) error
+
+	LoadDataCompanionRetainHeight() (int64, error)
+	SaveDataCompanionRetainHeight(int64) error
+}
+
 // dbStore wraps a db (github.com/cometbft/cometbft-db)
 type dbStore struct {
 	db dbm.DB
@@ -86,7 +131,6 @@ type dbStore struct {
 }
 
 type StoreOptions struct {
-
 	// DiscardABCIResponses determines whether or not the store
 	// retains all ABCIResponses. If DiscardABCiResponses is enabled,
 	// the store will maintain only the response object from the latest
@@ -94,7 +138,10 @@ type StoreOptions struct {
 	DiscardABCIResponses bool
 }
 
-var _ Store = (*dbStore)(nil)
+var (
+	_ Store             = (*dbStore)(nil)
+	_ RetainConfigStore = (*dbStore)(nil)
+)
 
 // NewStore creates the dbStore of the state pkg.
 func NewStore(db dbm.DB, options StoreOptions) Store {
@@ -364,6 +411,97 @@ func (store dbStore) PruneStates(from int64, to int64) error {
 	return nil
 }
 
+// LoadRetainConfig implements RetainConfigStore
+func (store dbStore) LoadRetainConfig() (*RetainConfig, error) {
+	arh, err := store.LoadAppRetainHeight()
+	if err != nil {
+		return nil, err
+	}
+	drh, err := store.LoadDataCompanionRetainHeight()
+	if err != nil {
+		return nil, err
+	}
+	return &RetainConfig{
+		AppRetainHeight:           arh,
+		DataCompanionRetainHeight: drh,
+	}, nil
+}
+
+// LoadAppRetainHeight implements RetainConfigStore
+func (store dbStore) LoadAppRetainHeight() (int64, error) {
+	cfg := &cmtstate.StoredAppRetainConfig{
+		Height: -1,
+	}
+	bz, err := store.db.Get(appRetainHeightKey)
+	if err != nil {
+		return -1, err
+	}
+
+	// If it has previously been set
+	if len(bz) != 0 {
+		if err := cfg.Unmarshal(bz); err != nil {
+			// TODO(thane): Other similar methods call cmtos.Exit - should we
+			// simply exit, or panic here? Panicking will still call any
+			// `defer` statements up the call stack, but exiting won't.
+			panic(fmt.Sprintf("LoadAppRetainHeight: Data has been corrupted or its spec has changed unexpectedly: %v\n", err))
+		}
+	}
+
+	return cfg.Height, nil
+}
+
+// LoadDataCompanionRetainHeight implements RetainConfigStore
+func (store dbStore) LoadDataCompanionRetainHeight() (int64, error) {
+	cfg := &v1.StoredDataCompanionRetainConfig{
+		Height: -1,
+	}
+	bz, err := store.db.Get(dataCompanionRetainHeightKey)
+	if err != nil {
+		return -1, err
+	}
+	if len(bz) != 0 {
+		if err := cfg.Unmarshal(bz); err != nil {
+			// TODO(thane): Other methods call cmtos.Exit - should we simply
+			// exit, or panic here? Panicking will still call any `defer`
+			// statements up the call stack, but exiting won't.
+			panic(fmt.Sprintf("LoadRetainConfig: Data companion retain height config has been corrupted or its spec has changed unexpectedly: %v\n", err))
+		}
+	}
+	return cfg.Height, nil
+}
+
+// SaveAppRetainHeight implements RetainConfigStore
+func (store dbStore) SaveAppRetainHeight(height int64) error {
+	cfg := &cmtstate.StoredAppRetainConfig{
+		Height: height,
+	}
+	bz, err := cfg.Marshal()
+	if err != nil {
+		return err
+	}
+	return store.db.Set(appRetainHeightKey, bz)
+}
+
+// SaveDataCompanionRetainHeight implements RetainConfigStore
+func (store dbStore) SaveDataCompanionRetainHeight(height int64) error {
+	cfg := &v1.StoredDataCompanionRetainConfig{
+		Height: height,
+	}
+	bz, err := cfg.Marshal()
+	if err != nil {
+		return err
+	}
+	return store.db.Set(dataCompanionRetainHeightKey, bz)
+}
+
+// SaveRetainConfig implements RetainConfigStore
+func (store dbStore) SaveRetainConfig(cfg *RetainConfig) error {
+	if err := store.SaveAppRetainHeight(cfg.AppRetainHeight); err != nil {
+		return err
+	}
+	return store.SaveDataCompanionRetainHeight(cfg.DataCompanionRetainHeight)
+}
+
 //------------------------------------------------------------------------
 
 // ABCIResponsesResultsHash returns the root hash of a Merkle tree of
@@ -387,7 +525,6 @@ func (store dbStore) LoadABCIResponses(height int64) (*cmtstate.ABCIResponses, e
 		return nil, err
 	}
 	if len(buf) == 0 {
-
 		return nil, ErrNoABCIResponsesForHeight{height}
 	}
 

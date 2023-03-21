@@ -1,0 +1,28 @@
+syntax = "proto3";
+package tendermint.services.data_companion.v1;
+
+option go_package = "github.com/tendermint/tendermint/proto/tendermint/services/data_companion/v1";
+
+// SetRetainHeightRequest allows the data companion to indicate to the node the
+// height to which it is safe to prune from the perspective of the companion.
+message SetRetainHeightRequest {
+    int64 height = 1;
+}
+
+message SetRetainHeightResponse {}
+
+message GetRetainHeightRequest {}
+
+message GetRetainHeightResponse {
+    // The retain height previously set by the data companion, if any.
+    int64 data_companion_retain_height = 1;
+    // The retain height set by the application.
+    int64 app_retain_height = 2;
+}
+
+// StoredDataCompanionRetainConfig is the on-disk representation of the data
+// companion's retention configuration.
+message StoredDataCompanionRetainConfig {
+    // The retain height as desired by the data companion.
+    int64 height = 1;
+}
