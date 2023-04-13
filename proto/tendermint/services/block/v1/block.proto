@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package tendermint.services.block.v1;
+
+import "tendermint/abci/types.proto";
+import "tendermint/types/params.proto";
+import "tendermint/types/block.proto";
+
+message GetLatestHeightRequest {}
+
+// GetLatestHeightResponse provides the height of the latest committed block.
+message GetLatestHeightResponse {
+  // The height of the latest committed block. Will be 0 if no data has been
+  // committed yet.
+  int64 height = 1;
+}
+
+message GetBlockRequest {
+  // The height of the block to get. Set to 0 to return the latest block.
+  int64 height = 1;
+}
+
+message GetBlockResponse {
+  // Block data for the requested height.
+  tendermint.types.Block block = 1;
+}
+
+message GetBlockResultsRequest {
+  // The height of the block results to get. Set to 0 to return the latest
+  // block.
+  int64 height = 1;
+}
+
+message GetBlockResultsResponse {
+  // The height of the block whose results are provided in the remaining
+  // fields.
+  int64 height = 1;
+
+  // All events produced by the ABCI FinalizeBlock call.
+  repeated tendermint.abci.Event events = 2;
+
+  // All transaction results (and their associated events) produced by block
+  // execution.
+  repeated tendermint.abci.ExecTxResult tx_results = 3;
+
+  // Validator updates during block execution.
+  repeated tendermint.abci.ValidatorUpdate validator_updates = 4;
+
+  // Consensus parameter updates during block execution.
+  tendermint.types.ConsensusParams consensus_param_updates = 5;
+
+  // The app hash returned by the application after execution of all of the
+  // transactions in the block.
+  bytes app_hash = 6;
+}
