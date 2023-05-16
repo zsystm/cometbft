@@ -102,6 +102,8 @@ func createConfig() *cfg.Config {
 	c.RPC.ListenAddress = rpc
 	c.RPC.CORSAllowedOrigins = []string{"https://cometbft.com/"}
 	c.RPC.GRPCListenAddress = grpc
+	c.GRPC.ListenAddress = grpc // New change needs to be removed
+	c.GRPC.VersionService.Enabled = true
 	return c
 }
 
