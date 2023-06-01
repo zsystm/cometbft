@@ -16,6 +16,12 @@ docker-debug:
 		--tag cometbft/e2e-node:local-version \
 		-f docker/Dockerfile.debug ../..
 
+docker-quickfix:
+	@echo "Building E2E Docker image for debugging"
+	@docker build \
+		--tag cometbft/e2e-node:local-version \
+		-f docker/Dockerfile.quick ../..
+
 # We need to build support for database backends into the app in
 # order to build a binary with a CometBFT node in it (for built-in
 # ABCI testing).
