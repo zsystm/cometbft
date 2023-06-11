@@ -1,2 +1,7 @@
 [rpc]
 laddr = "tcp://0.0.0.0:26657"
+[instrumentation]
+prometheus = true
+[mempool]
+size = 100000
+cache_size = 200000

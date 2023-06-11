@@ -35,11 +35,24 @@ type BlockerIndexer struct {
 	// Matching will be done both on height AND eventSeq
 	eventSeq int64
 	log      log.Logger
+
+	metrics *idxutil.Metrics
 }
 
-func New(store dbm.DB) *BlockerIndexer {
+type IndexerOptions struct {
+	Metrics *idxutil.Metrics
+}
+
+func New(dbStore dbm.DB, opts ...IndexerOptions) *BlockerIndexer {
+
+	m := idxutil.NopMetrics()
+	if opts[0].Metrics != nil {
+		m = opts[0].Metrics
+	}
+
 	return &BlockerIndexer{
-		store: store,
+		store:   dbStore,
+		metrics: m,
 	}
 }
 
@@ -77,12 +90,16 @@ func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockEvents) error {
 	if err := batch.Set(key, int64ToBytes(height)); err != nil {
 		return err
 	}
-
+	bytesIndexed := int64(len(key)) + int64(len(int64ToBytes(height)))
 	// 2. index block events
-	if err := idx.indexEvents(batch, bh.Events, height); err != nil {
+
+	if bI, err := idx.indexEvents(batch, bh.Events, height); err != nil {
 		return fmt.Errorf("failed to index FinalizeBlock events: %w", err)
+	} else {
+		bytesIndexed += bI
 	}
 
+	idx.metrics.IdxStoreAccessPattern.With("method", "blockIndex").With("accessType", "WriteSync").Set(float64(bytesIndexed))
 	return batch.WriteSync()
 }
 
@@ -275,14 +292,14 @@ func (idx *BlockerIndexer) matchRange(
 		return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
 	}
 	defer it.Close()
-
+	bytesIterated := int64(0)
 LOOP:
 	for ; it.Valid(); it.Next() {
 		var (
 			eventValue string
 			err        error
 		)
-
+		bytesIterated += int64(len(it.Key()))
 		if qr.Key == types.BlockHeightKey {
 			eventValue, err = parseValueFromPrimaryKey(it.Key())
 		} else {
@@ -333,6 +350,7 @@ LOOP:
 				idx.log.Error("failed to parse bounds:", err)
 			} else {
 				if withinBounds {
+					bytesIterated += int64(len(it.Value()))
 					idx.setTmpHeights(tmpHeights, it)
 				}
 			}
@@ -345,7 +363,7 @@ LOOP:
 		default:
 		}
 	}
-
+	idx.metrics.IdxStoreAccessPattern.With("method", "blockIDxSearch").With("accessType", "Iterate").Set(float64(bytesIterated))
 	if err := it.Error(); err != nil {
 		return nil, err
 	}
@@ -413,7 +431,7 @@ func (idx *BlockerIndexer) match(
 	}
 
 	tmpHeights := make(map[string][]byte)
-
+	bytesIterated := int64(0)
 	switch {
 	case c.Op == syntax.TEq:
 		it, err := dbm.IteratePrefix(idx.store, startKeyBz)
@@ -423,7 +441,7 @@ func (idx *BlockerIndexer) match(
 		defer it.Close()
 
 		for ; it.Valid(); it.Next() {
-
+			bytesIterated += int64(len(it.Key()))
 			keyHeight, err := parseHeightFromEventKey(it.Key())
 			if err != nil {
 				idx.log.Error("failure to parse height from key:", err)
@@ -437,6 +455,7 @@ func (idx *BlockerIndexer) match(
 			if !withinHeight {
 				continue
 			}
+			bytesIterated += int64(len(it.Value()))
 
 			idx.setTmpHeights(tmpHeights, it)
 
@@ -463,6 +482,7 @@ func (idx *BlockerIndexer) match(
 
 		for ; it.Valid(); it.Next() {
 
+			bytesIterated += int64(len(it.Key()))
 			keyHeight, err := parseHeightFromEventKey(it.Key())
 			if err != nil {
 				idx.log.Error("failure to parse height from key:", err)
@@ -476,7 +496,7 @@ func (idx *BlockerIndexer) match(
 			if !withinHeight {
 				continue
 			}
-
+			bytesIterated += int64(len(it.Value()))
 			idx.setTmpHeights(tmpHeights, it)
 
 			select {
@@ -504,6 +524,7 @@ func (idx *BlockerIndexer) match(
 		defer it.Close()
 
 		for ; it.Valid(); it.Next() {
+			bytesIterated += int64(len(it.Key()))
 			eventValue, err := parseValueFromEventKey(it.Key())
 			if err != nil {
 				continue
@@ -523,6 +544,7 @@ func (idx *BlockerIndexer) match(
 				if !withinHeight {
 					continue
 				}
+				bytesIterated += int64(len(it.Value()))
 				idx.setTmpHeights(tmpHeights, it)
 			}
 
@@ -540,6 +562,7 @@ func (idx *BlockerIndexer) match(
 	default:
 		return nil, errors.New("other operators should be handled already")
 	}
+	idx.metrics.IdxStoreAccessPattern.With("method", "blockIDxSearch").With("accessType", "Iterate").Set(float64(bytesIterated))
 
 	if len(tmpHeights) == 0 || firstRun {
 		// Either:
@@ -571,9 +594,9 @@ func (idx *BlockerIndexer) match(
 	return filteredHeights, nil
 }
 
-func (idx *BlockerIndexer) indexEvents(batch dbm.Batch, events []abci.Event, height int64) error {
+func (idx *BlockerIndexer) indexEvents(batch dbm.Batch, events []abci.Event, height int64) (int64, error) {
 	heightBz := int64ToBytes(height)
-
+	bytesIndexed := int64(0)
 	for _, event := range events {
 		idx.eventSeq = idx.eventSeq + 1
 		// only index events with a non-empty type
@@ -589,21 +612,23 @@ func (idx *BlockerIndexer) indexEvents(batch dbm.Batch, events []abci.Event, hei
 			// index iff the event specified index:true and it's not a reserved event
 			compositeKey := fmt.Sprintf("%s.%s", event.Type, attr.Key)
 			if compositeKey == types.BlockHeightKey {
-				return fmt.Errorf("event type and attribute key \"%s\" is reserved; please use a different key", compositeKey)
+				return 0, fmt.Errorf("event type and attribute key \"%s\" is reserved; please use a different key", compositeKey)
 			}
 
 			if attr.GetIndex() {
 				key, err := eventKey(compositeKey, attr.Value, height, idx.eventSeq)
-				if err != nil {
-					return fmt.Errorf("failed to create block index key: %w", err)
-				}
 
-				if err := batch.Set(key, heightBz); err != nil {
-					return err
+				if err != nil {
+					return 0, fmt.Errorf("failed to create block index key: %w", err)
 				}
+				bytesIndexed += int64(len(key))
+				if err := batch.Set(key, heightBz); err != nil {
+					return 0, err
+				}
+				bytesIndexed += int64(len(heightBz))
 			}
 		}
 	}
 
-	return nil
+	return int64(bytesIndexed), nil
 }

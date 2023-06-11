@@ -42,19 +42,34 @@ type BlockStore struct {
 	// database contents. The only reason for keeping these fields in the struct is that the data
 	// can't efficiently be queried from the database since the key encoding we use is not
 	// lexicographically ordered (see https://github.com/tendermint/tendermint/issues/4567).
-	mtx    cmtsync.RWMutex
-	base   int64
-	height int64
+	mtx     cmtsync.RWMutex
+	base    int64
+	height  int64
+	metrics *Metrics
+}
+
+type BlockStoreOptions struct {
+	Metrics *Metrics
 }
 
 // NewBlockStore returns a new BlockStore with the given DB,
 // initialized to the last height that was committed to the DB.
-func NewBlockStore(db dbm.DB) *BlockStore {
+func NewBlockStore(db dbm.DB, opts ...BlockStoreOptions) *BlockStore {
 	bs := LoadBlockStoreState(db)
+
+	if opts == nil || opts[0].Metrics == nil {
+		return &BlockStore{
+			base:    bs.Base,
+			height:  bs.Height,
+			db:      db,
+			metrics: NopMetrics(),
+		}
+	}
 	return &BlockStore{
-		base:   bs.Base,
-		height: bs.Height,
-		db:     db,
+		base:    bs.Base,
+		height:  bs.Height,
+		db:      db,
+		metrics: opts[0].Metrics,
 	}
 }
 
@@ -95,6 +110,7 @@ func (bs *BlockStore) LoadBaseMeta() *types.BlockMeta {
 // LoadBlock returns the block with the given height.
 // If no block is found for that height, it returns nil.
 func (bs *BlockStore) LoadBlock(height int64) *types.Block {
+
 	blockMeta := bs.LoadBlockMeta(height)
 	if blockMeta == nil {
 		return nil
@@ -176,10 +192,12 @@ func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 // If no block is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 	pbbm := new(cmtproto.BlockMeta)
+
 	bz, err := bs.db.Get(calcBlockMetaKey(height))
 	if err != nil {
 		panic(err)
 	}
+	bs.metrics.BlockStoreAccessStat.With("method", "LoadBlockMeta").With("accessType", "Get").Set(float64(len(bz) + len(calcBlockMetaKey(height))))
 
 	if len(bz) == 0 {
 		return nil
@@ -201,7 +219,9 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 // LoadBlockMetaByHash returns the blockmeta who's header corresponds to the given
 // hash. If none is found, returns nil.
 func (bs *BlockStore) LoadBlockMetaByHash(hash []byte) *types.BlockMeta {
+
 	bz, err := bs.db.Get(calcBlockHashKey(hash))
+	bs.metrics.BlockStoreAccessStat.With("method", "LoadBlockMetaByHash").With("accessType", "Get").Set(float64(len(bz) + len(calcBlockHashKey(hash))))
 	if err != nil {
 		panic(err)
 	}
@@ -223,7 +243,9 @@ func (bs *BlockStore) LoadBlockMetaByHash(hash []byte) *types.BlockMeta {
 // If no commit is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 	pbc := new(cmtproto.Commit)
+
 	bz, err := bs.db.Get(calcBlockCommitKey(height))
+	bs.metrics.BlockStoreAccessStat.With("method", "LoadBlockCommit").With("accessType", "Get").Set(float64(len(bz) + len(calcBlockCommitKey(height))))
 	if err != nil {
 		panic(err)
 	}
@@ -250,6 +272,7 @@ func (bs *BlockStore) LoadBlockExtendedCommit(height int64) *types.ExtendedCommi
 	if err != nil {
 		panic(fmt.Errorf("fetching extended commit: %w", err))
 	}
+	bs.metrics.BlockStoreAccessStat.With("method", "LoadBlockExtendedCommit").With("accessType", "Get").Set(float64(len(bz) + len(calcExtCommitKey(height))))
 	if len(bz) == 0 {
 		return nil
 	}
@@ -424,6 +447,7 @@ func (bs *BlockStore) SaveBlockWithExtendedCommit(block *types.Block, blockParts
 		panic(err)
 	}
 
+	bs.metrics.BlockStoreAccessStat.With("method", "SaveBlockWithExtendedCommit").With("accessType", "Set").Set(float64(len(extCommitBytes) + len(calcExtCommitKey(height))))
 	// Save new BlockStoreState descriptor. This also flushes the database.
 	bs.saveState()
 }
@@ -465,17 +489,19 @@ func (bs *BlockStore) saveBlockToBatch(block *types.Block, blockParts *types.Par
 	if err := bs.db.Set(calcBlockMetaKey(height), metaBytes); err != nil {
 		return err
 	}
+	bs.metrics.BlockStoreAccessStat.With("method", "saveBlockToBatch").With("accessType", "Set").Set(float64(len(metaBytes) + len(calcBlockMetaKey(height))))
 	if err := bs.db.Set(calcBlockHashKey(hash), []byte(fmt.Sprintf("%d", height))); err != nil {
 		return err
 	}
 
+	bs.metrics.BlockStoreAccessStat.With("method", "saveBlockToBatch").With("accessType", "Set").Set(float64(len([]byte(fmt.Sprintf("%d", height))) + len(calcBlockHashKey(hash))))
 	// Save block commit (duplicate and separate from the Block)
 	pbc := block.LastCommit.ToProto()
 	blockCommitBytes := mustEncode(pbc)
 	if err := bs.db.Set(calcBlockCommitKey(height-1), blockCommitBytes); err != nil {
 		return err
 	}
-
+	bs.metrics.BlockStoreAccessStat.With("method", "saveBlockToBatch").With("accessType", "Set").Set(float64(len(blockCommitBytes) + len(calcBlockCommitKey(height-1))))
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	pbsc := seenCommit.ToProto()
@@ -483,7 +509,7 @@ func (bs *BlockStore) saveBlockToBatch(block *types.Block, blockParts *types.Par
 	if err := bs.db.Set(calcSeenCommitKey(height), seenCommitBytes); err != nil {
 		return err
 	}
-
+	bs.metrics.BlockStoreAccessStat.With("method", "saveBlockToBatch").With("accessType", "Set").Set(float64(len(seenCommitBytes) + len(calcBlockCommitKey(height))))
 	// Done!
 	bs.mtx.Lock()
 	bs.height = height
@@ -504,6 +530,8 @@ func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
 	if err := bs.db.Set(calcBlockPartKey(height, index), partBytes); err != nil {
 		panic(err)
 	}
+	bs.metrics.BlockStoreAccessStat.With("method", "saveBlockPart").With("accessType", "Set").Set(float64(len(partBytes) + len(calcBlockPartKey(height, index))))
+
 }
 
 func (bs *BlockStore) saveState() {
@@ -523,7 +551,9 @@ func (bs *BlockStore) SaveSeenCommit(height int64, seenCommit *types.Commit) err
 	if err != nil {
 		return fmt.Errorf("unable to marshal commit: %w", err)
 	}
+	bs.metrics.BlockStoreAccessStat.With("method", "SaveSeenCommit").With("accessType", "Set").Set(float64(len(seenCommitBytes) + len(calcSeenCommitKey(height))))
 	return bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
+
 }
 
 func (bs *BlockStore) Close() error {
@@ -569,6 +599,8 @@ func SaveBlockStoreState(bsj *cmtstore.BlockStoreState, db dbm.DB) {
 	if err := db.SetSync(blockStoreKey, bytes); err != nil {
 		panic(err)
 	}
+	// bs.metrics.BlockStoreAccessStat.With("method", "SaveBlockStoreState").With("accessType", "SetSync").Set(float64(len(blockStoreKey) + len(bytes)))
+
 }
 
 // LoadBlockStoreState returns the BlockStoreState as loaded from disk.

@@ -26,4 +26,8 @@ type Metrics struct {
 	// updated the validator set since process start.
 	//metrics:Number of validator set updates returned by the application since process start.
 	ValidatorSetUpdates metrics.Counter
+
+	// The number of bytes by method that is accessing the state store and type of access
+	// Set , Get, Batch
+	StateDBAccessStats metrics.Gauge `metrics_labels:"method,accessType"`
 }

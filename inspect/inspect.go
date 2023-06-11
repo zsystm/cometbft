@@ -8,6 +8,7 @@ import (
 
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/inspect/rpc"
+	idxmetric "github.com/cometbft/cometbft/internal/indexer"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtstrings "github.com/cometbft/cometbft/libs/strings"
 	rpccore "github.com/cometbft/cometbft/rpc/core"
@@ -82,7 +83,7 @@ func NewFromConfig(cfg *config.Config) (*Inspector, error) {
 	if err != nil {
 		return nil, err
 	}
-	txidx, blkidx, err := block.IndexerFromConfig(cfg, config.DefaultDBProvider, genDoc.ChainID)
+	txidx, blkidx, err := block.IndexerFromConfig(cfg, config.DefaultDBProvider, genDoc.ChainID, idxmetric.NopMetrics())
 	if err != nil {
 		return nil, err
 	}

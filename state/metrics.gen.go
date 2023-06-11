@@ -34,6 +34,12 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "validator_set_updates",
 			Help:      "Number of validator set updates returned by the application since process start.",
 		}, labels).With(labelsAndValues...),
+		StateDBAccessStats: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "state_dbaccess_stats",
+			Help:      "The number of bytes by method that is accessing the state store and type of access Set , Get, Batch",
+		}, append(labels, "method", "accessType")).With(labelsAndValues...),
 	}
 }
 
@@ -42,5 +48,6 @@ func NopMetrics() *Metrics {
 		BlockProcessingTime:   discard.NewHistogram(),
 		ConsensusParamUpdates: discard.NewCounter(),
 		ValidatorSetUpdates:   discard.NewCounter(),
+		StateDBAccessStats:    discard.NewGauge(),
 	}
 }

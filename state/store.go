@@ -82,6 +82,7 @@ type dbStore struct {
 	db dbm.DB
 
 	StoreOptions
+	Metrics *Metrics
 }
 
 type StoreOptions struct {
@@ -90,13 +91,20 @@ type StoreOptions struct {
 	// the store will maintain only the response object from the latest
 	// height.
 	DiscardABCIResponses bool
+	Metrics              *Metrics
 }
 
 var _ Store = (*dbStore)(nil)
 
 // NewStore creates the dbStore of the state pkg.
 func NewStore(db dbm.DB, options StoreOptions) Store {
-	return dbStore{db, options}
+
+	m := NopMetrics()
+
+	if options.Metrics != nil {
+		m = options.Metrics
+	}
+	return dbStore{db: db, StoreOptions: options, Metrics: m}
 }
 
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,
@@ -142,10 +150,13 @@ func (store dbStore) Load() (State, error) {
 }
 
 func (store dbStore) loadState(key []byte) (state State, err error) {
+
 	buf, err := store.db.Get(key)
+
 	if err != nil {
 		return state, err
 	}
+	store.Metrics.StateDBAccessStats.With("method", "loadState").With("accessType", "read").Set(float64(len(buf) + len(key)))
 	if len(buf) == 0 {
 		return state, nil
 	}
@@ -385,6 +396,7 @@ func (store dbStore) LoadFinalizeBlockResponse(height int64) (*abci.ResponseFina
 	}
 
 	buf, err := store.db.Get(calcABCIResponsesKey(height))
+	store.Metrics.StateDBAccessStats.With("method", "LoadFinalizeBlockResponse").With("accessType", "read").Set(float64(len(buf) + len(calcABCIResponsesKey(height))))
 	if err != nil {
 		return nil, err
 	}
@@ -423,6 +435,7 @@ func (store dbStore) LoadFinalizeBlockResponse(height int64) (*abci.ResponseFina
 // method on the application but crashed before persisting the results.
 func (store dbStore) LoadLastFinalizeBlockResponse(height int64) (*abci.ResponseFinalizeBlock, error) {
 	bz, err := store.db.Get(lastABCIResponseKey)
+	store.Metrics.StateDBAccessStats.With("method", "LoadFinalizeBlockResponse").With("accessType", "read").Set(float64(len(bz) + len(lastABCIResponseKey)))
 	if err != nil {
 		return nil, err
 	}
@@ -480,9 +493,11 @@ func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.Response
 		if err != nil {
 			return err
 		}
+		store.Metrics.StateDBAccessStats.With("method", "SaveFinalizeBlockResponse").With("accessType", "write").Set(float64(len(calcABCIResponsesKey(height)) + len(bz)))
 		if err := store.db.Set(calcABCIResponsesKey(height), bz); err != nil {
 			return err
 		}
+
 	}
 
 	// We always save the last ABCI response for crash recovery.
@@ -495,7 +510,7 @@ func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.Response
 	if err != nil {
 		return err
 	}
-
+	store.Metrics.StateDBAccessStats.With("method", "SaveFinalizeBlockResponse").With("accessType", "writeSync").Set(float64(len(lastABCIResponseKey) + len(bz)))
 	return store.db.SetSync(lastABCIResponseKey, bz)
 }
 
@@ -505,12 +520,14 @@ func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.Response
 // Returns ErrNoValSetForHeight if the validator set can't be found for this height.
 func (store dbStore) LoadValidators(height int64) (*types.ValidatorSet, error) {
 	valInfo, err := loadValidatorsInfo(store.db, height)
+	store.Metrics.StateDBAccessStats.With("method", "LoadValidators").With("accessType", "read").Set(float64(valInfo.Size()))
 	if err != nil {
 		return nil, ErrNoValSetForHeight{height}
 	}
 	if valInfo.ValidatorSet == nil {
 		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
 		valInfo2, err := loadValidatorsInfo(store.db, lastStoredHeight)
+		store.Metrics.StateDBAccessStats.With("method", "LoadValidators").With("accessType", "read").Set(float64(valInfo.Size()))
 		if err != nil || valInfo2.ValidatorSet == nil {
 			return nil,
 				fmt.Errorf("couldn't find validators at height %d (height %d was originally requested): %w",

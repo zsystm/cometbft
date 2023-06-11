@@ -38,12 +38,24 @@ type TxIndex struct {
 	eventSeq int64
 
 	log log.Logger
+
+	metrics *idxutil.Metrics
+}
+
+type TxIdxOptions struct {
+	Metrics *idxutil.Metrics
 }
 
 // NewTxIndex creates new KV indexer.
-func NewTxIndex(store dbm.DB) *TxIndex {
+func NewTxIndex(store dbm.DB, opts ...TxIdxOptions) *TxIndex {
+	m := idxutil.NopMetrics()
+
+	if opts[0].Metrics != nil {
+		m = opts[0].Metrics
+	}
 	return &TxIndex{
-		store: store,
+		store:   store,
+		metrics: m,
 	}
 }
 
@@ -62,6 +74,8 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 	if err != nil {
 		panic(err)
 	}
+
+	txi.metrics.IdxStoreAccessPattern.With("method", "TxIdxGetTx").With("accessType", "Get").Set(float64(len(hash) + len(rawBytes)))
 	if rawBytes == nil {
 		return nil, nil
 	}
@@ -82,16 +96,16 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 	storeBatch := txi.store.NewBatch()
 	defer storeBatch.Close()
-
+	bytesIndexed := int64(0)
 	for _, result := range b.Ops {
 		hash := types.Tx(result.Tx).Hash()
 
 		// index tx by events
-		err := txi.indexEvents(result, hash, storeBatch)
+		bI, err := txi.indexEvents(result, hash, storeBatch)
 		if err != nil {
 			return err
 		}
-
+		bytesIndexed += bI
 		// index by height (always)
 		err = storeBatch.Set(keyForHeight(result), hash)
 		if err != nil {
@@ -104,11 +118,12 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 		}
 		// index by hash (always)
 		err = storeBatch.Set(hash, rawBytes)
+		bytesIndexed += int64(len(hash)) + int64(len(rawBytes))
 		if err != nil {
 			return err
 		}
 	}
-
+	txi.metrics.IdxStoreAccessPattern.With("method", "TxIdxAddBatch").With("accessType", "WriteSync").Set(float64(bytesIndexed))
 	return storeBatch.WriteSync()
 }
 
@@ -124,15 +139,15 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 func (txi *TxIndex) Index(result *abci.TxResult) error {
 	b := txi.store.NewBatch()
 	defer b.Close()
-
+	bytesIndexed := int64(0)
 	hash := types.Tx(result.Tx).Hash()
 
 	if !result.Result.IsOK() {
+
 		oldResult, err := txi.Get(hash)
 		if err != nil {
 			return err
 		}
-
 		// if the new transaction failed and it's already indexed in an older block and was successful
 		// we skip it as we want users to get the older successful transaction when they query.
 		if oldResult != nil && oldResult.Result.Code == abci.CodeTypeOK {
@@ -141,17 +156,18 @@ func (txi *TxIndex) Index(result *abci.TxResult) error {
 	}
 
 	// index tx by events
-	err := txi.indexEvents(result, hash, b)
+	bIdx, err := txi.indexEvents(result, hash, b)
 	if err != nil {
 		return err
 	}
+	bytesIndexed += bIdx
 
 	// index by height (always)
 	err = b.Set(keyForHeight(result), hash)
 	if err != nil {
 		return err
 	}
-
+	bytesIndexed += int64(len(keyForHeight(result))) + int64(len(hash))
 	rawBytes, err := proto.Marshal(result)
 	if err != nil {
 		return err
@@ -161,11 +177,14 @@ func (txi *TxIndex) Index(result *abci.TxResult) error {
 	if err != nil {
 		return err
 	}
+	bytesIndexed += int64(len(hash)) + int64(len(rawBytes))
 
+	txi.metrics.IdxStoreAccessPattern.With("method", "TxIdxIndex").With("accessType", "WriteSync").Set(float64(bytesIndexed))
 	return b.WriteSync()
 }
 
-func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store dbm.Batch) error {
+func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store dbm.Batch) (int64, error) {
+	bytesIndexed := int64(0)
 	for _, event := range result.Result.Events {
 		txi.eventSeq = txi.eventSeq + 1
 		// only index events with a non-empty type
@@ -182,18 +201,19 @@ func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store dbm.Ba
 			compositeTag := fmt.Sprintf("%s.%s", event.Type, attr.Key)
 			// ensure event does not conflict with a reserved prefix key
 			if compositeTag == types.TxHashKey || compositeTag == types.TxHeightKey {
-				return fmt.Errorf("event type and attribute key \"%s\" is reserved; please use a different key", compositeTag)
+				return 0, fmt.Errorf("event type and attribute key \"%s\" is reserved; please use a different key", compositeTag)
 			}
 			if attr.GetIndex() {
 				err := store.Set(keyForEvent(compositeTag, attr.Value, result, txi.eventSeq), hash)
 				if err != nil {
-					return err
+					return 0, err
 				}
+				bytesIndexed += int64(len(keyForEvent(compositeTag, attr.Value, result, txi.eventSeq)) + len(hash))
 			}
 		}
 	}
 
-	return nil
+	return bytesIndexed, nil
 }
 
 // Search performs a search using the given query.
@@ -363,7 +383,7 @@ func (txi *TxIndex) match(
 	}
 
 	tmpHashes := make(map[string][]byte)
-
+	bytesIndexed := int64(0)
 	switch {
 	case c.Op == syntax.TEq:
 		it, err := dbm.IteratePrefix(txi.store, startKeyBz)
@@ -377,6 +397,7 @@ func (txi *TxIndex) match(
 
 			// If we have a height range in a query, we need only transactions
 			// for this height
+			bytesIndexed += int64(len(it.Key()))
 			keyHeight, err := extractHeightFromKey(it.Key())
 			if err != nil {
 				txi.log.Error("failure to parse height from key:", err)
@@ -390,6 +411,7 @@ func (txi *TxIndex) match(
 			if !withinBounds {
 				continue
 			}
+			bytesIndexed += int64(len(it.Value()))
 			txi.setTmpHashes(tmpHashes, it)
 			// Potentially exit early.
 			select {
@@ -413,6 +435,7 @@ func (txi *TxIndex) match(
 
 	EXISTS_LOOP:
 		for ; it.Valid(); it.Next() {
+			bytesIndexed += int64(len(it.Key()))
 			keyHeight, err := extractHeightFromKey(it.Key())
 			if err != nil {
 				txi.log.Error("failure to parse height from key:", err)
@@ -426,6 +449,7 @@ func (txi *TxIndex) match(
 			if !withinBounds {
 				continue
 			}
+			bytesIndexed += int64(len(it.Value()))
 			txi.setTmpHashes(tmpHashes, it)
 
 			// Potentially exit early.
@@ -451,10 +475,11 @@ func (txi *TxIndex) match(
 
 	CONTAINS_LOOP:
 		for ; it.Valid(); it.Next() {
+			bytesIndexed += int64(len(it.Key()))
 			if !isTagKey(it.Key()) {
 				continue
 			}
-
+			bytesIndexed += int64(len(it.Value()))
 			if strings.Contains(extractValueFromKey(it.Key()), c.Arg.Value()) {
 				keyHeight, err := extractHeightFromKey(it.Key())
 				if err != nil {
@@ -485,7 +510,7 @@ func (txi *TxIndex) match(
 	default:
 		panic("other operators should be handled already")
 	}
-
+	txi.metrics.IdxStoreAccessPattern.With("method", "TxIdxSearch").With("accessType", "Iterate").Set(float64(bytesIndexed))
 	if len(tmpHashes) == 0 || firstRun {
 		// Either:
 		//
@@ -544,8 +569,10 @@ func (txi *TxIndex) matchRange(
 	}
 	defer it.Close()
 
+	bytesIndexed := int64(0)
 LOOP:
 	for ; it.Valid(); it.Next() {
+		bytesIndexed += int64(len(it.Key()))
 		if !isTagKey(it.Key()) {
 			continue
 		}
@@ -587,6 +614,7 @@ LOOP:
 				txi.log.Error("failed to parse bounds:", err)
 			} else {
 				if withinBounds {
+					bytesIndexed += int64(len(it.Value()))
 					txi.setTmpHashes(tmpHashes, it)
 				}
 			}
@@ -606,6 +634,7 @@ LOOP:
 		default:
 		}
 	}
+	txi.metrics.IdxStoreAccessPattern.With("method", "TxIdxSearch").With("accessType", "Iterate").Set(float64(bytesIndexed))
 	if err := it.Error(); err != nil {
 		panic(err)
 	}

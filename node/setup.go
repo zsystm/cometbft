@@ -19,8 +19,7 @@ import (
 	cs "github.com/cometbft/cometbft/consensus"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/evidence"
-	"github.com/cometbft/cometbft/statesync"
-
+	idxmetrics "github.com/cometbft/cometbft/internal/indexer"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/light"
@@ -33,6 +32,7 @@ import (
 	"github.com/cometbft/cometbft/state/indexer"
 	"github.com/cometbft/cometbft/state/indexer/block"
 	"github.com/cometbft/cometbft/state/txindex"
+	"github.com/cometbft/cometbft/statesync"
 	"github.com/cometbft/cometbft/store"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
@@ -79,12 +79,12 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
 }
 
 // MetricsProvider returns a consensus, p2p and mempool Metrics.
-type MetricsProvider func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *proxy.Metrics, *blocksync.Metrics, *statesync.Metrics)
+type MetricsProvider func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *proxy.Metrics, *blocksync.Metrics, *store.Metrics, *statesync.Metrics, *idxmetrics.Metrics)
 
 // DefaultMetricsProvider returns Metrics build using Prometheus client library
 // if Prometheus is enabled. Otherwise, it returns no-op Metrics.
 func DefaultMetricsProvider(config *cfg.InstrumentationConfig) MetricsProvider {
-	return func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *proxy.Metrics, *blocksync.Metrics, *statesync.Metrics) {
+	return func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *proxy.Metrics, *blocksync.Metrics, *store.Metrics, *statesync.Metrics, *idxmetrics.Metrics) {
 		if config.Prometheus {
 			return cs.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				p2p.PrometheusMetrics(config.Namespace, "chain_id", chainID),
@@ -92,9 +92,11 @@ func DefaultMetricsProvider(config *cfg.InstrumentationConfig) MetricsProvider {
 				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				proxy.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				blocksync.PrometheusMetrics(config.Namespace, "chain_id", chainID),
-				statesync.PrometheusMetrics(config.Namespace, "chain_id", chainID)
+				store.PrometheusMetrics(config.Namespace, "chain_id", chainID),
+				statesync.PrometheusMetrics(config.Namespace, "chain_id", chainID),
+				idxmetrics.PrometheusMetrics(config.Namespace, "chain_id", chainID)
 		}
-		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics(), proxy.NopMetrics(), blocksync.NopMetrics(), statesync.NopMetrics()
+		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics(), proxy.NopMetrics(), blocksync.NopMetrics(), store.NopMetrics(), statesync.NopMetrics(), idxmetrics.NopMetrics()
 	}
 }
 
@@ -104,13 +106,13 @@ type blockSyncReactor interface {
 
 //------------------------------------------------------------------------------
 
-func initDBs(config *cfg.Config, dbProvider cfg.DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
-	var blockStoreDB dbm.DB
+func initDBs(config *cfg.Config, dbProvider cfg.DBProvider) (blockStoreDB dbm.DB, stateDB dbm.DB, err error) {
+	// var blockStoreDB dbm.DB
 	blockStoreDB, err = dbProvider(&cfg.DBContext{ID: "blockstore", Config: config})
 	if err != nil {
 		return
 	}
-	blockStore = store.NewBlockStore(blockStoreDB)
+	//	blockStore = store.NewBlockStore(blockStoreDB)
 
 	stateDB, err = dbProvider(&cfg.DBContext{ID: "state", Config: config})
 	if err != nil {
@@ -144,12 +146,13 @@ func createAndStartIndexerService(
 	dbProvider cfg.DBProvider,
 	eventBus *types.EventBus,
 	logger log.Logger,
+	idxMetrics *idxmetrics.Metrics,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
 	var (
 		txIndexer    txindex.TxIndexer
 		blockIndexer indexer.BlockIndexer
 	)
-	txIndexer, blockIndexer, err := block.IndexerFromConfig(config, dbProvider, chainID)
+	txIndexer, blockIndexer, err := block.IndexerFromConfig(config, dbProvider, chainID, idxMetrics)
 	if err != nil {
 		return nil, nil, nil, err
 	}

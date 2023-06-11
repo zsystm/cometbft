@@ -10,6 +10,7 @@ import (
 
 	cfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/inspect"
+	"github.com/cometbft/cometbft/internal/indexer"
 	"github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/state/indexer/block"
 	"github.com/cometbft/cometbft/store"
@@ -73,7 +74,7 @@ func runInspect(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	txIndexer, blockIndexer, err := block.IndexerFromConfig(config, cfg.DefaultDBProvider, genDoc.ChainID)
+	txIndexer, blockIndexer, err := block.IndexerFromConfig(config, cfg.DefaultDBProvider, genDoc.ChainID, indexer.NopMetrics())
 	if err != nil {
 		return err
 	}

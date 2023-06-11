@@ -144,22 +144,28 @@ func NewNode(ctx context.Context,
 	logger log.Logger,
 	options ...Option,
 ) (*Node, error) {
-	blockStore, stateDB, err := initDBs(config, dbProvider)
+	blockStoreDB, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {
 		return nil, err
 	}
-
-	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
-		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
-	})
 
 	state, genDoc, err := LoadStateFromDBOrGenesisDocProvider(stateDB, genesisDocProvider)
 	if err != nil {
 		return nil, err
 	}
 
-	csMetrics, p2pMetrics, memplMetrics, smMetrics, abciMetrics, bsMetrics, ssMetrics := metricsProvider(genDoc.ChainID)
+	csMetrics, p2pMetrics, memplMetrics, smMetrics, abciMetrics, bsMetrics, blockStoreMetrics, ssMetrics, idxMetrics := metricsProvider(genDoc.ChainID)
 
+	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
+		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
+		Metrics:              smMetrics,
+	})
+
+	bsOptions := make([]store.BlockStoreOptions, 1)
+	bsOptions[0] = store.BlockStoreOptions{
+		Metrics: blockStoreMetrics,
+	}
+	blockStore := store.NewBlockStore(blockStoreDB, bsOptions...)
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
 	proxyApp, err := createAndStartProxyAppConns(clientCreator, logger, abciMetrics)
 	if err != nil {
@@ -176,7 +182,7 @@ func NewNode(ctx context.Context,
 	}
 
 	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(config,
-		genDoc.ChainID, dbProvider, eventBus, logger)
+		genDoc.ChainID, dbProvider, eventBus, logger, idxMetrics)
 	if err != nil {
 		return nil, err
 	}
