@@ -255,6 +255,33 @@ func (app *Application) FinalizeBlock(_ context.Context, req *types.RequestFinal
 						{Key: "noindex_key", Value: "index is working", Index: false},
 					},
 				},
+				{
+					Type: "app",
+					Attributes: []types.EventAttribute{
+						{Key: "creator", Value: "Cosmoshi2", Index: true},
+						{Key: "key", Value: value + "2", Index: true},
+						{Key: "index_key", Value: "index is working", Index: true},
+						{Key: "noindex_key", Value: "index is working", Index: false},
+					},
+				},
+				{
+					Type: "app",
+					Attributes: []types.EventAttribute{
+						{Key: "creator", Value: "Cosmoshi3", Index: true},
+						{Key: "key", Value: value + "3", Index: true},
+						{Key: "index_key", Value: "index is working", Index: true},
+						{Key: "noindex_key", Value: "index is working", Index: false},
+					},
+				},
+				{
+					Type: "app",
+					Attributes: []types.EventAttribute{
+						{Key: "creator", Value: "Cosmoshi4", Index: true},
+						{Key: "key", Value: value + "4", Index: true},
+						{Key: "index_key", Value: "index is working", Index: true},
+						{Key: "noindex_key", Value: "index is working", Index: false},
+					},
+				},
 			},
 		}
 		app.state.Size++

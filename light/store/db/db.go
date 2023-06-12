@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	dbm "github.com/cometbft/cometbft-db"
+	"github.com/syndtr/goleveldb/leveldb/comparer"
 
 	cmtsync "github.com/cometbft/cometbft/libs/sync"
 	"github.com/cometbft/cometbft/light/store"
@@ -22,6 +23,9 @@ type dbs struct {
 
 	mtx  cmtsync.RWMutex
 	size uint16
+}
+type DBOptions struct {
+	Comparator comparer.Comparer
 }
 
 // New returns a Store that wraps any DB (with an optional prefix in case you

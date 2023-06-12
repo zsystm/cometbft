@@ -36,7 +36,7 @@ Currently, only GoLevelDB is supported.
 }
 
 func compactGoLevelDBs(rootDir string, logger log.Logger) {
-	dbNames := []string{"state", "blockstore"}
+	dbNames := []string{"state", "blockstore", "tx_index"}
 	o := &opt.Options{
 		DisableSeeksCompaction: true,
 	}

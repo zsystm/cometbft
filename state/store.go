@@ -27,15 +27,15 @@ const (
 //------------------------------------------------------------------------
 
 func calcValidatorsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("validatorsKey:%v", height))
+	return []byte(fmt.Sprintf("%v:validatorsKey", height))
 }
 
 func calcConsensusParamsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
+	return []byte(fmt.Sprintf("%v:consensusParamsKey", height))
 }
 
 func calcABCIResponsesKey(height int64) []byte {
-	return []byte(fmt.Sprintf("abciResponsesKey:%v", height))
+	return []byte(fmt.Sprintf("%v:abciResponsesKey", height))
 }
 
 //----------------------

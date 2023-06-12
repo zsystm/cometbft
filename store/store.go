@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cosmos/gogoproto/proto"
 
@@ -16,6 +17,57 @@ import (
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/types"
 )
+
+type StringComparator struct {
+}
+
+func (StringComparator) Compare(a, b []byte) int {
+	var height_a, height_b int64
+
+	height_a, _ = strconv.ParseInt(strings.Split(string(a), ":")[0], 10, 64)
+	height_b, _ = strconv.ParseInt(strings.Split(string(b), ":")[0], 10, 64)
+
+	if height_a > height_b {
+		return 1
+	}
+	if height_a < height_b {
+		return -1
+	}
+
+	return 0
+}
+
+func (StringComparator) Name() string {
+	return "Height first comparator using string"
+}
+
+func (StringComparator) Separator(dst, a, b []byte) []byte {
+	i, n := 0, len(a)
+	if n > len(b) {
+		n = len(b)
+	}
+	for ; i < n && a[i] == b[i]; i++ {
+	}
+	if i >= n {
+		// Do not shorten if one string is a prefix of the other
+	} else if c := a[i]; c < 0xff && c+1 < b[i] {
+		dst = append(dst, a[:i+1]...)
+		dst[len(dst)-1]++
+		return dst
+	}
+	return nil
+}
+
+func (StringComparator) Successor(dst, b []byte) []byte {
+	for i, c := range b {
+		if c != 0xff {
+			dst = append(dst, b[:i+1]...)
+			dst[len(dst)-1]++
+			return dst
+		}
+	}
+	return nil
+}
 
 /*
 BlockStore is a simple low level store for blocks.
@@ -533,27 +585,27 @@ func (bs *BlockStore) Close() error {
 //-----------------------------------------------------------------------------
 
 func calcBlockMetaKey(height int64) []byte {
-	return []byte(fmt.Sprintf("H:%v", height))
+	return []byte(fmt.Sprintf("%v:H", height))
 }
 
 func calcBlockPartKey(height int64, partIndex int) []byte {
-	return []byte(fmt.Sprintf("P:%v:%v", height, partIndex))
+	return []byte(fmt.Sprintf("%v:%v:P", height, partIndex))
 }
 
 func calcBlockCommitKey(height int64) []byte {
-	return []byte(fmt.Sprintf("C:%v", height))
+	return []byte(fmt.Sprintf("%v:C", height))
 }
 
 func calcSeenCommitKey(height int64) []byte {
-	return []byte(fmt.Sprintf("SC:%v", height))
+	return []byte(fmt.Sprintf("%v:SC", height))
 }
 
 func calcExtCommitKey(height int64) []byte {
-	return []byte(fmt.Sprintf("EC:%v", height))
+	return []byte(fmt.Sprintf("%v:EC", height))
 }
 
 func calcBlockHashKey(hash []byte) []byte {
-	return []byte(fmt.Sprintf("BH:%x", hash))
+	return []byte(fmt.Sprintf("%v:BH", hash))
 }
 
 //-----------------------------------------------------------------------------

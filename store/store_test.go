@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	dbm "github.com/cometbft/cometbft-db"
 
@@ -454,12 +455,16 @@ func TestLoadBlockExtendedCommit(t *testing.T) {
 func TestLoadBaseMeta(t *testing.T) {
 	config := test.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
-	stateStore := sm.NewStore(dbm.NewMemDB(), sm.StoreOptions{
+	goDB, err := dbm.NewGoLevelDBWithOpts("testDB", "build", &opt.Options{Comparer: new(StringComparator)})
+
+	require.Nil(t, err)
+	stateStore := sm.NewStore(goDB, sm.StoreOptions{
 		DiscardABCIResponses: false,
 	})
 	state, err := stateStore.LoadFromDBOrGenesisFile(config.GenesisFile())
 	require.NoError(t, err)
-	bs := NewBlockStore(dbm.NewMemDB())
+
+	bs := NewBlockStore(goDB)
 
 	for h := int64(1); h <= 10; h++ {
 		block := state.MakeBlock(h, test.MakeNTxs(h, 10), new(types.Commit), nil, state.Validators.GetProposer().Address)
