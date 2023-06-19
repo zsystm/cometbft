@@ -528,7 +528,7 @@ func startStateSync(
 
 //------------------------------------------------------------------------------
 
-var genesisDocKey = []byte("genesisDoc")
+var genesisDocKey = []byte(fmt.Sprintf("genesisDoc:%0*s", 17, "0"))
 
 // LoadStateFromDBOrGenesisDocProvider attempts to load the state from the
 // database, or creates one using the given genesisDocProvider. On success this also

@@ -36,9 +36,10 @@ Currently, only GoLevelDB is supported.
 }
 
 func compactGoLevelDBs(rootDir string, logger log.Logger) {
-	dbNames := []string{"state", "blockstore", "tx_index"}
+	dbNames := []string{"state", "blockstore"}
 	o := &opt.Options{
 		DisableSeeksCompaction: true,
+		// Comparer:               new(store.StringComparator), To Be used if custom comparer
 	}
 	wg := sync.WaitGroup{}
 

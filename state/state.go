@@ -18,7 +18,7 @@ import (
 
 // database keys
 var (
-	stateKey = []byte("stateKey")
+	stateKey = []byte(fmt.Sprintf("stateKey:%0*s", 17, "0"))
 )
 
 //-----------------------------------------------------------------------------

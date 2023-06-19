@@ -56,7 +56,10 @@ func makeStateAndBlockStore() (sm.State, *BlockStore, cleanupFunc) {
 	config := test.ResetTestRoot("blockchain_reactor_test")
 	// blockDB := dbm.NewDebugDB("blockDB", dbm.NewMemDB())
 	// stateDB := dbm.NewDebugDB("stateDB", dbm.NewMemDB())
-	blockDB := dbm.NewMemDB()
+	blockDB, err := dbm.NewGoLevelDBWithOpts("blockDB", config.RootDir, &opt.Options{Comparer: dbm.StringComparator{}}) //NewMemDB()
+	if err != nil {
+		fmt.Println("Error creating DB", err)
+	}
 	stateDB := dbm.NewMemDB()
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
 		DiscardABCIResponses: false,
@@ -455,7 +458,7 @@ func TestLoadBlockExtendedCommit(t *testing.T) {
 func TestLoadBaseMeta(t *testing.T) {
 	config := test.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
-	goDB, err := dbm.NewGoLevelDBWithOpts("testDB", "build", &opt.Options{Comparer: new(StringComparator)})
+	goDB, err := dbm.NewGoLevelDBWithOpts("testDB", "build", &opt.Options{Comparer: dbm.StringComparator{}})
 
 	require.Nil(t, err)
 	stateStore := sm.NewStore(goDB, sm.StoreOptions{
@@ -630,7 +633,10 @@ func TestPruneBlocks(t *testing.T) {
 }
 
 func TestLoadBlockMeta(t *testing.T) {
-	bs, db := newInMemoryBlockStore()
+	db, err := dbm.NewGoLevelDBWithOpts("testDB", "build", &opt.Options{Comparer: dbm.StringComparator{}})
+	require.Nil(t, err)
+	bs := NewBlockStore(db)
+	// bs, db := newInMemoryBlockStore()
 	height := int64(10)
 	loadMeta := func() (interface{}, error) {
 		meta := bs.LoadBlockMeta(height)
@@ -644,7 +650,7 @@ func TestLoadBlockMeta(t *testing.T) {
 	require.Nil(t, res, "a non-existent blockMeta should return nil")
 
 	// 2. Next save a corrupted blockMeta then try to load it
-	err := db.Set(calcBlockMetaKey(height), []byte("CometBFT-Meta"))
+	err = db.Set(calcBlockMetaKey(height), []byte("CometBFT-Meta"))
 	require.NoError(t, err)
 	res, _, panicErr = doFn(loadMeta)
 	require.NotNil(t, panicErr, "expecting a non-nil panic")

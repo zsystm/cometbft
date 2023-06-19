@@ -57,7 +57,6 @@ func eventKey(compositeKey, eventValue string, height int64, eventSeq int64) ([]
 		height,
 		compositeKey,
 		eventValue,
-		typ,
 		eventSeq,
 	)
 }
@@ -86,7 +85,7 @@ func parseValueFromEventKey(key []byte) (string, error) {
 		height                   int64
 	)
 
-	_, err := orderedcode.Parse(string(key), &height, &compositeKey, &eventValue, &typ)
+	_, err := orderedcode.Parse(string(key), &height, &compositeKey, &eventValue)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse event key: %w", err)
 	}
@@ -100,7 +99,7 @@ func parseHeightFromEventKey(key []byte) (int64, error) {
 		height                   int64
 	)
 
-	_, err := orderedcode.Parse(string(key), &height, &compositeKey, &eventValue, &typ)
+	_, err := orderedcode.Parse(string(key), &height, &compositeKey, &eventValue)
 	if err != nil {
 		return -1, fmt.Errorf("failed to parse event key: %w", err)
 	}
@@ -115,7 +114,7 @@ func parseEventSeqFromEventKey(key []byte) (int64, error) {
 		eventSeq                 int64
 	)
 
-	remaining, err := orderedcode.Parse(string(key), &height, &compositeKey, &eventValue, &typ)
+	remaining, err := orderedcode.Parse(string(key), &height, &compositeKey, &eventValue)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse event sequence: %w", err)
 	}

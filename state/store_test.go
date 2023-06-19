@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	dbm "github.com/cometbft/cometbft-db"
 
@@ -21,7 +22,9 @@ import (
 )
 
 func TestStoreLoadValidators(t *testing.T) {
-	stateDB := dbm.NewMemDB()
+	// stateDB := dbm.NewMemDB()
+	stateDB, err := dbm.NewGoLevelDBWithOpts("statetest", "build", &opt.Options{Comparer: new(dbm.StringComparator)})
+	require.Nil(t, err)
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
 		DiscardABCIResponses: false,
 	})
@@ -29,7 +32,8 @@ func TestStoreLoadValidators(t *testing.T) {
 	vals := types.NewValidatorSet([]*types.Validator{val})
 
 	// 1) LoadValidators loads validators using a height where they were last changed
-	err := sm.SaveValidatorsInfo(stateDB, 1, 1, vals)
+
+	err = sm.SaveValidatorsInfo(stateDB, 1, 1, vals)
 	require.NoError(t, err)
 	err = sm.SaveValidatorsInfo(stateDB, 2, 1, vals)
 	require.NoError(t, err)

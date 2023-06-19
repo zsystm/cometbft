@@ -15,7 +15,7 @@ import (
 	"github.com/cometbft/cometbft/types"
 )
 
-var sizeKey = []byte("size")
+var sizeKey = []byte(fmt.Sprintf("size:%0*s", 17, "0"))
 
 type dbs struct {
 	db     dbm.DB
@@ -139,6 +139,7 @@ func (s *dbs) LightBlock(height int64) (*types.LightBlock, error) {
 //
 // Safe for concurrent use by multiple goroutines.
 func (s *dbs) LastLightBlockHeight() (int64, error) {
+	fmt.Println("fetching light blocks")
 	itr, err := s.db.ReverseIterator(
 		s.lbKey(1),
 		append(s.lbKey(1<<63-1), byte(0x00)),
@@ -164,6 +165,7 @@ func (s *dbs) LastLightBlockHeight() (int64, error) {
 //
 // Safe for concurrent use by multiple goroutines.
 func (s *dbs) FirstLightBlockHeight() (int64, error) {
+	fmt.Println("fetching light blocks")
 	itr, err := s.db.Iterator(
 		s.lbKey(1),
 		append(s.lbKey(1<<63-1), byte(0x00)),
@@ -193,7 +195,7 @@ func (s *dbs) LightBlockBefore(height int64) (*types.LightBlock, error) {
 	if height <= 0 {
 		panic("negative or zero height")
 	}
-
+	fmt.Println("fetching light blocks")
 	itr, err := s.db.ReverseIterator(
 		s.lbKey(1),
 		s.lbKey(height),
@@ -232,6 +234,7 @@ func (s *dbs) Prune(size uint16) error {
 		return nil
 	}
 	numToPrune := sSize - size
+	fmt.Println("fetching light blocks")
 
 	// 2) Iterate over headers and perform a batch operation.
 	itr, err := s.db.Iterator(

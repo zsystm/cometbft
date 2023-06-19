@@ -21,7 +21,7 @@ import (
 
 var (
 	stateKey        = []byte("stateKey")
-	kvPairPrefixKey = []byte("kvPairKey:")
+	kvPairPrefixKey = []byte("kvPairKey")
 )
 
 const (

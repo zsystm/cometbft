@@ -27,20 +27,29 @@ const (
 //------------------------------------------------------------------------
 
 func calcValidatorsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("%v:validatorsKey", height))
+	strH := fmt.Sprintf("%v", height)
+	strl := len(strH)
+	topad := 18 - strl
+	return []byte(fmt.Sprintf("validatorsKey:%0*s", topad, strH))
 }
 
 func calcConsensusParamsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("%v:consensusParamsKey", height))
+	strH := fmt.Sprintf("%v", height)
+	strl := len(strH)
+	topad := 18 - strl
+	return []byte(fmt.Sprintf("consensusParamsKey:%0*s", topad, strH))
 }
 
 func calcABCIResponsesKey(height int64) []byte {
-	return []byte(fmt.Sprintf("%v:abciResponsesKey", height))
+	strH := fmt.Sprintf("%v", height)
+	strl := len(strH)
+	topad := 18 - strl
+	return []byte(fmt.Sprintf("abciResponsesKey:%0*s", topad, strH))
 }
 
 //----------------------
 
-var lastABCIResponseKey = []byte("lastABCIResponseKey")
+var lastABCIResponseKey = []byte(fmt.Sprintf("lastABCIResponseKey:%0*s", 17, "0"))
 
 //go:generate ../scripts/mockery_generate.sh Store
 
@@ -508,6 +517,7 @@ func (store dbStore) LoadValidators(height int64) (*types.ValidatorSet, error) {
 	if err != nil {
 		return nil, ErrNoValSetForHeight{height}
 	}
+
 	if valInfo.ValidatorSet == nil {
 		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
 		valInfo2, err := loadValidatorsInfo(store.db, lastStoredHeight)
