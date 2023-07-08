@@ -1,12 +1,27 @@
 #!/usr/bin/env bash
 #
-# This is a convenience script that takes a list of testnet manifests
-# as arguments and runs each one of them sequentially. If a testnet
-# fails, the container logs are dumped to stdout along with the testnet
-# manifest, but the remaining testnets are still run.
-#
-# This is mostly used to run generated networks in nightly CI jobs.
+# This is a script that aims to simulate the scenario of out of band 
+# statesync, performed by operators, offline state bootstrapping 
+# and then finally booting up the node
 
+# The script uses the networks/bootstrap_state.toml manifest as input
+# Only validator05 is assumed to be running statesync. The node is stopped
+# immediately after statesync is performed. (L24 ) The code has been altered 
+# to statesync only one height and then return waiting for the node to be stopped
+
+# Once the node is stopped we set a (new) config flag in config.toml:
+# statesync_offline_height=h  - where h is the height at which the node had statesynced
+# Statesync is disabled. The blockstore.db and state.db created with statesync are deleted
+# The reason is that our statesync code will actually bootstrap the state store but in out-of-band
+# statesync they are expected to be empty and bootstrapped separately.
+
+# On startup the node will call BootstrapState (the code has been altered to perform this
+# as the first statement of NewNode). The node will the return and shut down.
+
+# The new config parameter has to be deleted from the config.toml of validator05 (L:54)
+
+# The node is restarted. The node should start up normally, continuing to blocksync+consensus 
+# and the test should terminate with an OK. 
 
 ./build/runner -f networks/bootstrap_state.toml&
 PID=$!

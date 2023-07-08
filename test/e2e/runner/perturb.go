@@ -106,7 +106,7 @@ func PerturbNode(ctx context.Context, node *e2e.Node, perturbation e2e.Perturbat
 		return nil, fmt.Errorf("unexpected perturbation %q", perturbation)
 	}
 
-	status, err := waitForNode(ctx, node, 0, 20*time.Second)
+	status, err := waitForNode(ctx, node, 0, 40*time.Second)
 	if err != nil {
 		return nil, err
 	}

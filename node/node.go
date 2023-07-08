@@ -160,11 +160,9 @@ func BootstrapState(ctx context.Context, config *cfg.Config, dbProvider cfg.DBPr
 	if !blockStore.IsEmpty() {
 		return fmt.Errorf("blockstore not empty, trying to initialize non empty state")
 	}
-
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
 		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
 	})
-
 	state, err := stateStore.Load()
 	if err != nil {
 		return err
@@ -173,7 +171,6 @@ func BootstrapState(ctx context.Context, config *cfg.Config, dbProvider cfg.DBPr
 	if !state.IsEmpty() {
 		return fmt.Errorf("state not empty, trying to initialize non empty state")
 	}
-
 	genState, _, err := LoadStateFromDBOrGenesisDocProvider(stateDB, DefaultGenesisDocProviderFunc(config))
 	if err != nil {
 		return err
@@ -208,7 +205,6 @@ func BootstrapState(ctx context.Context, config *cfg.Config, dbProvider cfg.DBPr
 			return fmt.Errorf("the app hash returned by the light client does not match the provided appHash, expected %X, got %X", state.AppHash, appHash)
 		}
 	}
-
 	commit, err := stateProvider.Commit(ctx, height)
 	if err != nil {
 		return err
@@ -222,7 +218,6 @@ func BootstrapState(ctx context.Context, config *cfg.Config, dbProvider cfg.DBPr
 	if err != nil {
 		return err
 	}
-
 	// Once the stores are bootstrapped, we need to set the height at which the node has finished
 	// statesyncing. This will allow the blocksync reactor to fetch blocks at a proper height.
 	// In case this operation fails, it is equivalent to a failure in  online state sync where the operator
@@ -255,11 +250,15 @@ func NewNode(ctx context.Context,
 	logger log.Logger,
 	options ...Option,
 ) (*Node, error) {
-
+	if uint64(config.StateSync.StateSyncOfflineHeight) != 0 {
+		BootstrapState(ctx, config, dbProvider, uint64(config.StateSync.StateSyncOfflineHeight), nil)
+		return nil, fmt.Errorf("bootstrapping done")
+	}
 	blockStore, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Done bootstrapping state: ", blockStore.Base(), blockStore.Height())
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
 		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
 	})

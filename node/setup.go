@@ -506,6 +506,8 @@ func startStateSync(
 			ssR.Logger.Error("State sync failed", "err", err)
 			return
 		}
+		return
+		// return
 		err = stateStore.Bootstrap(state)
 		if err != nil {
 			ssR.Logger.Error("Failed to bootstrap node with new state", "err", err)
