@@ -1,0 +1,172 @@
+ipv6 = true
+initial_height = 0
+key_type = ""
+evidence = 0
+vote_extensions_enable_height = 0
+abci_protocol = "builtin_unsync"
+prepare_proposal_delay = "100ms"
+process_proposal_delay = "100ms"
+check_tx_delay = "0s"
+vote_extension_delay = "20ms"
+finalize_block_delay = "200ms"
+upgrade_version = ""
+load_tx_size_bytes = 0
+load_tx_batch_size = 0
+load_tx_connections = 0
+prometheus = false
+vote_extension_size = 2048
+peer_gossip_intraloop_sleep_duration = "0s"
+
+[initial_state]
+
+[validators]
+  validator01 = 72
+  validator02 = 67
+  validator03 = 83
+  validator04 = 39
+
+[validator_update]
+  [validator_update.10]
+    validator05 = 64
+
+[node]
+  [node.full01]
+    mode = "full"
+    version = ""
+    persistent_peers = ["full02", "validator03", "validator04"]
+    database = "badgerdb"
+    privval_protocol = "unix"
+    start_at = 10
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 0
+    snapshot_interval = 0
+    retain_blocks = 0
+    perturb = []
+    send_no_load = false
+  [node.full02]
+    mode = "full"
+    version = ""
+    seeds = ["seed01"]
+    database = "boltdb"
+    privval_protocol = "tcp"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 5
+    snapshot_interval = 0
+    retain_blocks = 28
+    perturb = ["restart"]
+    send_no_load = false
+  [node.full03]
+    mode = "full"
+    version = ""
+    seeds = ["seed01"]
+    database = "boltdb"
+    privval_protocol = "tcp"
+    start_at = 15
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 1
+    snapshot_interval = 3
+    retain_blocks = 14
+    perturb = []
+    send_no_load = false
+  [node.light01]
+    mode = "light"
+    version = ""
+    persistent_peers = ["validator01", "validator02", "validator03"]
+    database = "rocksdb"
+    privval_protocol = ""
+    start_at = 10
+    block_sync_version = ""
+    state_sync = false
+    persist_interval = 0
+    snapshot_interval = 0
+    retain_blocks = 0
+    perturb = []
+    send_no_load = false
+  [node.seed01]
+    mode = "seed"
+    version = ""
+    database = "boltdb"
+    privval_protocol = "tcp"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 1
+    snapshot_interval = 3
+    retain_blocks = 28
+    perturb = []
+    send_no_load = false
+  [node.validator01]
+    mode = "validator"
+    version = ""
+    seeds = ["seed01"]
+    database = "boltdb"
+    privval_protocol = "tcp"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 1
+    snapshot_interval = 3
+    retain_blocks = 0
+    perturb = ["disconnect"]
+    send_no_load = false
+  [node.validator02]
+    mode = "validator"
+    version = ""
+    seeds = ["seed01"]
+    database = "badgerdb"
+    privval_protocol = "file"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 1
+    snapshot_interval = 3
+    retain_blocks = 0
+    perturb = []
+    send_no_load = false
+  [node.validator03]
+    mode = "validator"
+    version = ""
+    persistent_peers = ["validator01", "full02"]
+    database = "rocksdb"
+    privval_protocol = "file"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 0
+    snapshot_interval = 0
+    retain_blocks = 0
+    perturb = []
+    send_no_load = false
+  [node.validator04]
+    mode = "validator"
+    version = ""
+    seeds = ["seed01"]
+    database = "badgerdb"
+    privval_protocol = "file"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 5
+    snapshot_interval = 3
+    retain_blocks = 28
+    perturb = []
+    send_no_load = false
+  [node.validator05]
+    mode = "validator"
+    version = ""
+    seeds = ["seed01"]
+    persistent_peers = ["validator01", "full02"]
+    database = "goleveldb"
+    privval_protocol = "file"
+    start_at = 5
+    block_sync_version = "v0"
+    state_sync = true
+    persist_interval = 1
+    snapshot_interval = 0
+    retain_blocks = 0
+    perturb = []
+    send_no_load = false
