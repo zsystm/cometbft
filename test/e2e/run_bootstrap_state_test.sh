@@ -23,6 +23,7 @@
 # The node is restarted. The node should start up normally, continuing to blocksync+consensus 
 # and the test should terminate with an OK. 
 
+make 
 ./build/runner -f networks/bootstrap_state.toml&
 PID=$!
 echo $PID
