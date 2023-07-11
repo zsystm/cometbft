@@ -82,10 +82,7 @@ func NewReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockS
 		if err != nil && err.Error() != "value empty" {
 			panic(fmt.Sprintf("failed to retrieve statesynced height from store %s", err))
 		}
-		err = blockExec.Store().SetOfflineStateSyncHeight(0)
-		if err != nil {
-			panic("failed to reset the offline state sync height ")
-		}
+
 	}
 	if state.LastBlockHeight != storeHeight {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch, stores were left in an inconsistent state", state.LastBlockHeight,
@@ -374,6 +371,7 @@ FOR_LOOP:
 			// then we are guaranteed to have extensions for the last block (if required) even
 			// if we did not blocksync any block.
 			//
+
 			missingExtension := true
 			if state.LastBlockHeight == 0 ||
 				!state.ConsensusParams.ABCI.VoteExtensionsEnabled(state.LastBlockHeight) ||
@@ -520,7 +518,7 @@ FOR_LOOP:
 			}
 			bcR.metrics.recordBlockMetrics(first)
 			blocksSynced++
-
+			fmt.Println("Blocks synced ", blocksSynced)
 			if blocksSynced%100 == 0 {
 				lastRate = 0.9*lastRate + 0.1*(100/time.Since(lastHundred).Seconds())
 				bcR.Logger.Info("Block Sync Rate", "height", bcR.pool.height,

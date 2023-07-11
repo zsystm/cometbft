@@ -252,7 +252,7 @@ func NewNode(ctx context.Context,
 ) (*Node, error) {
 	if uint64(config.StateSync.StateSyncOfflineHeight) != 0 {
 		BootstrapState(ctx, config, dbProvider, uint64(config.StateSync.StateSyncOfflineHeight), nil)
-		return nil, fmt.Errorf("bootstrapping done")
+		return nil, fmt.Errorf("bootstrapping done; node should shut down now")
 	}
 	blockStore, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {

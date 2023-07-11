@@ -24,6 +24,12 @@
 # and the test should terminate with an OK. 
 
 make 
+
+manifests="bootstrap_state.toml bootstrap_state_ve_1.toml bootstrap_state_ve_higher.toml"
+
+for m in $manifests; do 
+
+echo "Running "$m
 ./build/runner -f networks/bootstrap_state.toml&
 PID=$!
 echo $PID
@@ -64,4 +70,7 @@ docker logs -f validator05 |  sed '/ersion info/ q'
 docker logs -f validator05 | grep "Version info" -B 4
 
 wait $PID
+
+echo "done "$m
+done
 
