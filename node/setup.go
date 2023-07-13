@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -519,6 +520,7 @@ func startStateSync(
 			ssR.Logger.Error("Failed to store last seen commit", "err", err)
 			return
 		}
+		os.Exit(1)
 
 		err = bcR.SwitchToBlockSync(state)
 		if err != nil {
