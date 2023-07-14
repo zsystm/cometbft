@@ -115,10 +115,13 @@ type State struct {
 	internalMsgQueue chan msgInfo
 	timeoutTicker    TimeoutTicker
 
-	// information about added votes and block parts, and bad peers, are written on this channel
+	// information about added votes and block parts are written on this channel
 	// so statistics can be computed by reactor
-	// Takes a `msgInfo` or a `badPeerInfo`
-	peerInfoQueue chan interface{}
+	statsMsgQueue chan msgInfo
+
+	// information about bad peers are written on this channel
+	// so reactor can disconnect from them
+	badPeerMsgQueue chan badPeerInfo
 
 	// we use eventBus to trigger msg broadcasts in the reactor,
 	// and to notify external subscribers, eg. through a websocket
@@ -170,7 +173,8 @@ func NewState(
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
-		peerInfoQueue:    make(chan interface{}, msgQueueSize),
+		statsMsgQueue:    make(chan msgInfo, msgQueueSize),
+		badPeerMsgQueue:  make(chan badPeerInfo, msgQueueSize),
 		done:             make(chan struct{}),
 		doWALCatchup:     true,
 		wal:              nilWAL{},
@@ -785,7 +789,7 @@ func (cs *State) receiveRoutine(maxSteps int) {
 					errors.Is(err, types.ErrVoteInvalidValidatorIndex) {
 
 					// tell reactor to disconnect from peer
-					cs.peerInfoQueue <- badPeerInfo{
+					cs.badPeerMsgQueue <- badPeerInfo{
 						Error:  err,
 						PeerID: mi.PeerID,
 					}
@@ -871,7 +875,7 @@ func (cs *State) handleMsg(mi msgInfo) (err error) {
 			cs.handleCompleteProposal(msg.Height)
 		}
 		if added {
-			cs.peerInfoQueue <- mi
+			cs.statsMsgQueue <- mi
 		}
 
 		if err != nil && msg.Round != cs.Round {
@@ -890,7 +894,7 @@ func (cs *State) handleMsg(mi msgInfo) (err error) {
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		added, err = cs.tryAddVote(msg.Vote, peerID)
 		if added {
-			cs.peerInfoQueue <- mi
+			cs.statsMsgQueue <- mi
 		}
 
 		// if err == ErrAddingVote {
