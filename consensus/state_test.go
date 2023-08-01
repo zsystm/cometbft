@@ -1428,6 +1428,8 @@ func TestProposeValidBlock(t *testing.T) {
 	// timeout of propose
 	ensureNewTimeout(timeoutProposeCh, height, round, cs1.config.Propose(round).Nanoseconds())
 
+	// We did not see a valid proposal within this round, so prevote our locked block.
+	// TODO: prevote nil
 	ensurePrevote(voteCh, height, round)
 	validatePrevote(t, cs1, round, vss[0], propBlockHash)
 
