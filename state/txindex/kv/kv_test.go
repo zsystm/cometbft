@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	db "github.com/cometbft/cometbft-db"
+	dbm "github.com/cometbft/cometbft-db"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
@@ -68,23 +69,7 @@ func TestTxIndex(t *testing.T) {
 func TestTxIndex_Prune(t *testing.T) {
 	indexer := NewTxIndex(db.NewMemDB())
 
-	tx := types.Tx("HELLO WORLD")
-	events := []abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "/Ivan/", Index: true}}},
-		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Vlad", Index: true}}},
-	}
-	txResult := &abci.TxResult{
-		Height: 1,
-		Index:  0,
-		Tx:     tx,
-		Result: abci.ExecTxResult{
-			Data:   []byte{0},
-			Code:   abci.CodeTypeOK,
-			Log:    "",
-			Events: events,
-		},
-	}
+	txResult := GetTestTxResult(1)
 
 	batch := txindex.NewBatch(1)
 	if err := batch.Add(txResult); err != nil {
@@ -95,19 +80,8 @@ func TestTxIndex_Prune(t *testing.T) {
 
 	keys1 := getKeys(indexer)
 
-	tx2 := types.Tx("BYE BYE WORLD")
-	txResult2 := &abci.TxResult{
-		Height: 2,
-		Index:  0,
-		Tx:     tx2,
-		Result: abci.ExecTxResult{
-			Data:   []byte{0},
-			Code:   abci.CodeTypeOK,
-			Log:    "",
-			Events: events,
-		},
-	}
-	hash2 := tx2.Hash()
+	txResult2 := GetTestTxResult(2)
+	hash2 := types.Tx(txResult2.Tx).Hash()
 
 	batch = txindex.NewBatch(1)
 	if err := batch.Add(txResult2); err != nil {
@@ -128,6 +102,44 @@ func TestTxIndex_Prune(t *testing.T) {
 	loadedTxResult2, err := indexer.Get(hash2)
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(txResult2, loadedTxResult2))
+}
+
+func BenchmarkTxIndex_Prune(b *testing.B) {
+	dbTypes := []dbm.BackendType{
+		//   - requires gcc
+		//   - use cleveldb build tag (go build -tags cleveldb)
+		//	 - you should have levelDB installed
+		dbm.CLevelDBBackend,
+		//   - requires gcc
+		//   - use rocksdb build tag (go build -tags rocksdb)
+		//   - you should have rocksDB installed
+		dbm.RocksDBBackend,
+		//   - use badgerdb build tag (go build -tags badgerdb)
+		dbm.BadgerDBBackend,
+		//   - use boltdb build tag (go build -tags boltdb)
+		dbm.BoltDBBackend,
+		dbm.GoLevelDBBackend,
+		dbm.MemDBBackend,
+	}
+
+	for _, dbType := range dbTypes {
+		b.Run(fmt.Sprintf("DBType:%s", dbType),
+			func(b *testing.B) {
+				indexer := NewTxIndex(db.NewMemDB())
+				for i := 0; i < b.N; i++ {
+					txResult := GetTestTxResult(int64(i))
+
+					batch := txindex.NewBatch(1)
+					if err := batch.Add(txResult); err != nil {
+						b.Error(err)
+					}
+					if err := indexer.AddBatch(batch); err != nil {
+						b.Error(err)
+					}
+					indexer.Prune(int64(i))
+				}
+			})
+	}
 }
 
 func TestTxSearch(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	idxutil "github.com/cometbft/cometbft/internal/indexer"
 	cmtsyntax "github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/state/indexer"
@@ -170,4 +171,25 @@ func SliceDiff(bigger [][]byte, smaller [][]byte) [][]byte {
 		}
 	}
 	return diff
+}
+
+func GetTestTxResult(height int64) *abci.TxResult {
+	tx := types.Tx(fmt.Sprintf("Transaction at height: %d", height))
+	events := []abci.Event{
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "/Ivan/", Index: true}}},
+		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Vlad", Index: true}}},
+	}
+	txResult := &abci.TxResult{
+		Height: height,
+		Index:  0,
+		Tx:     tx,
+		Result: abci.ExecTxResult{
+			Data:   []byte{0},
+			Code:   abci.CodeTypeOK,
+			Log:    "",
+			Events: events,
+		},
+	}
+	return txResult
 }

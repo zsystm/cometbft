@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	db "github.com/cometbft/cometbft-db"
+	dbm "github.com/cometbft/cometbft-db"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
@@ -40,6 +41,42 @@ func TestBlockerIndexer_Prune(t *testing.T) {
 	keys3 := blockidxkv.GetKeys(indexer)
 	require.True(t, kv.EqualSlices(kv.SliceDiff(keys2, keys1), keys3))
 	require.True(t, kv.EmptyIntersection(keys1, keys3))
+}
+
+func BenchmarkBlockerIndexer_Prune(b *testing.B) {
+	dbTypes := []dbm.BackendType{
+		//   - requires gcc
+		//   - use cleveldb build tag (go build -tags cleveldb)
+		//	 - you should have levelDB installed
+		dbm.CLevelDBBackend,
+		//   - requires gcc
+		//   - use rocksdb build tag (go build -tags rocksdb)
+		//   - you should have rocksDB installed
+		dbm.RocksDBBackend,
+		//   - use badgerdb build tag (go build -tags badgerdb)
+		dbm.BadgerDBBackend,
+		//   - use boltdb build tag (go build -tags boltdb)
+		dbm.BoltDBBackend,
+		dbm.GoLevelDBBackend,
+		dbm.MemDBBackend,
+	}
+
+	for _, dbType := range dbTypes {
+		b.Run(fmt.Sprintf("DBType:%s", dbType),
+			func(b *testing.B) {
+				store := db.NewPrefixDB(db.NewMemDB(), []byte("block_events"))
+				indexer := blockidxkv.New(store)
+				for i := 0; i < b.N; i++ {
+					events := blockidxkv.GetEventsForTesting(int64(i))
+
+					if err := indexer.Index(events); err != nil {
+						b.Error(err)
+					}
+
+					indexer.Prune(int64(i))
+				}
+			})
+	}
 }
 
 func TestBlockIndexer(t *testing.T) {
