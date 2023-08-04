@@ -42,7 +42,7 @@ func calcABCIResponsesKey(height int64) []byte {
 //----------------------
 
 var lastABCIResponseKey = []byte("lastABCIResponseKey")
-var offlineStateSyncHeight = []byte("offlineStateSyncH")
+var offlineStateSyncHeight = []byte("offlineStateSyncHeightKey")
 
 //go:generate ../scripts/mockery_generate.sh Store
 
@@ -99,6 +99,14 @@ type StoreOptions struct {
 }
 
 var _ Store = (*dbStore)(nil)
+
+func IsEmpty(store dbStore) (bool, error) {
+	state, err := store.Load()
+	if err != nil {
+		return false, err
+	}
+	return state.IsEmpty(), nil
+}
 
 // NewStore creates the dbStore of the state pkg.
 func NewStore(db dbm.DB, options StoreOptions) Store {
@@ -711,6 +719,9 @@ func (store dbStore) GetOfflineStateSyncHeight() (int64, error) {
 	}
 
 	height := int64FromBytes(buf)
+	if height < 0 {
+		return 0, errors.New("invalid value for height: height cannot be negative")
+	}
 	return height, nil
 }
 
