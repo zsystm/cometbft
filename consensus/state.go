@@ -141,6 +141,9 @@ type State struct {
 
 	// for reporting metrics
 	metrics *Metrics
+
+	// offline state sync height indicating to which height the node synced offline
+	offlineStateSyncHeight int64
 }
 
 // StateOption sets an optional parameter on the State.
@@ -185,11 +188,9 @@ func NewState(
 		// If the height at which the vote extensions are enabled is lower
 		// than the height at which we statesync, consensus will panic because
 		// it will try to reconstruct the extended commit here.
-		storeHeight, err := cs.blockExec.Store().GetOfflineStateSyncHeight()
-		if err != nil && err.Error() != "value empty" {
-			panic(fmt.Sprintf("failed to retrieve statesynced height from store %s", err))
-		}
-		if storeHeight == 0 {
+		if cs.offlineStateSyncHeight != 0 {
+			cs.reconstructSeenCommit(state)
+		} else {
 			cs.reconstructLastCommit(state)
 		}
 	}
@@ -221,6 +222,12 @@ func (cs *State) SetEventBus(b *types.EventBus) {
 // StateMetrics sets the metrics.
 func StateMetrics(metrics *Metrics) StateOption {
 	return func(cs *State) { cs.metrics = metrics }
+}
+
+// OfflineStateSyncHeight indicates the height at which the node
+// statesync offline - before booting sets the metrics.
+func OfflineStateSyncHeight(height int64) StateOption {
+	return func(cs *State) { cs.offlineStateSyncHeight = height }
 }
 
 // String returns a string.
@@ -571,6 +578,18 @@ func (cs *State) sendInternalMessage(mi msgInfo) {
 	}
 }
 
+// ReconstructSeenCommit reconstructs the seen commit
+// This function is meant to be called only after statesync
+// that was performed offline as to avoid interfering with vote
+// extensions.
+func (cs *State) reconstructSeenCommit(state sm.State) {
+	votes, err := cs.votesFromSeenCommit(state)
+	if err != nil {
+		panic(fmt.Sprintf("failed to reconstruct last commit; %s", err))
+	}
+	cs.LastCommit = votes
+}
+
 // Reconstruct the LastCommit from either SeenCommit or the ExtendedCommit. SeenCommit
 // and ExtendedCommit are saved along with the block. If VoteExtensions are required
 // the method will panic on an absent ExtendedCommit or an ExtendedCommit without
@@ -579,14 +598,9 @@ func (cs *State) reconstructLastCommit(state sm.State) {
 	extensionsEnabled := state.ConsensusParams.ABCI.VoteExtensionsEnabled(state.LastBlockHeight)
 
 	if !extensionsEnabled {
-		votes, err := cs.votesFromSeenCommit(state)
-		if err != nil {
-			panic(fmt.Sprintf("failed to reconstruct last commit; %s", err))
-		}
-		cs.LastCommit = votes
+		cs.reconstructSeenCommit(state)
 		return
 	}
-
 	votes, err := cs.votesFromExtendedCommit(state)
 	if err != nil {
 		panic(fmt.Sprintf("failed to reconstruct last extended commit; %s", err))
