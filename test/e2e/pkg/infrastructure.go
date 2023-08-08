@@ -13,6 +13,7 @@ const (
 	dockerIPv6CIDR = "fd80:b10c::/48"
 
 	globalIPv4CIDR = "0.0.0.0/0"
+	doVpcIPv4CIDR  = "172.19.80.0/20"
 )
 
 // InfrastructureData contains the relevant information for a set of existing
@@ -94,7 +95,7 @@ func InfrastructureDataFromFile(p string) (InfrastructureData, error) {
 		return InfrastructureData{}, err
 	}
 	if ifd.Network == "" {
-		ifd.Network = globalIPv4CIDR
+		ifd.Network = doVpcIPv4CIDR
 	}
 	ifd.Path = p
 	return ifd, nil

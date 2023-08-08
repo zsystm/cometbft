@@ -198,10 +198,6 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 		if !ok {
 			return nil, fmt.Errorf("information for node '%s' missing from infrastructure data", name)
 		}
-		extIP := ind.ExtIPAddress
-		if len(extIP) == 0 {
-			extIP = ind.IPAddress
-		}
 		v := nodeManifest.Version
 		if v == "" {
 			v = localVersion
@@ -214,7 +210,7 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 			PrivvalKey:       keyGen.Generate(manifest.KeyType),
 			NodeKey:          keyGen.Generate("ed25519"),
 			InternalIP:       ind.IPAddress,
-			ExternalIP:       extIP,
+			ExternalIP:       ind.ExtIPAddress,
 			ProxyPort:        ind.Port,
 			Mode:             ModeValidator,
 			Database:         "goleveldb",
