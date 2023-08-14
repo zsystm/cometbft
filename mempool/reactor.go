@@ -2,9 +2,8 @@ package mempool
 
 import (
 	"errors"
-	"time"
-
 	"fmt"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cfg "github.com/cometbft/cometbft/config"
@@ -177,7 +176,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		// node. See [RFC 103] for an analysis on this optimization.
 		//
 		// [RFC 103]: https://github.com/cometbft/cometbft/pull/735
-		memTx := next.Value.(*mempoolTx)
+		memTx := next.Value.(*MempoolTx)
 		if peerState.GetHeight() < memTx.Height()-1 {
 			time.Sleep(PeerCatchupSleepIntervalMS * time.Millisecond)
 			continue

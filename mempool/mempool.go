@@ -3,9 +3,8 @@ package mempool
 import (
 	"crypto/sha256"
 	"errors"
-	"math"
-
 	"fmt"
+	"math"
 
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -35,6 +34,9 @@ type Mempool interface {
 	// CheckTx executes a new transaction against the application to determine
 	// its validity and whether it should be added to the mempool.
 	CheckTx(tx types.Tx) (*abcicli.ReqRes, error)
+
+	// From RPC endpoint
+	CheckNewTx(tx types.Tx) (*abcicli.ReqRes, error)
 
 	// RemoveTxByKey removes a transaction, identified by its key,
 	// from the mempool.
