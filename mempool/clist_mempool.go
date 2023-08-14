@@ -105,7 +105,7 @@ func NewCListMempool(
 	return mp
 }
 
-func (mem *CListMempool) getCElement(txKey types.TxKey) (*clist.CElement, bool) {
+func (mem *CListMempool) GetCElement(txKey types.TxKey) (*clist.CElement, bool) {
 	if e, ok := mem.txsMap.Load(txKey); ok {
 		return e.(*clist.CElement), true
 	}
@@ -113,12 +113,16 @@ func (mem *CListMempool) getCElement(txKey types.TxKey) (*clist.CElement, bool) 
 }
 
 func (mem *CListMempool) InMempool(txKey types.TxKey) bool {
-	_, ok := mem.getCElement(txKey)
+	_, ok := mem.GetCElement(txKey)
 	return ok
 }
 
 func (mem *CListMempool) addToCache(txKey types.TxKey) bool {
 	return mem.cache.Push(txKey)
+}
+
+func (mem *CListMempool) InCache(txKey types.TxKey) bool {
+	return mem.cache.Has(txKey)
 }
 
 func (mem *CListMempool) forceRemoveFromCache(txKey types.TxKey) {
@@ -222,6 +226,13 @@ func (mem *CListMempool) Flush() {
 	mem.cache.Reset()
 
 	mem.removeAllTxs()
+}
+
+// Height returns the latest height that the mempool is at
+func (mem *CListMempool) Height() int64 {
+	mem.updateMtx.Lock()
+	defer mem.updateMtx.Unlock()
+	return mem.height
 }
 
 // TxsFront returns the first transaction in the ordered list for peer
@@ -337,7 +348,7 @@ func (mem *CListMempool) RemoveTxByKey(txKey types.TxKey) error {
 	// The transaction should be removed from the reactor, even if it cannot be
 	// found in the mempool.
 	mem.invokeRemoveTxOnReactor(txKey)
-	if elem, ok := mem.getCElement(txKey); ok {
+	if elem, ok := mem.GetCElement(txKey); ok {
 		mem.txs.Remove(elem)
 		elem.DetachPrev()
 		mem.txsMap.Delete(txKey)
