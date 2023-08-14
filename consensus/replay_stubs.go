@@ -25,6 +25,10 @@ func (emptyMempool) CheckTx(types.Tx) (*abcicli.ReqRes, error) {
 	return nil, nil
 }
 
+func (emptyMempool) CheckNewTx(types.Tx) (*abcicli.ReqRes, error) {
+	return nil, nil
+}
+
 func (txmp emptyMempool) RemoveTxByKey(types.TxKey) error {
 	return nil
 }

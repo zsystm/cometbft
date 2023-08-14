@@ -64,6 +64,12 @@ type CListMempool struct {
 
 	logger  log.Logger
 	metrics *Metrics
+
+	// broadcastCh is an unbuffered channel of new transactions that need to
+	// be broadcasted to peers. Only populated if `broadcast` in the config is enabled
+	broadcastCh      chan *MempoolTx
+	broadcastMtx     sync.Mutex
+	txsToBeBroadcast []types.TxKey
 }
 
 var _ Mempool = &CListMempool{}
@@ -80,14 +86,16 @@ func NewCListMempool(
 	options ...CListMempoolOption,
 ) *CListMempool {
 	mp := &CListMempool{
-		config:        cfg,
-		proxyAppConn:  proxyAppConn,
-		txs:           clist.New(),
-		height:        height,
-		recheckCursor: nil,
-		recheckEnd:    nil,
-		logger:        log.NewNopLogger(),
-		metrics:       NopMetrics(),
+		config:           cfg,
+		proxyAppConn:     proxyAppConn,
+		txs:              clist.New(),
+		height:           height,
+		recheckCursor:    nil,
+		recheckEnd:       nil,
+		logger:           log.NewNopLogger(),
+		metrics:          NopMetrics(),
+		broadcastCh:      make(chan *MempoolTx),
+		txsToBeBroadcast: make([]types.TxKey, 0),
 	}
 
 	if cfg.CacheSize > 0 {
@@ -110,6 +118,14 @@ func (mem *CListMempool) GetCElement(txKey types.TxKey) (*clist.CElement, bool) 
 		return e.(*clist.CElement), true
 	}
 	return nil, false
+}
+
+func (mem *CListMempool) GetEntry(txKey types.TxKey) *MempoolTx {
+	elem, _ := mem.GetCElement(txKey)
+	if elem == nil {
+		return nil
+	}
+	return elem.Value.(*MempoolTx)
 }
 
 func (mem *CListMempool) InMempool(txKey types.TxKey) bool {
@@ -301,6 +317,58 @@ func (mem *CListMempool) CheckTx(tx types.Tx) (*abcicli.ReqRes, error) {
 	}
 
 	return reqRes, nil
+}
+
+func (mem *CListMempool) CheckNewTx(tx types.Tx) (*abcicli.ReqRes, error) {
+	reqRes, err := mem.CheckTx(tx)
+
+	// push to the broadcast queue that a new transaction is ready
+	mem.markToBeBroadcast(tx.Key())
+
+	return reqRes, err
+}
+
+// markToBeBroadcast marks a transaction to be broadcasted to peers.
+// This should never block so we use a map to create an unbounded queue
+// of transactions that need to be gossiped.
+func (mem *CListMempool) markToBeBroadcast(key types.TxKey) {
+	if !mem.config.Broadcast {
+		return
+	}
+
+	memTx := mem.GetEntry(key)
+	if memTx == nil {
+		return
+	}
+
+	select {
+	case mem.broadcastCh <- memTx:
+	default:
+		mem.broadcastMtx.Lock()
+		defer mem.broadcastMtx.Unlock()
+		mem.txsToBeBroadcast = append(mem.txsToBeBroadcast, key)
+	}
+}
+
+// next is used by the reactor to get the next transaction to broadcast
+// to all other peers.
+func (mem *CListMempool) NextNewTx() <-chan *MempoolTx {
+	mem.broadcastMtx.Lock()
+	defer mem.broadcastMtx.Unlock()
+
+	for len(mem.txsToBeBroadcast) != 0 {
+		ch := make(chan *MempoolTx, 1)
+		key := mem.txsToBeBroadcast[0]
+		mem.txsToBeBroadcast = mem.txsToBeBroadcast[1:]
+		memTx := mem.GetEntry(key)
+		if memTx == nil {
+			continue
+		}
+		ch <- memTx
+		return ch
+	}
+
+	return mem.broadcastCh
 }
 
 // Global callback that will be called after every ABCI response.
