@@ -15,7 +15,7 @@ import (
 )
 
 func TestCacheRemove(t *testing.T) {
-	cache := NewLRUTxCache(100)
+	cache := NewLRUTxCache[types.TxKey](100)
 	numTxs := 10
 
 	txs := make([]types.TxKey, numTxs)
@@ -85,7 +85,7 @@ func TestCacheAfterUpdate(t *testing.T) {
 			}
 		}
 
-		cache := mp.cache.(*LRUTxCache)
+		cache := mp.cache.(*LRUTxCache[types.TxKey])
 		node := cache.GetList().Front()
 		counter := 0
 		for node != nil {

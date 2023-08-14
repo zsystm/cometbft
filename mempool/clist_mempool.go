@@ -60,7 +60,7 @@ type CListMempool struct {
 
 	// Keep a cache of already-seen txs.
 	// This reduces the pressure on the proxyApp.
-	cache TxCache
+	cache TxCache[types.TxKey]
 
 	logger  log.Logger
 	metrics *Metrics
@@ -91,9 +91,9 @@ func NewCListMempool(
 	}
 
 	if cfg.CacheSize > 0 {
-		mp.cache = NewLRUTxCache(cfg.CacheSize)
+		mp.cache = NewLRUTxCache[types.TxKey](cfg.CacheSize)
 	} else {
-		mp.cache = NopTxCache{}
+		mp.cache = NopTxCache[types.TxKey]{}
 	}
 
 	proxyAppConn.SetResponseCallback(mp.globalCb)
