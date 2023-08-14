@@ -117,20 +117,20 @@ func (mem *CListMempool) InMempool(txKey types.TxKey) bool {
 	return ok
 }
 
-func (mem *CListMempool) addToCache(tx types.Tx) bool {
-	return mem.cache.Push(tx)
+func (mem *CListMempool) addToCache(txKey types.TxKey) bool {
+	return mem.cache.Push(txKey)
 }
 
-func (mem *CListMempool) forceRemoveFromCache(tx types.Tx) {
-	mem.cache.Remove(tx)
+func (mem *CListMempool) forceRemoveFromCache(txKey types.TxKey) {
+	mem.cache.Remove(txKey)
 }
 
 // tryRemoveFromCache removes a transaction from the cache in case it can be
 // added to the mempool at a later stage (probably when the transaction becomes
 // valid).
-func (mem *CListMempool) tryRemoveFromCache(tx types.Tx) {
+func (mem *CListMempool) tryRemoveFromCache(txKey types.TxKey) {
 	if !mem.config.KeepInvalidTxsInCache {
-		mem.forceRemoveFromCache(tx)
+		mem.forceRemoveFromCache(txKey)
 	}
 }
 
@@ -275,7 +275,7 @@ func (mem *CListMempool) CheckTx(tx types.Tx) (*abcicli.ReqRes, error) {
 		return nil, err
 	}
 
-	if added := mem.addToCache(tx); !added {
+	if added := mem.addToCache(tx.Key()); !added {
 		mem.metrics.AlreadyReceivedTxs.Add(1)
 		// TODO: consider punishing peer for dups,
 		// its non-trivial since invalid txs can become valid,
@@ -374,18 +374,18 @@ func (mem *CListMempool) resCbFirstTime(
 	tx []byte,
 	res *abci.Response,
 ) {
+	txKey := types.Tx(tx).Key()
 	switch r := res.Value.(type) {
 	case *abci.Response_CheckTx:
 		var postCheckErr error
 		if mem.postCheck != nil {
 			postCheckErr = mem.postCheck(tx, r.CheckTx)
 		}
-		txKey := types.Tx(tx).Key()
 		if (r.CheckTx.Code == abci.CodeTypeOK) && postCheckErr == nil {
 			// Check mempool isn't full again to reduce the chance of exceeding the
 			// limits.
 			if err := mem.isFull(len(tx)); err != nil {
-				mem.forceRemoveFromCache(tx) // mempool might have space later
+				mem.forceRemoveFromCache(txKey) // mempool might have space later
 				mem.logger.Error(err.Error())
 				return
 			}
@@ -416,7 +416,7 @@ func (mem *CListMempool) resCbFirstTime(
 			)
 			mem.notifyTxsAvailable()
 		} else {
-			mem.tryRemoveFromCache(tx)
+			mem.tryRemoveFromCache(txKey)
 			mem.logger.Debug(
 				"rejected invalid transaction",
 				"tx", types.Tx(tx).Hash(),
@@ -438,7 +438,7 @@ func (mem *CListMempool) resCbFirstTime(
 func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 	switch r := res.Value.(type) {
 	case *abci.Response_CheckTx:
-		tx := req.GetCheckTx().Tx
+		tx := types.Tx(req.GetCheckTx().Tx)
 		memTx := mem.recheckCursor.Value.(*mempoolTx)
 
 		// Search through the remaining list of tx to recheck for a transaction that matches
@@ -480,7 +480,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 			if err := mem.RemoveTxByKey(memTx.tx.Key()); err != nil {
 				mem.logger.Debug("Transaction could not be removed from mempool", "err", err)
 			}
-			mem.tryRemoveFromCache(tx)
+			mem.tryRemoveFromCache(tx.Key())
 		}
 		if mem.recheckCursor == mem.recheckEnd {
 			mem.recheckCursor = nil
@@ -599,11 +599,12 @@ func (mem *CListMempool) Update(
 	}
 
 	for i, tx := range txs {
+		txKey := tx.Key()
 		if txResults[i].Code == abci.CodeTypeOK {
 			// Add valid committed tx to the cache (if missing).
-			_ = mem.addToCache(tx)
+			_ = mem.addToCache(txKey)
 		} else {
-			mem.tryRemoveFromCache(tx)
+			mem.tryRemoveFromCache(txKey)
 		}
 
 		// Remove committed tx from the mempool.
@@ -616,9 +617,9 @@ func (mem *CListMempool) Update(
 		// Mempool after:
 		//   100
 		// https://github.com/tendermint/tendermint/issues/3322.
-		if err := mem.RemoveTxByKey(tx.Key()); err != nil {
+		if err := mem.RemoveTxByKey(txKey); err != nil {
 			mem.logger.Debug("Committed transaction not in local mempool (not an error)",
-				"key", tx.Key(),
+				"key", txKey,
 				"error", err.Error())
 		}
 	}

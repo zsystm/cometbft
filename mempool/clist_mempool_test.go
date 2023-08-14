@@ -3,12 +3,11 @@ package mempool
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	mrand "math/rand"
 	"os"
 	"testing"
 	"time"
-
-	"fmt"
 
 	"github.com/cosmos/gogoproto/proto"
 	gogotypes "github.com/cosmos/gogoproto/types"
@@ -351,7 +350,7 @@ func TestMempool_KeepInvalidTxsInCache(t *testing.T) {
 		binary.BigEndian.PutUint64(a, 0)
 
 		// remove a from the cache to test (2)
-		mp.cache.Remove(a)
+		mp.cache.Remove(types.Tx(a).Key())
 
 		_, err := mp.CheckTx(a)
 		require.NoError(t, err)
@@ -661,7 +660,7 @@ func TestMempoolNoCacheOverflow(t *testing.T) {
 	defer cleanup()
 
 	// add tx0
-	var tx0 = kvstore.NewTxFromID(0)
+	tx0 := types.Tx(kvstore.NewTxFromID(0))
 	_, err := mp.CheckTx(tx0)
 	require.NoError(t, err)
 	err = mp.FlushAppConn()
@@ -674,7 +673,7 @@ func TestMempoolNoCacheOverflow(t *testing.T) {
 	}
 	err = mp.FlushAppConn()
 	require.NoError(t, err)
-	assert.False(t, mp.cache.Has(kvstore.NewTxFromID(0)))
+	assert.False(t, mp.cache.Has(tx0.Key()))
 
 	// add again tx0
 	_, err = mp.CheckTx(tx0)

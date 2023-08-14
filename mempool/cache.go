@@ -7,7 +7,7 @@ import (
 	"github.com/cometbft/cometbft/types"
 )
 
-// TxCache defines an interface for raw transaction caching in a mempool.
+// TxCache defines an interface for transaction caching.
 // Currently, a TxCache does not allow direct reading or getting of transaction
 // values. A TxCache is used primarily to push transactions and removing
 // transactions. Pushing via Push returns a boolean telling the caller if the
@@ -16,22 +16,21 @@ type TxCache interface {
 	// Reset resets the cache to an empty state.
 	Reset()
 
-	// Push adds the given raw transaction to the cache and returns true if it was
+	// Push adds the given transaction key to the cache and returns true if it was
 	// newly added. Otherwise, it returns false.
-	Push(tx types.Tx) bool
+	Push(txKey types.TxKey) bool
 
-	// Remove removes the given raw transaction from the cache.
-	Remove(tx types.Tx)
+	// Remove removes the given transaction from the cache.
+	Remove(txKey types.TxKey)
 
 	// Has reports whether tx is present in the cache. Checking for presence is
 	// not treated as an access of the value.
-	Has(tx types.Tx) bool
+	Has(txKey types.TxKey) bool
 }
 
 var _ TxCache = (*LRUTxCache)(nil)
 
-// LRUTxCache maintains a thread-safe LRU cache of raw transactions. The cache
-// only stores the hash of the raw transaction.
+// LRUTxCache maintains a thread-safe LRU cache of transaction hashes (keys).
 type LRUTxCache struct {
 	mtx      cmtsync.Mutex
 	size     int
@@ -61,13 +60,11 @@ func (c *LRUTxCache) Reset() {
 	c.list.Init()
 }
 
-func (c *LRUTxCache) Push(tx types.Tx) bool {
+func (c *LRUTxCache) Push(txKey types.TxKey) bool {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	key := tx.Key()
-
-	moved, ok := c.cacheMap[key]
+	moved, ok := c.cacheMap[txKey]
 	if ok {
 		c.list.MoveToBack(moved)
 		return false
@@ -82,39 +79,38 @@ func (c *LRUTxCache) Push(tx types.Tx) bool {
 		}
 	}
 
-	e := c.list.PushBack(key)
-	c.cacheMap[key] = e
+	e := c.list.PushBack(txKey)
+	c.cacheMap[txKey] = e
 
 	return true
 }
 
-func (c *LRUTxCache) Remove(tx types.Tx) {
+func (c *LRUTxCache) Remove(txKey types.TxKey) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	key := tx.Key()
-	e := c.cacheMap[key]
-	delete(c.cacheMap, key)
+	e := c.cacheMap[txKey]
+	delete(c.cacheMap, txKey)
 
 	if e != nil {
 		c.list.Remove(e)
 	}
 }
 
-func (c *LRUTxCache) Has(tx types.Tx) bool {
+func (c *LRUTxCache) Has(txKey types.TxKey) bool {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	_, ok := c.cacheMap[tx.Key()]
+	_, ok := c.cacheMap[txKey]
 	return ok
 }
 
-// NopTxCache defines a no-op raw transaction cache.
+// NopTxCache defines a no-op transaction cache.
 type NopTxCache struct{}
 
 var _ TxCache = (*NopTxCache)(nil)
 
-func (NopTxCache) Reset()             {}
-func (NopTxCache) Push(types.Tx) bool { return true }
-func (NopTxCache) Remove(types.Tx)    {}
-func (NopTxCache) Has(types.Tx) bool  { return false }
+func (NopTxCache) Reset()                {}
+func (NopTxCache) Push(types.TxKey) bool { return true }
+func (NopTxCache) Remove(types.TxKey)    {}
+func (NopTxCache) Has(types.TxKey) bool  { return false }
