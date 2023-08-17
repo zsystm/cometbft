@@ -19,6 +19,7 @@ import (
 	cs "github.com/cometbft/cometbft/consensus"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/evidence"
+	"github.com/cometbft/cometbft/mempool/cat"
 	"github.com/cometbft/cometbft/statesync"
 
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -239,14 +240,18 @@ func createMempoolAndMempoolReactor(
 
 	mp.SetLogger(logger)
 
-	reactor := mempl.NewReactor(
-		config.Mempool,
-		mp,
-	)
+	var reactor p2p.Reactor
+	switch config.Mempool.Reactor {
+	case "cat":
+		logger.Info("Using the CAT mempool reactor")
+		reactor = cat.NewReactor(config.Mempool, mp, logger)
+	default:
+		logger.Info("Using the default mempool reactor")
+		reactor = mempl.NewReactor(config.Mempool, mp, logger)
+	}
 	if config.Consensus.WaitForTxs() {
 		mp.EnableTxsAvailable()
 	}
-	reactor.SetLogger(logger)
 
 	return mp, reactor
 }

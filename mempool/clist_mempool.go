@@ -36,6 +36,8 @@ type CListMempool struct {
 	// from the mempool.
 	removeTxOnReactorCb func(txKey types.TxKey)
 
+	newTxReceivedCb func(txKey types.TxKey)
+
 	config *config.MempoolConfig
 
 	// Exclusive mutex for Update method to prevent concurrent execution of
@@ -66,12 +68,6 @@ type CListMempool struct {
 
 	logger  log.Logger
 	metrics *Metrics
-
-	// broadcastCh is an unbuffered channel of new transactions that need to
-	// be broadcasted to peers. Only populated if `broadcast` in the config is enabled
-	broadcastCh      chan *MempoolTx
-	broadcastMtx     sync.Mutex
-	txsToBeBroadcast []types.TxKey
 }
 
 var _ Mempool = &CListMempool{}
@@ -88,16 +84,14 @@ func NewCListMempool(
 	options ...CListMempoolOption,
 ) *CListMempool {
 	mp := &CListMempool{
-		config:           cfg,
-		proxyAppConn:     proxyAppConn,
-		txs:              clist.New(),
-		height:           height,
-		recheckCursor:    nil,
-		recheckEnd:       nil,
-		logger:           log.NewNopLogger(),
-		metrics:          NopMetrics(),
-		broadcastCh:      make(chan *MempoolTx),
-		txsToBeBroadcast: make([]types.TxKey, 0),
+		config:        cfg,
+		proxyAppConn:  proxyAppConn,
+		txs:           clist.New(),
+		height:        height,
+		recheckCursor: nil,
+		recheckEnd:    nil,
+		logger:        log.NewNopLogger(),
+		metrics:       NopMetrics(),
 	}
 
 	if cfg.CacheSize > 0 {
@@ -282,6 +276,8 @@ func (mem *CListMempool) CheckTx(tx types.Tx) (*abcicli.ReqRes, error) {
 	// use defer to unlock mutex because application (*local client*) might panic
 	defer mem.updateMtx.RUnlock()
 
+	mem.logger.Debug("CheckTx", "tx", tx.Key().String())
+
 	txSize := len(tx)
 
 	if err := mem.isFull(txSize); err != nil {
@@ -325,56 +321,20 @@ func (mem *CListMempool) CheckTx(tx types.Tx) (*abcicli.ReqRes, error) {
 	return reqRes, nil
 }
 
+func (mem *CListMempool) SetNewTxReceivedCallback(cb func(txKey types.TxKey)) {
+	mem.newTxReceivedCb = cb
+}
+
+func (mem *CListMempool) invokeNewTxReceivedOnReactor(txKey types.TxKey) {
+	if mem.newTxReceivedCb != nil {
+		mem.newTxReceivedCb(txKey)
+	}
+}
+
 func (mem *CListMempool) CheckNewTx(tx types.Tx) (*abcicli.ReqRes, error) {
+	mem.logger.Debug("Tx received from RPC endpoint", "tx", tx.Key().String())
 	reqRes, err := mem.CheckTx(tx)
-
-	// push to the broadcast queue that a new transaction is ready
-	mem.markToBeBroadcast(tx.Key())
-
 	return reqRes, err
-}
-
-// markToBeBroadcast marks a transaction to be broadcasted to peers.
-// This should never block so we use a map to create an unbounded queue
-// of transactions that need to be gossiped.
-func (mem *CListMempool) markToBeBroadcast(key types.TxKey) {
-	if !mem.config.Broadcast {
-		return
-	}
-
-	memTx := mem.GetEntry(key)
-	if memTx == nil {
-		return
-	}
-
-	select {
-	case mem.broadcastCh <- memTx:
-	default:
-		mem.broadcastMtx.Lock()
-		defer mem.broadcastMtx.Unlock()
-		mem.txsToBeBroadcast = append(mem.txsToBeBroadcast, key)
-	}
-}
-
-// next is used by the reactor to get the next transaction to broadcast
-// to all other peers.
-func (mem *CListMempool) NextNewTx() <-chan *MempoolTx {
-	mem.broadcastMtx.Lock()
-	defer mem.broadcastMtx.Unlock()
-
-	for len(mem.txsToBeBroadcast) != 0 {
-		ch := make(chan *MempoolTx, 1)
-		key := mem.txsToBeBroadcast[0]
-		mem.txsToBeBroadcast = mem.txsToBeBroadcast[1:]
-		memTx := mem.GetEntry(key)
-		if memTx == nil {
-			continue
-		}
-		ch <- memTx
-		return ch
-	}
-
-	return mem.broadcastCh
 }
 
 // Global callback that will be called after every ABCI response.
@@ -500,6 +460,7 @@ func (mem *CListMempool) resCbFirstTime(
 				"total", mem.Size(),
 			)
 			mem.notifyTxsAvailable()
+			mem.invokeNewTxReceivedOnReactor(txKey)
 		} else {
 			mem.tryRemoveFromCache(txKey)
 			mem.rejectedTxsCache.Push(txKey)
@@ -695,21 +656,10 @@ func (mem *CListMempool) Update(
 			mem.rejectedTxsCache.Push(tx.Key())
 		}
 
-		// Remove committed tx from the mempool.
-		//
-		// Note an evil proposer can drop valid txs!
-		// Mempool before:
-		//   100 -> 101 -> 102
-		// Block, proposed by an evil proposer:
-		//   101 -> 102
-		// Mempool after:
-		//   100
-		// https://github.com/tendermint/tendermint/issues/3322.
-		if err := mem.RemoveTxByKey(txKey); err != nil {
-			mem.logger.Debug("Committed transaction not in local mempool (not an error)",
-				"key", txKey,
-				"error", err.Error())
-		}
+		// Remove committed tx from the mempool, if it's there. If it's not in
+		// the mempool, don't log the error, as it is too verbose (and it's not
+		// really an error).
+		mem.RemoveTxByKey(txKey)
 	}
 
 	// Either recheck non-committed txs to see if they became invalid

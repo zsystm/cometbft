@@ -32,7 +32,7 @@ type Reactor struct {
 }
 
 // NewReactor returns a new Reactor with the given config and mempool.
-func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool) *Reactor {
+func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool, logger log.Logger) *Reactor {
 	memR := &Reactor{
 		config:    config,
 		mempool:   mempool,
@@ -40,6 +40,7 @@ func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool) *Reactor {
 	}
 	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR)
 	memR.mempool.SetTxRemovedCallback(func(txKey types.TxKey) { memR.removeSenders(txKey) })
+	memR.SetLogger(logger)
 	return memR
 }
 

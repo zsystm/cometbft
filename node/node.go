@@ -15,6 +15,7 @@ import (
 	cfg "github.com/cometbft/cometbft/config"
 	cs "github.com/cometbft/cometbft/consensus"
 	"github.com/cometbft/cometbft/evidence"
+	"github.com/cometbft/cometbft/mempool/cat"
 
 	"github.com/cometbft/cometbft/libs/log"
 	cmtpubsub "github.com/cometbft/cometbft/libs/pubsub"
@@ -778,6 +779,10 @@ func makeNodeInfo(
 
 	if config.P2P.PexReactor {
 		nodeInfo.Channels = append(nodeInfo.Channels, pex.PexChannel)
+	}
+
+	if config.Mempool.Reactor == "cat" {
+		nodeInfo.Channels = append(nodeInfo.Channels, cat.MempoolStateChannel)
 	}
 
 	lAddr := config.P2P.ExternalAddress
