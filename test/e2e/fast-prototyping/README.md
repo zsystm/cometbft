@@ -12,7 +12,7 @@ To build it:
    ```bash
    E2E_DIR=$(pwd)/test/e2e
    cd ${E2E_DIR}
-   make node-fast generator runner docker-fast
+   make fast
    ```
   
 - At this point you can run some tests using the fast docker image, but be aware that it is a very lean image.

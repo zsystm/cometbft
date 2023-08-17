@@ -32,6 +32,8 @@ node:
 node-fast:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/node ./node
 
+fast: node-fast generator runner docker-fast
+
 generator:
 	go build -o build/generator ./generator
 
