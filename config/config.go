@@ -683,6 +683,10 @@ type MempoolConfig struct {
 	// the $CMTHOME env variable or --home cmd flag rather than overriding this
 	// struct field.
 	RootDir string `mapstructure:"home"`
+	// Mempool reactor, valid options:
+	// - "cat": reactor with push-pull gossip protocol
+	// - default: reactor with flooding protocol
+	Reactor string `mapstructure:"reactor"`
 	// Recheck (default: true) defines whether CometBFT should recheck the
 	// validity for all remaining transaction in the mempool after a block.
 	// Since a block affects the application state, some transactions in the
@@ -724,6 +728,7 @@ type MempoolConfig struct {
 // DefaultMempoolConfig returns a default configuration for the CometBFT mempool
 func DefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
+		Reactor:   "",
 		Recheck:   true,
 		Broadcast: true,
 		WalPath:   "",

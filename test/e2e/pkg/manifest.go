@@ -180,6 +180,9 @@ type ManifestNode struct {
 	// It defaults to false so unless the configured, the node will
 	// receive load.
 	SendNoLoad bool `toml:"send_no_load"`
+
+	// MempoolReactor determines which reactor to use for the mempool.
+	MempoolReactor string `toml:"mempool_reactor"`
 }
 
 // Save saves the testnet manifest to a file.

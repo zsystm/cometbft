@@ -120,6 +120,7 @@ type Node struct {
 	SendNoLoad          bool
 	Prometheus          bool
 	PrometheusProxyPort uint32
+	MempoolReactor      string
 }
 
 // LoadTestnet loads a testnet from a manifest file, using the filename to
@@ -233,6 +234,7 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 			Perturbations:    []Perturbation{},
 			SendNoLoad:       nodeManifest.SendNoLoad,
 			Prometheus:       testnet.Prometheus,
+			MempoolReactor:   nodeManifest.MempoolReactor,
 		}
 		if node.StartAt == testnet.InitialHeight {
 			node.StartAt = 0 // normalize to 0 for initial nodes, since code expects this
