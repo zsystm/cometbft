@@ -62,6 +62,8 @@ type CListMempool struct {
 	// This reduces the pressure on the proxyApp.
 	cache TxCache[types.TxKey]
 
+	rejectedTxsCache TxCache[types.TxKey]
+
 	logger  log.Logger
 	metrics *Metrics
 
@@ -165,6 +167,10 @@ func (mem *CListMempool) removeAllTxs() {
 		mem.invokeRemoveTxOnReactor(key.(types.TxKey))
 		return true
 	})
+}
+
+func (mem *CListMempool) WasRejected(txKey types.TxKey) bool {
+	return mem.rejectedTxsCache.Has(txKey)
 }
 
 // NOTE: not thread safe - should only be called once, on startup
@@ -496,6 +502,7 @@ func (mem *CListMempool) resCbFirstTime(
 			mem.notifyTxsAvailable()
 		} else {
 			mem.tryRemoveFromCache(txKey)
+			mem.rejectedTxsCache.Push(txKey)
 			mem.logger.Debug(
 				"rejected invalid transaction",
 				"tx", types.Tx(tx).Hash(),
@@ -555,11 +562,12 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 
 		if (r.CheckTx.Code != abci.CodeTypeOK) || postCheckErr != nil {
 			// Tx became invalidated due to newly committed block.
-			mem.logger.Debug("tx is no longer valid", "tx", types.Tx(tx).Hash(), "res", r, "err", postCheckErr)
-			if err := mem.RemoveTxByKey(memTx.tx.Key()); err != nil {
+			mem.logger.Debug("tx is no longer valid", "tx", tx.Hash(), "res", r, "err", postCheckErr)
+			if err := mem.RemoveTxByKey(tx.Key()); err != nil {
 				mem.logger.Debug("Transaction could not be removed from mempool", "err", err)
 			}
 			mem.tryRemoveFromCache(tx.Key())
+			mem.rejectedTxsCache.Push(tx.Key())
 		}
 		if mem.recheckCursor == mem.recheckEnd {
 			mem.recheckCursor = nil
@@ -684,6 +692,7 @@ func (mem *CListMempool) Update(
 			_ = mem.addToCache(txKey)
 		} else {
 			mem.tryRemoveFromCache(txKey)
+			mem.rejectedTxsCache.Push(tx.Key())
 		}
 
 		// Remove committed tx from the mempool.
