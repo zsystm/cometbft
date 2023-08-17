@@ -143,8 +143,10 @@ func loadProcess(ctx context.Context, txCh <-chan types.Tx, chSuccess chan<- str
 			}
 		}
 		if _, err = client.BroadcastTxSync(ctx, tx); err != nil {
+			logger.Info("error in broadcast_tx_sync", "from", n.Name, "tx", tx.Key().String(), "err", err)
 			continue
 		}
+		logger.Info("broadcast_tx_sync", "from", n.Name, "tx", tx.Key().String())
 		chSuccess <- s
 	}
 }
