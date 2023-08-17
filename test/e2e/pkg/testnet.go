@@ -87,6 +87,8 @@ type Testnet struct {
 	FinalizeBlockDelay               time.Duration
 	UpgradeVersion                   string
 	Prometheus                       bool
+	PexReactor                       bool
+	LogLevel                         string
 	VoteExtensionsEnableHeight       int64
 	VoteExtensionSize                uint
 	PeerGossipIntraloopSleepDuration time.Duration
@@ -166,6 +168,8 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 		FinalizeBlockDelay:               manifest.FinalizeBlockDelay,
 		UpgradeVersion:                   manifest.UpgradeVersion,
 		Prometheus:                       manifest.Prometheus,
+		PexReactor:                       manifest.PexReactor,
+		LogLevel:                         manifest.LogLevel,
 		VoteExtensionsEnableHeight:       manifest.VoteExtensionsEnableHeight,
 		VoteExtensionSize:                manifest.VoteExtensionSize,
 		PeerGossipIntraloopSleepDuration: manifest.PeerGossipIntraloopSleepDuration,

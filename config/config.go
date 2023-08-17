@@ -450,7 +450,6 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	}
 	if cfg.MaxSubscriptionClients < 0 {
 		return cmterrors.ErrNegativeField{Field: "max_subscription_clients"}
-
 	}
 	if cfg.MaxSubscriptionsPerClient < 0 {
 		return cmterrors.ErrNegativeField{Field: "max_subscriptions_per_client"}
