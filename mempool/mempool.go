@@ -38,6 +38,8 @@ type Mempool interface {
 	// From RPC endpoint
 	CheckNewTx(tx types.Tx) (*abcicli.ReqRes, error)
 
+	InvokeNewTxReceivedOnReactor(txKey types.TxKey)
+
 	// RemoveTxByKey removes a transaction, identified by its key,
 	// from the mempool.
 	RemoveTxByKey(txKey types.TxKey) error

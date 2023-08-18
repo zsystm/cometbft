@@ -64,6 +64,7 @@ type CListMempool struct {
 	// This reduces the pressure on the proxyApp.
 	cache TxCache[types.TxKey]
 
+	// Keep a cache of invalid transactions.
 	rejectedTxsCache TxCache[types.TxKey]
 
 	logger  log.Logger
@@ -84,14 +85,15 @@ func NewCListMempool(
 	options ...CListMempoolOption,
 ) *CListMempool {
 	mp := &CListMempool{
-		config:        cfg,
-		proxyAppConn:  proxyAppConn,
-		txs:           clist.New(),
-		height:        height,
-		recheckCursor: nil,
-		recheckEnd:    nil,
-		logger:        log.NewNopLogger(),
-		metrics:       NopMetrics(),
+		config:           cfg,
+		proxyAppConn:     proxyAppConn,
+		txs:              clist.New(),
+		height:           height,
+		recheckCursor:    nil,
+		recheckEnd:       nil,
+		rejectedTxsCache: NewLRUTxCache[types.TxKey](cfg.CacheSize), // TODO: check size
+		logger:           log.NewNopLogger(),
+		metrics:          NopMetrics(),
 	}
 
 	if cfg.CacheSize > 0 {
@@ -325,7 +327,7 @@ func (mem *CListMempool) SetNewTxReceivedCallback(cb func(txKey types.TxKey)) {
 	mem.newTxReceivedCb = cb
 }
 
-func (mem *CListMempool) invokeNewTxReceivedOnReactor(txKey types.TxKey) {
+func (mem *CListMempool) InvokeNewTxReceivedOnReactor(txKey types.TxKey) {
 	if mem.newTxReceivedCb != nil {
 		mem.newTxReceivedCb(txKey)
 	}
@@ -460,7 +462,6 @@ func (mem *CListMempool) resCbFirstTime(
 				"total", mem.Size(),
 			)
 			mem.notifyTxsAvailable()
-			mem.invokeNewTxReceivedOnReactor(txKey)
 		} else {
 			mem.tryRemoveFromCache(txKey)
 			mem.rejectedTxsCache.Push(txKey)

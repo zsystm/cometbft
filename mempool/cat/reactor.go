@@ -144,7 +144,6 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 // Receive implements Reactor.
 // It processes one of three messages: Txs, SeenTx, WantTx.
 func (memR *Reactor) Receive(e p2p.Envelope) {
-	memR.Logger.Debug("Received", "src", e.Src, "chId", e.ChannelID, "msg", e.Message)
 	switch msg := e.Message.(type) {
 
 	// A peer has sent us one or more transactions. This could be either because we requested them
@@ -153,6 +152,7 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 	// flooded the network with transactions.
 	case *protomem.Txs:
 		protoTxs := msg.GetTxs()
+		memR.Logger.Debug("Received Txs", "src", e.Src, "chId", e.ChannelID, "msg", e.Message, "len", len(protoTxs))
 		if len(protoTxs) == 0 {
 			memR.Logger.Error("received empty txs from peer", "src", e.Src)
 			return
@@ -192,10 +192,8 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 					}
 				})
 			}
-			if memR.config.Broadcast {
-				// We broadcast only transactions that we deem valid and actually have in our mempool.
-				memR.broadcastSeenTx(key)
-			}
+			// We broadcast only transactions that we deem valid and actually have in our mempool.
+			memR.broadcastSeenTx(key)
 		}
 
 	// A peer has indicated to us that it has a transaction. We first verify the txkey and
@@ -212,6 +210,7 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 			memR.Switch.StopPeerForError(e.Src, err)
 			return
 		}
+		memR.Logger.Debug("Received SeenTx", "src", e.Src, "chId", e.ChannelID, "txKey", txKey)
 		peerID := e.Src.ID()
 		memR.markPeerHasTx(peerID, txKey)
 
@@ -240,19 +239,24 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 			memR.Switch.StopPeerForError(e.Src, err)
 			return
 		}
+		memR.Logger.Debug("Received SeenTx", "src", e.Src, "chId", e.ChannelID, "txKey", txKey)
+
 		elem, has := memR.mempool.GetCElement(txKey)
 		if has && memR.config.Broadcast {
 			tx := elem.Value.(*mempool.MempoolTx).GetTx()
 			peerID := e.Src.ID()
 			memR.Logger.Debug("sending a tx in response to a want msg", "peer", peerID)
-			txsMsg := p2p.Envelope{ChannelID: mempool.MempoolChannel, Message: &protomem.Txs{Txs: [][]byte{tx}}}
+			txsMsg := p2p.Envelope{
+				ChannelID: mempool.MempoolChannel,
+				Message:   &protomem.Txs{Txs: [][]byte{tx}},
+			}
 			if e.Src.Send(txsMsg) {
 				memR.markPeerHasTx(peerID, txKey)
 			}
 		}
 
 	default:
-		memR.Logger.Error("unknown message type", "src", e.Src, "chId", e.ChannelID, "msg", e.Message)
+		memR.Logger.Error("Received unknown message type", "src", e.Src, "chId", e.ChannelID, "msg", e.Message)
 		memR.Switch.StopPeerForError(e.Src, fmt.Errorf("mempool cannot handle message of type: %T", e.Message))
 		return
 	}
@@ -272,12 +276,16 @@ type PeerState interface {
 // broadcastSeenTx broadcasts a SeenTx message to all peers unless we
 // know they have already seen the transaction
 func (memR *Reactor) broadcastSeenTx(txKey types.TxKey) {
-	memR.Logger.Debug("Broadcasting SeenTx", "tx", txKey.String())
-	msg := p2p.Envelope{ChannelID: MempoolStateChannel, Message: &protomem.Message{
-		Sum: &protomem.Message_SeenTx{
-			SeenTx: &protomem.SeenTx{TxKey: txKey[:]},
-		},
-	}}
+	if !memR.config.Broadcast {
+		return
+	}
+
+	memR.Logger.Debug("Broadcasting SeenTx...", "tx", txKey.String())
+
+	msg := p2p.Envelope{
+		ChannelID: MempoolStateChannel,
+		Message:   &protomem.SeenTx{TxKey: txKey[:]},
+	}
 
 	// Add jitter to when the node broadcasts it's seen txs to stagger when nodes
 	// in the network broadcast their seenTx messages.
@@ -300,7 +308,7 @@ func (memR *Reactor) broadcastSeenTx(txKey types.TxKey) {
 		// no need to send a seen tx message to a peer that already
 		// has that tx.
 		if memR.seenByPeersSet.Has(txKey, peerID) {
-			memR.Logger.Debug("Peer has seen the transaction; skipping send SeenTx", "tx", txKey, "peer", peerID)
+			memR.Logger.Debug("Peer has seen the transaction, not sending SeenTx", "tx", txKey, "peer", peerID)
 			return true
 		}
 
@@ -316,15 +324,18 @@ func (memR *Reactor) broadcastSeenTx(txKey types.TxKey) {
 // broadcastNewTx broadcast new transaction to all peers unless we are already
 // sure they have seen the tx.
 func (memR *Reactor) broadcastNewTx(memTx *mempool.MempoolTx) {
+	if !memR.config.Broadcast {
+		return
+	}
+
 	tx := memTx.GetTx()
 	txKey := tx.Key()
-	memR.Logger.Debug("Broadcasting new transaction", "tx", txKey.String())
+	memR.Logger.Debug("Broadcasting new transaction...", "tx", txKey.String())
 
-	msg := p2p.Envelope{ChannelID: mempool.MempoolChannel, Message: &protomem.Message{
-		Sum: &protomem.Message_Txs{
-			Txs: &protomem.Txs{Txs: [][]byte{tx}},
-		},
-	}}
+	msg := p2p.Envelope{
+		ChannelID: mempool.MempoolChannel,
+		Message:   &protomem.Txs{Txs: [][]byte{tx}},
+	}
 
 	memR.peerIDs.Range(func(key, _ interface{}) bool {
 		peerID := key.(p2p.ID)
@@ -336,13 +347,13 @@ func (memR *Reactor) broadcastNewTx(memTx *mempool.MempoolTx) {
 			// if the peer is blocksyncing still and catching up
 			// in which case we just skip sending the transaction
 			if peerState.GetHeight() < memTx.Height()-peerHeightDiff {
-				memR.Logger.Debug("Peer is too far behind us; skipping sending new tx")
+				memR.Logger.Debug("Peer is too far behind us, don't send new tx")
 				return true
 			}
 		}
 
 		if memR.seenByPeersSet.Has(txKey, peerID) {
-			memR.Logger.Debug("Peer has seen the transaction; skipping sending it", "tx", txKey, "peer", peerID)
+			memR.Logger.Debug("Peer has seen the transaction, not sending it", "tx", txKey, "peer", peerID)
 			return true
 		}
 
@@ -367,11 +378,10 @@ func (memR *Reactor) requestTx(txKey types.TxKey, peerID p2p.ID) {
 
 	memR.Logger.Debug("requesting tx", "txKey", txKey, "peerID", peerID)
 	peer := memR.Switch.Peers().Get(peerID)
-	msg := p2p.Envelope{ChannelID: MempoolStateChannel, Message: &protomem.Message{
-		Sum: &protomem.Message_WantTx{
-			WantTx: &protomem.WantTx{TxKey: txKey[:]},
-		},
-	}}
+	msg := p2p.Envelope{
+		ChannelID: MempoolStateChannel,
+		Message:   &protomem.WantTx{TxKey: txKey[:]},
+	}
 
 	if peer.Send(msg) {
 		// memR.mempool.metrics.RequestedTxs.Add(1)

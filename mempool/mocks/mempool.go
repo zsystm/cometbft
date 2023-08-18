@@ -94,6 +94,11 @@ func (_m *Mempool) FlushAppConn() error {
 	return r0
 }
 
+// InvokeNewTxReceivedOnReactor provides a mock function with given fields: txKey
+func (_m *Mempool) InvokeNewTxReceivedOnReactor(txKey types.TxKey) {
+	_m.Called(txKey)
+}
+
 // Lock provides a mock function with given fields:
 func (_m *Mempool) Lock() {
 	_m.Called()
