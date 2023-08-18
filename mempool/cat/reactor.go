@@ -320,7 +320,7 @@ func (memR *Reactor) broadcastNewTx(memTx *mempool.MempoolTx) {
 	txKey := tx.Key()
 	memR.Logger.Debug("Broadcasting new transaction", "tx", txKey.String())
 
-	msg := p2p.Envelope{ChannelID: MempoolStateChannel, Message: &protomem.Message{
+	msg := p2p.Envelope{ChannelID: mempool.MempoolChannel, Message: &protomem.Message{
 		Sum: &protomem.Message_Txs{
 			Txs: &protomem.Txs{Txs: [][]byte{tx}},
 		},
