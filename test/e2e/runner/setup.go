@@ -250,6 +250,12 @@ func MakeConfig(node *e2e.Node) (*config.Config, error) {
 		}
 		cfg.P2P.PersistentPeers += peer.AddressP2P(true)
 	}
+	if node.MaxNumInboundPeers > 0 {
+		cfg.P2P.MaxNumInboundPeers = node.MaxNumInboundPeers
+	}
+	if node.MaxNumOutboundPeers > 0 {
+		cfg.P2P.MaxNumOutboundPeers = node.MaxNumOutboundPeers
+	}
 
 	if node.MempoolReactor != "" {
 		cfg.Mempool.Reactor = node.MempoolReactor

@@ -181,6 +181,12 @@ type ManifestNode struct {
 	// receive load.
 	SendNoLoad bool `toml:"send_no_load"`
 
+	// Maximum number of inbound peers
+	MaxNumInboundPeers int `toml:"max_num_inbound_peers"`
+
+	// Maximum number of outbound peers to connect to, excluding persistent peers
+	MaxNumOutboundPeers int `toml:"max_num_outbound_peers"`
+
 	// MempoolReactor determines which reactor to use for the mempool.
 	MempoolReactor string `toml:"mempool_reactor"`
 }

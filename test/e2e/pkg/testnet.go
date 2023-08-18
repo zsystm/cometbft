@@ -118,6 +118,8 @@ type Node struct {
 	PersistentPeers     []*Node
 	Perturbations       []Perturbation
 	SendNoLoad          bool
+	MaxNumInboundPeers  int
+	MaxNumOutboundPeers int
 	Prometheus          bool
 	PrometheusProxyPort uint32
 	MempoolReactor      string
@@ -213,28 +215,30 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 		}
 
 		node := &Node{
-			Name:             name,
-			Version:          v,
-			Testnet:          testnet,
-			PrivvalKey:       keyGen.Generate(manifest.KeyType),
-			NodeKey:          keyGen.Generate("ed25519"),
-			InternalIP:       ind.IPAddress,
-			ExternalIP:       extIP,
-			ProxyPort:        ind.Port,
-			Mode:             ModeValidator,
-			Database:         "goleveldb",
-			ABCIProtocol:     Protocol(testnet.ABCIProtocol),
-			PrivvalProtocol:  ProtocolFile,
-			StartAt:          nodeManifest.StartAt,
-			BlockSyncVersion: nodeManifest.BlockSyncVersion,
-			StateSync:        nodeManifest.StateSync,
-			PersistInterval:  1,
-			SnapshotInterval: nodeManifest.SnapshotInterval,
-			RetainBlocks:     nodeManifest.RetainBlocks,
-			Perturbations:    []Perturbation{},
-			SendNoLoad:       nodeManifest.SendNoLoad,
-			Prometheus:       testnet.Prometheus,
-			MempoolReactor:   nodeManifest.MempoolReactor,
+			Name:                name,
+			Version:             v,
+			Testnet:             testnet,
+			PrivvalKey:          keyGen.Generate(manifest.KeyType),
+			NodeKey:             keyGen.Generate("ed25519"),
+			InternalIP:          ind.IPAddress,
+			ExternalIP:          extIP,
+			ProxyPort:           ind.Port,
+			Mode:                ModeValidator,
+			Database:            "goleveldb",
+			ABCIProtocol:        Protocol(testnet.ABCIProtocol),
+			PrivvalProtocol:     ProtocolFile,
+			StartAt:             nodeManifest.StartAt,
+			BlockSyncVersion:    nodeManifest.BlockSyncVersion,
+			StateSync:           nodeManifest.StateSync,
+			PersistInterval:     1,
+			SnapshotInterval:    nodeManifest.SnapshotInterval,
+			RetainBlocks:        nodeManifest.RetainBlocks,
+			Perturbations:       []Perturbation{},
+			SendNoLoad:          nodeManifest.SendNoLoad,
+			MaxNumInboundPeers:  nodeManifest.MaxNumInboundPeers,
+			MaxNumOutboundPeers: nodeManifest.MaxNumOutboundPeers,
+			Prometheus:          testnet.Prometheus,
+			MempoolReactor:      nodeManifest.MempoolReactor,
 		}
 		if node.StartAt == testnet.InitialHeight {
 			node.StartAt = 0 // normalize to 0 for initial nodes, since code expects this
