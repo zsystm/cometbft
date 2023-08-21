@@ -23,7 +23,7 @@ type Step struct {
 }
 
 // This variable stores the path in the filesystem where the db will be created.
-var dbPath string = "./db"
+var dbPath string = "./tools/goleveldb_perf/db"
 
 // Number of records we'll insert in the db
 var recordsCount int = 10_000
@@ -40,6 +40,7 @@ func main() {
 	// Run one test
 	steps := runTest()
 	PrintSteps(steps)
+	dbPathRemove()
 }
 
 // Runs one test, including cleanup and stats printing.
@@ -51,7 +52,7 @@ func runTest() []Step {
 	var steps []Step
 
 	// Instantiates a new db
-	db, err := dbm.NewDB("goleveldb_perf_one", dbm.GoLevelDBBackend, dbPath)
+	db, err := dbm.NewGoLevelDB("goleveldb_perf_one", dbPath)
 	if err != nil {
 		panic(fmt.Errorf("error instantiating the db: %w", err))
 	}
@@ -77,6 +78,14 @@ func runTest() []Step {
 
 	// Delete records
 	steps = append(steps, step("delete", 2_000, db))
+
+	for i := 0; i < 2; i++ {
+		err = db.ForceCompact(nil, nil)
+		if err != nil {
+			fmt.Println(err)
+		}
+		steps = append(steps, Step{"force compact", dirSize(dbPath), dbCount(db)})
+	}
 
 	return steps
 }
