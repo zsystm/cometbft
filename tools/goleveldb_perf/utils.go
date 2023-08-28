@@ -148,7 +148,8 @@ func PrintSteps(steps []Step, experimentName string, backendType dbm.BackendType
 		panic(err)
 	}
 	for _, step := range steps {
-		_, err := file.WriteString(fmt.Sprintf("\t%15v\n", step))
+		_, err := file.WriteString(
+			fmt.Sprintf("\t%15v%15v%15v%15v\n", step.Name, step.Size, step.Records, step.Duration.Seconds()))
 		if err != nil {
 			panic(err)
 		}

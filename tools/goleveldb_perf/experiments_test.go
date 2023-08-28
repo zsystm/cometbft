@@ -59,3 +59,17 @@ func BenchmarkLargeInserts(b *testing.B) {
 		b.Log(fmt.Sprintf("Done with %v", backend))
 	}
 }
+
+func BenchmarkSmallDeletions(b *testing.B) {
+	keySize := 64
+	valueSize := 1 * units.MiB
+	for _, backend := range backends {
+		config := test.ResetTestRoot("db_benchmark")
+		steps := deletions(backend, keySize, valueSize, config.DBDir())
+		PrintSteps(steps, b.Name(), backend)
+		if err := os.RemoveAll(config.RootDir); err != nil {
+			panic(err)
+		}
+		b.Log(fmt.Sprintf("Done with %v", backend))
+	}
+}
