@@ -57,3 +57,5 @@ proto/spec/**/*.pb.go
 *.dvi
 # Python virtual environments
 .venv
+tools/goleveldb_perf/.ipynb_checkpoints/
+tools/goleveldb_perf/measurements/
