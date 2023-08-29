@@ -1,12 +1,10 @@
 package db_experiments
 
 import (
-	"fmt"
-	"os"
 	"testing"
+	"time"
 
 	dbm "github.com/cometbft/cometbft-db"
-	"github.com/cometbft/cometbft/internal/test"
 	"github.com/docker/go-units"
 )
 
@@ -22,13 +20,14 @@ func BenchmarkSmallInserts(b *testing.B) {
 	keySize := 64
 	valueSize := 1 * units.MiB
 	for _, backend := range backends {
-		config := test.ResetTestRoot("db_benchmark")
-		steps := inserts(backend, keySize, valueSize, config.DBDir())
-		PrintSteps(steps, b.Name(), backend)
-		if err := os.RemoveAll(config.RootDir); err != nil {
-			panic(err)
-		}
-		b.Log(fmt.Sprintf("Done with %v", backend))
+		runBackendExperimentWithTimeOut(
+			inserts,
+			backend,
+			keySize,
+			valueSize,
+			15*time.Minute,
+			b,
+		)
 	}
 }
 
@@ -36,13 +35,14 @@ func BenchmarkMediumInserts(b *testing.B) {
 	keySize := 64
 	valueSize := 64 * units.MiB
 	for _, backend := range backends {
-		config := test.ResetTestRoot("db_benchmark")
-		steps := inserts(backend, keySize, valueSize, config.DBDir())
-		PrintSteps(steps, b.Name(), backend)
-		if err := os.RemoveAll(config.RootDir); err != nil {
-			panic(err)
-		}
-		b.Log(fmt.Sprintf("Done with %v", backend))
+		runBackendExperimentWithTimeOut(
+			inserts,
+			backend,
+			keySize,
+			valueSize,
+			15*time.Minute,
+			b,
+		)
 	}
 }
 
@@ -50,13 +50,14 @@ func BenchmarkLargeInserts(b *testing.B) {
 	keySize := 64
 	valueSize := 512 * units.MiB
 	for _, backend := range backends {
-		config := test.ResetTestRoot("db_benchmark")
-		steps := inserts(backend, keySize, valueSize, config.DBDir())
-		PrintSteps(steps, b.Name(), backend)
-		if err := os.RemoveAll(config.RootDir); err != nil {
-			panic(err)
-		}
-		b.Log(fmt.Sprintf("Done with %v", backend))
+		runBackendExperimentWithTimeOut(
+			inserts,
+			backend,
+			keySize,
+			valueSize,
+			15*time.Minute,
+			b,
+		)
 	}
 }
 
@@ -64,12 +65,58 @@ func BenchmarkSmallDeletions(b *testing.B) {
 	keySize := 64
 	valueSize := 1 * units.MiB
 	for _, backend := range backends {
-		config := test.ResetTestRoot("db_benchmark")
-		steps := deletions(backend, keySize, valueSize, config.DBDir())
-		PrintSteps(steps, b.Name(), backend)
-		if err := os.RemoveAll(config.RootDir); err != nil {
-			panic(err)
-		}
-		b.Log(fmt.Sprintf("Done with %v", backend))
+		runBackendExperimentWithTimeOut(
+			deletions,
+			backend,
+			keySize,
+			valueSize,
+			15*time.Minute,
+			b,
+		)
+	}
+}
+
+func BenchmarkSmallBatchInserts(b *testing.B) {
+	keySize := 64
+	valueSize := 1 * units.MiB
+	for _, backend := range backends {
+		runBackendExperimentWithTimeOut(
+			batchInserts,
+			backend,
+			keySize,
+			valueSize,
+			15*time.Minute,
+			b,
+		)
+	}
+}
+
+func BenchmarkSmallBatchDeletions(b *testing.B) {
+	keySize := 64
+	valueSize := 1 * units.MiB
+	for _, backend := range backends {
+		runBackendExperimentWithTimeOut(
+			batchDeletions,
+			backend,
+			keySize,
+			valueSize,
+			15*time.Minute,
+			b,
+		)
+	}
+}
+
+func BenchmarkSmallFluctuations(b *testing.B) {
+	keySize := 64
+	valueSize := 1 * units.MiB
+	for _, backend := range backends {
+		runBackendExperimentWithTimeOut(
+			fluctuations,
+			backend,
+			keySize,
+			valueSize,
+			15*time.Minute,
+			b,
+		)
 	}
 }

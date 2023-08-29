@@ -1,12 +1,17 @@
 package db_experiments
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
+	"testing"
 	"time"
 
 	dbm "github.com/cometbft/cometbft-db"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/docker/go-units"
 )
@@ -23,6 +28,8 @@ type Step struct {
 	Records int
 	// The time step took
 	Duration time.Duration
+	// Sys memory used by the process
+	SysMem uint64
 }
 
 // Performs one step as part of a test.
@@ -39,6 +46,7 @@ func step(
 	keySize int,
 	valueSize int,
 	dbPath string,
+	ctx context.Context,
 ) Step {
 	curTime := time.Now()
 	if stepType == "delete" {
@@ -52,22 +60,94 @@ func step(
 
 		deleted := 0
 		for ; iter.Valid(); iter.Next() {
-			if err := db.Delete(iter.Key()); err != nil {
-				panic(fmt.Errorf("error during Delete(): %w", err))
-			}
-			deleted++
-			if deleted == count {
-				fmt.Printf("\n\t\t\t---- deleted %v records", count)
-				break
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Delete(iter.Key()); err != nil {
+					panic(fmt.Errorf("error during Delete(): %w", err))
+				}
+				deleted++
+				if deleted == count {
+					break
+				}
 			}
 		}
 	} else if stepType == "insert" {
 		// Handle the insertion of records
 		// Write `count` records to the db
 		for i := 0; i < count; i++ {
-			if err := db.Set(rand.Bytes(keySize), rand.Bytes(valueSize)); err != nil {
-				panic(fmt.Errorf("error during Set(): %w", err))
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Set(rand.Bytes(keySize), rand.Bytes(valueSize)); err != nil {
+					panic(fmt.Errorf("error during Set(): %w", err))
+				}
 			}
+		}
+	} else if stepType == "batchInsert" {
+		batch := db.NewBatch()
+		defer func(batch dbm.Batch) {
+			err := batch.Close()
+			if err != nil {
+				panic(err)
+			}
+		}(batch)
+		for i := 0; i < count; i++ {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := batch.Set(rand.Bytes(keySize), rand.Bytes(valueSize)); err != nil {
+					panic(fmt.Errorf("error during batch Set(): %w", err))
+				}
+			}
+		}
+		err := batch.WriteSync()
+		if err != nil {
+			panic(fmt.Errorf("error during bathc WriteSync(): %w", err))
+		}
+	} else if stepType == "batchDelete" {
+		// Handle the deletion of records
+		// Iterate over the db and delete the first `count` records
+		iter, err := db.Iterator(nil, nil)
+		if err != nil {
+			panic(fmt.Errorf("error calling Iterator(): %w", err))
+		}
+		defer func(iter dbm.Iterator) {
+			err := iter.Close()
+			if err != nil {
+				panic(err)
+			}
+		}(iter)
+
+		batch := db.NewBatch()
+		defer func(batch dbm.Batch) {
+			err := batch.Close()
+			if err != nil {
+				panic(err)
+			}
+		}(batch)
+
+		deleted := 0
+		for ; iter.Valid(); iter.Next() {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := batch.Delete(iter.Key()); err != nil {
+					panic(fmt.Errorf("error during Delete(): %w", err))
+				}
+				deleted++
+				if deleted == count {
+					break
+				}
+			}
+		}
+		err = batch.WriteSync()
+		if err != nil {
+			panic(fmt.Errorf("error during batch WriteSync(): %w", err))
 		}
 	} else {
 		panic("invalid step type")
@@ -78,7 +158,14 @@ func step(
 		Size:     dirSize(dbPath),
 		Records:  dbCount(db),
 		Duration: time.Since(curTime),
+		SysMem:   getSysMem(),
 	}
+}
+
+func getSysMem() uint64 {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	return memStats.Sys / units.MiB
 }
 
 // Handles the removal of all db files.
@@ -143,15 +230,60 @@ func PrintSteps(steps []Step, experimentName string, backendType dbm.BackendType
 		}
 	}(file)
 
-	_, err = file.WriteString(fmt.Sprintf("Backend: %v\nSteps:\n\t%15s%15s%15s\n", backendType, "name", "size (mb)", "records #"))
+	_, err = file.WriteString(fmt.Sprintf("Backend: %v\nSteps:\n\t%15s%15s%15s%15s%15s\n", backendType, "name", "size (mb)", "records #", "duration", "sysmem (mb)"))
 	if err != nil {
 		panic(err)
 	}
 	for _, step := range steps {
 		_, err := file.WriteString(
-			fmt.Sprintf("\t%15v%15v%15v%15v\n", step.Name, step.Size, step.Records, step.Duration.Seconds()))
+			fmt.Sprintf("\t%15v%15v%15v%15.2f%15v\n", step.Name, step.Size, step.Records, step.Duration.Seconds(), step.SysMem))
 		if err != nil {
 			panic(err)
 		}
+	}
+}
+
+func runWithTimeOut(timeout time.Duration, call func(ctx context.Context)) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	flagChan := make(chan int)
+
+	go func() {
+		call(ctx)
+		flagChan <- 0
+	}()
+
+	select {
+	case <-flagChan:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func runBackendExperimentWithTimeOut(
+	experiment func(backendType dbm.BackendType, keySize int, valueSize int, dbPath string, ctx context.Context) []Step,
+	backend dbm.BackendType,
+	keySize int,
+	valueSize int,
+	timeout time.Duration,
+	b *testing.B) {
+	config := test.ResetTestRoot("db_benchmark")
+	var wg sync.WaitGroup
+	wg.Add(1)
+	success := runWithTimeOut(timeout, func(ctx context.Context) {
+		defer wg.Done()
+		steps := experiment(backend, keySize, valueSize, config.DBDir(), ctx)
+		PrintSteps(steps, b.Name(), backend)
+	})
+	wg.Wait()
+	if err := os.RemoveAll(config.RootDir); err != nil {
+		panic(err)
+	}
+	if success {
+		b.Log(fmt.Sprintf("Done with %v", backend))
+	} else {
+		b.Log(fmt.Sprintf("%v timed out", backend))
 	}
 }
