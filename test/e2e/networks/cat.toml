@@ -1,0 +1,101 @@
+ipv6 = false
+initial_height = 1000
+key_type = ""
+evidence = 0
+vote_extensions_enable_height = 1100
+abci_protocol = "tcp"
+prepare_proposal_delay = "0s"
+process_proposal_delay = "0s"
+check_tx_delay = "0s"
+vote_extension_delay = "0s"
+finalize_block_delay = "0s"
+upgrade_version = ""
+load_tx_size_bytes = 0
+load_tx_batch_size = 0
+load_tx_connections = 0
+prometheus = true
+pex = false
+log_level = "debug"
+vote_extension_size = 0
+peer_gossip_intraloop_sleep_duration = "0s"
+
+[initial_state]
+
+[validators]
+
+[validator_update]
+  [validator_update.0]
+    validator01 = 60
+    validator02 = 40
+    validator03 = 46
+  [validator_update.1010]
+    validator04 = 59
+
+[node]
+  [node.validator01]
+    mode = "validator"
+    version = ""
+    database = "cleveldb"
+    privval_protocol = "file"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 0
+    snapshot_interval = 3
+    retain_blocks = 0
+    perturb = ["upgrade"]
+    send_no_load = false
+    max_num_inbound_peers = 0
+    max_num_outbound_peers = 0
+    mempool_reactor = "cat"
+  [node.validator02]
+    mode = "validator"
+    version = ""
+    persistent_peers = ["validator01"]
+    database = "badgerdb"
+    privval_protocol = "unix"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 1
+    snapshot_interval = 3
+    retain_blocks = 0
+    perturb = []
+    send_no_load = false
+    max_num_inbound_peers = 0
+    max_num_outbound_peers = 0
+    mempool_reactor = "cat"
+  [node.validator03]
+    mode = "validator"
+    version = ""
+    persistent_peers = ["validator02"]
+    database = "badgerdb"
+    privval_protocol = "tcp"
+    start_at = 0
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 1
+    snapshot_interval = 0
+    retain_blocks = 0
+    perturb = []
+    send_no_load = false
+    max_num_inbound_peers = 0
+    max_num_outbound_peers = 0
+    mempool_reactor = "cat"
+  [node.validator04]
+    mode = "validator"
+    version = ""
+    persistent_peers = ["validator01", "validator03"]
+    database = "boltdb"
+    privval_protocol = "tcp"
+    start_at = 1005
+    block_sync_version = "v0"
+    state_sync = false
+    persist_interval = 0
+    snapshot_interval = 0
+    retain_blocks = 0
+    perturb = ["upgrade"]
+    send_no_load = false
+    max_num_inbound_peers = 0
+    max_num_outbound_peers = 0
+    mempool_reactor = "cat"
