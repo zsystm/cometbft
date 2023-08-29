@@ -7,8 +7,10 @@ Please note that (to date) these scripts are mostly oriented toward prototyping 
 
 To use the fast-prototyping feature and be able to run dozens of nodes in containers, you need a very lean docker image.
 To build it:
+
 - Have an updated docker installed
 - From the CometBFT clone, build
+
    ```bash
    E2E_DIR=$(pwd)/test/e2e
    cd ${E2E_DIR}
@@ -16,6 +18,7 @@ To build it:
    ```
   
 - At this point you can run some tests using the fast docker image, but be aware that it is a very lean image.
-   ```
+
+   ```bash
    ./run-multiple.sh networks/long.toml
    ```

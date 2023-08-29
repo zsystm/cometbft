@@ -171,7 +171,7 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 				// If we didn't request the transaction we simply mark the peer as having the
 				// tx (we'd have already done it if we were requesting the tx).
 				memR.markPeerHasTx(peerID, key)
-				memR.Logger.Debug("received new trasaction", "peerID", peerID, "txKey", key)
+				memR.Logger.Debug("received new transaction", "peerID", peerID, "txKey", key)
 			}
 
 			reqRes, err := memR.mempool.CheckTx(tx)

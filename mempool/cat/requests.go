@@ -20,12 +20,12 @@ type requestScheduler struct {
 	responseTime time.Duration
 
 	// globalTimeout represents the longest duration
-	// to wait for any late response (after the reponseTime).
+	// to wait for any late response (after the responseTime).
 	// After this period the request is garbage collected.
 	globalTimeout time.Duration
 
 	// requestsByPeer is a lookup table of requests by peer.
-	// Multiple tranasctions can be requested by a single peer at one
+	// Multiple transactions can be requested by a single peer at one
 	requestsByPeer map[p2p.ID]requestSet
 
 	// requestsByTx is a lookup table for requested txs.
@@ -68,7 +68,7 @@ func (r *requestScheduler) Add(key types.TxKey, peer p2p.ID, onTimeout func(key 
 
 		// We set another timeout because the peer could still send
 		// a late response after the first timeout and it's important
-		// to recognise that it is a transaction in response to a
+		// to recognize that it is a transaction in response to a
 		// request and not a new transaction being broadcasted to the entire
 		// network. This timer cannot be stopped and is used to ensure
 		// garbage collection.
