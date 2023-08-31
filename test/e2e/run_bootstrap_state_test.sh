@@ -25,7 +25,7 @@
 
 make 
 
-manifests="bootstrap_state.toml bootstrap_state_ve_1.toml bootstrap_state_ve_higher.toml"
+manifests="bootstrap_state_ve_1.toml"
 
 for m in $manifests; do 
 

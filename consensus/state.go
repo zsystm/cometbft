@@ -192,6 +192,9 @@ func NewState(
 
 	// NOTE: we do not call scheduleRound0 yet, we do that upon Start()
 
+	for _, option := range options {
+		option(cs)
+	}
 	cs.BaseService = *service.NewBaseService(nil, "State", cs)
 
 	return cs

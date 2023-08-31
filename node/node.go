@@ -278,11 +278,15 @@ func NewNode(ctx context.Context,
 	logger log.Logger,
 	options ...Option,
 ) (*Node, error) {
+	if uint64(config.StateSync.StateSyncOfflineHeight) != 0 {
+		BootstrapState(ctx, config, dbProvider, uint64(config.StateSync.StateSyncOfflineHeight), nil)
+		return nil, fmt.Errorf("bootstrapping done; node should shut down now")
+	}
 	blockStore, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println("Done bootstrapping state: ", blockStore.Base(), blockStore.Height())
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
 		DiscardABCIResponses: config.Storage.DiscardABCIResponses,
 	})
