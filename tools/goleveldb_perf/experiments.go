@@ -130,6 +130,12 @@ func batchInserts(backendType dbm.BackendType, keySize int, valueSize int, dbPat
 			newStep.Records = currentRecords
 			steps = append(steps, newStep)
 			currentStorageSize += (keySize + valueSize) * recordingsPerStep
+
+			// make sure process is not killed due to the overuse of memory
+			if getSysMem()*units.MiB > 5*units.GiB {
+				steps = append(steps, Step{Name: "memOveruse"})
+				return steps
+			}
 		}
 	}
 
