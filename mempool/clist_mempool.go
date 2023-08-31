@@ -118,7 +118,7 @@ func (mem *CListMempool) GetCElement(txKey types.TxKey) (*clist.CElement, bool) 
 	return nil, false
 }
 
-func (mem *CListMempool) GetEntry(txKey types.TxKey) *MempoolTx {
+func (mem *CListMempool) GetEntry(txKey types.TxKey) *MempoolTx { //TODO: follow the same design as GetCElement and allow nil elements?
 	elem, _ := mem.GetCElement(txKey)
 	if elem == nil {
 		return nil
@@ -421,13 +421,13 @@ func (mem *CListMempool) resCbFirstTime(
 	tx []byte,
 	res *abci.Response,
 ) {
-	txKey := types.Tx(tx).Key()
 	switch r := res.Value.(type) {
 	case *abci.Response_CheckTx:
 		var postCheckErr error
 		if mem.postCheck != nil {
 			postCheckErr = mem.postCheck(tx, r.CheckTx)
 		}
+		txKey := types.Tx(tx).Key()
 		if (r.CheckTx.Code == abci.CodeTypeOK) && postCheckErr == nil {
 			// Check mempool isn't full again to reduce the chance of exceeding the
 			// limits.
@@ -627,7 +627,7 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 	return txs
 }
 
-// Lock() must be help by the caller during execution.
+// Lock() must be held by the caller during execution.
 // TODO: this function always returns nil; remove the return value
 func (mem *CListMempool) Update(
 	height int64,
@@ -657,9 +657,7 @@ func (mem *CListMempool) Update(
 			mem.rejectedTxsCache.Push(tx.Key())
 		}
 
-		// Remove committed tx from the mempool, if it's there. If it's not in
-		// the mempool, don't log the error, as it is too verbose (and it's not
-		// really an error).
+		// Remove committed tx from the mempool, if it's there.
 		mem.RemoveTxByKey(txKey)
 	}
 

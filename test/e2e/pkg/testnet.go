@@ -198,6 +198,9 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 	if testnet.LoadTxSizeBytes == 0 {
 		testnet.LoadTxSizeBytes = defaultTxSizeBytes
 	}
+	if testnet.LogLevel == "" {
+		testnet.LogLevel = "true"
+	}
 
 	for _, name := range sortNodeNames(manifest) {
 		nodeManifest := manifest.Nodes[name]

@@ -322,7 +322,7 @@ dial_timeout = "{{ .P2P.DialTimeout }}"
 
 # Mempool reactor. Valid options:
 # - "cat" for push-pull gossip protocol
-# - "flood" or any other: default reactor with flood protocol
+# - "flood" or "": default reactor with flood protocol
 reactor = "{{ .Mempool.Reactor }}"
 
 # recheck (default: true) defines whether CometBFT should recheck the

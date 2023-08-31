@@ -3,7 +3,6 @@ package cat
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -193,10 +192,10 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 				})
 			}
 			// We broadcast only transactions that we deem valid and actually have in our mempool.
-			memR.broadcastSeenTx(key)
+			go memR.broadcastSeenTx(key)
 		}
 
-	// A peer has indicated to us that it has a transaction. We first verify the txkey and
+	// A peer has indicated to us that it has a transaction. We first verify the txKey and
 	// mark that peer as having the transaction. Then we proceed with the following logic:
 	//
 	// 1. If we have the transaction, we do nothing.
@@ -289,7 +288,7 @@ func (memR *Reactor) broadcastSeenTx(txKey types.TxKey) {
 
 	// Add jitter to when the node broadcasts it's seen txs to stagger when nodes
 	// in the network broadcast their seenTx messages.
-	time.Sleep(time.Duration(rand.Intn(10)*10) * time.Millisecond) //nolint:gosec
+	//time.Sleep(time.Duration(rand.Intn(10)*10) * time.Millisecond) //nolint:gosec //BUG? Why stagger? So small
 
 	memR.peerIDs.Range(func(key, _ interface{}) bool {
 		peerID := key.(p2p.ID)
@@ -298,7 +297,7 @@ func (memR *Reactor) broadcastSeenTx(txKey types.TxKey) {
 
 		if peerState, ok := peer.Get(types.PeerStateKey).(PeerState); ok {
 			// make sure peer isn't too far behind. This can happen
-			// if the peer is blocksyncing still and catching up
+			// if the peer is block-synching still and catching up
 			// in which case we just skip sending the transaction
 			if peerState.GetHeight() < memR.mempool.Height()-peerHeightDiff {
 				memR.Logger.Debug("peer is too far behind us. Skipping broadcast of seen tx")
@@ -422,7 +421,7 @@ func (memR *Reactor) findNewPeerToRequestTx(txKey types.TxKey) {
 		// we disconnected from that peer, retry again until we exhaust the list
 		memR.findNewPeerToRequestTx(txKey)
 	} else {
-		// memR.mempool.metrics.RerequestedTxs.Add(1)
+		//memR.mempool.metrics.RerequestedTxs.Add(1)
 		memR.requestTx(txKey, *peerID)
 	}
 }

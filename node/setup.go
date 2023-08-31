@@ -227,7 +227,7 @@ func createMempoolAndMempoolReactor(
 	state sm.State,
 	memplMetrics *mempl.Metrics,
 	logger log.Logger,
-) (mempl.Mempool, p2p.Reactor) {
+) (mempl.Mempool, p2p.Reactor, error) {
 	logger = logger.With("module", "mempool")
 	mp := mempl.NewCListMempool(
 		config.Mempool,
@@ -240,20 +240,23 @@ func createMempoolAndMempoolReactor(
 
 	mp.SetLogger(logger)
 
+	if config.Consensus.WaitForTxs() {
+		mp.EnableTxsAvailable()
+	}
+
 	var reactor p2p.Reactor
 	switch config.Mempool.Reactor {
 	case "cat":
 		logger.Info("Using the CAT mempool reactor")
 		reactor = cat.NewReactor(config.Mempool, mp, logger)
-	default:
+	case "flood", "":
 		logger.Info("Using the default mempool reactor")
 		reactor = mempl.NewReactor(config.Mempool, mp, logger)
-	}
-	if config.Consensus.WaitForTxs() {
-		mp.EnableTxsAvailable()
+	default:
+		return nil, nil, fmt.Errorf("unknown mempool reactor \"%s\"", config.Mempool.Reactor)
 	}
 
-	return mp, reactor
+	return mp, reactor, nil
 }
 
 func createEvidenceReactor(config *cfg.Config, dbProvider cfg.DBProvider,

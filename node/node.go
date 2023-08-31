@@ -230,7 +230,10 @@ func NewNode(ctx context.Context,
 	logNodeStartupInfo(state, pubKey, logger, consensusLogger)
 
 	// Make MempoolReactor
-	mempool, mempoolReactor := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
+	mempool, mempoolReactor, err := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
+	if err != nil {
+		return nil, err
+	}
 
 	// Make Evidence Reactor
 	evidenceReactor, evidencePool, err := createEvidenceReactor(config, dbProvider, stateStore, blockStore, logger)
