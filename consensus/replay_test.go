@@ -70,10 +70,10 @@ func startNewStateAndWaitForBlock(
 	t *testing.T,
 	consensusReplayConfig *cfg.Config,
 	blockDB dbm.DB,
-	stateStore sm.Store,
 ) {
 	logger := log.TestingLogger()
-	state, _ := stateStore.LoadFromDBOrGenesisFile(consensusReplayConfig.GenesisFile())
+	state, err := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
+	require.NoError(t, err)
 	privValidator := loadPrivValidator(consensusReplayConfig)
 	cs := newStateWithConfigAndBlockStore(
 		consensusReplayConfig,
@@ -87,7 +87,7 @@ func startNewStateAndWaitForBlock(
 	bytes, _ := os.ReadFile(cs.config.WalFile())
 	t.Logf("====== WAL: \n\r%X\n", bytes)
 
-	err := cs.Start()
+	err = cs.Start()
 	require.NoError(t, err)
 	defer func() {
 		if err := cs.Stop(); err != nil {
@@ -117,12 +117,13 @@ func sendTxs(ctx context.Context, cs *State) {
 			return
 		default:
 			tx := kvstore.NewTxFromID(i)
-			if err := assertMempool(cs.txNotifier).CheckTx(tx, func(resp *abci.ResponseCheckTx) {
-				if resp.Code != 0 {
-					panic(fmt.Sprintf("Unexpected code: %d, log: %s", resp.Code, resp.Log))
-				}
-			}, mempool.TxInfo{}); err != nil {
+			reqRes, err := assertMempool(cs.txNotifier).CheckTx(tx)
+			if err != nil {
 				panic(err)
+			}
+			resp := reqRes.Response.GetCheckTx()
+			if resp.Code != 0 {
+				panic(fmt.Sprintf("Unexpected code: %d, log: %s", resp.Code, resp.Log))
 			}
 			i++
 		}
@@ -174,9 +175,6 @@ LOOP:
 		logger := log.NewNopLogger()
 		blockDB := dbm.NewMemDB()
 		stateDB := blockDB
-		stateStore := sm.NewStore(stateDB, sm.StoreOptions{
-			DiscardABCIResponses: false,
-		})
 		state, err := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
 		require.NoError(t, err)
 		privValidator := loadPrivValidator(consensusReplayConfig)
@@ -217,7 +215,7 @@ LOOP:
 			t.Logf("WAL panicked: %v", err)
 
 			// make sure we can make blocks after a crash
-			startNewStateAndWaitForBlock(t, consensusReplayConfig, blockDB, stateStore)
+			startNewStateAndWaitForBlock(t, consensusReplayConfig, blockDB)
 
 			// stop consensus state and transactions sender (initFn)
 			cs.Stop() //nolint:errcheck // Logging this error causes failure
@@ -369,7 +367,7 @@ func setupChainWithChangingValidators(t *testing.T, name string, nBlocks int) (*
 	valPubKey1ABCI, err := cryptoenc.PubKeyToProto(newValidatorPubKey1)
 	require.NoError(t, err)
 	newValidatorTx1 := kvstore.MakeValSetChangeTx(valPubKey1ABCI, testMinPower)
-	err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx1, nil, mempool.TxInfo{})
+	_, err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx1)
 	assert.NoError(t, err)
 	propBlock, err := css[0].createProposalBlock(ctx) // changeProposer(t, cs1, vs2)
 	require.NoError(t, err)
@@ -401,7 +399,7 @@ func setupChainWithChangingValidators(t *testing.T, name string, nBlocks int) (*
 	updatePubKey1ABCI, err := cryptoenc.PubKeyToProto(updateValidatorPubKey1)
 	require.NoError(t, err)
 	updateValidatorTx1 := kvstore.MakeValSetChangeTx(updatePubKey1ABCI, 25)
-	err = assertMempool(css[0].txNotifier).CheckTx(updateValidatorTx1, nil, mempool.TxInfo{})
+	_, err = assertMempool(css[0].txNotifier).CheckTx(updateValidatorTx1)
 	assert.NoError(t, err)
 	propBlock, err = css[0].createProposalBlock(ctx) // changeProposer(t, cs1, vs2)
 	require.NoError(t, err)
@@ -433,14 +431,14 @@ func setupChainWithChangingValidators(t *testing.T, name string, nBlocks int) (*
 	newVal2ABCI, err := cryptoenc.PubKeyToProto(newValidatorPubKey2)
 	require.NoError(t, err)
 	newValidatorTx2 := kvstore.MakeValSetChangeTx(newVal2ABCI, testMinPower)
-	err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx2, nil, mempool.TxInfo{})
+	_, err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx2)
 	require.NoError(t, err)
 	newValidatorPubKey3, err := css[nVals+2].privValidator.GetPubKey()
 	require.NoError(t, err)
 	newVal3ABCI, err := cryptoenc.PubKeyToProto(newValidatorPubKey3)
 	require.NoError(t, err)
 	newValidatorTx3 := kvstore.MakeValSetChangeTx(newVal3ABCI, testMinPower)
-	err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx3, nil, mempool.TxInfo{})
+	_, err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx3)
 	assert.NoError(t, err)
 	propBlock, err = css[0].createProposalBlock(ctx) // changeProposer(t, cs1, vs2)
 	require.NoError(t, err)
@@ -482,7 +480,7 @@ func setupChainWithChangingValidators(t *testing.T, name string, nBlocks int) (*
 	ensureNewProposal(proposalCh, height, round)
 
 	removeValidatorTx2 := kvstore.MakeValSetChangeTx(newVal2ABCI, 0)
-	err = assertMempool(css[0].txNotifier).CheckTx(removeValidatorTx2, nil, mempool.TxInfo{})
+	_, err = assertMempool(css[0].txNotifier).CheckTx(removeValidatorTx2)
 	assert.Nil(t, err)
 
 	rs = css[0].GetRoundState()
@@ -517,7 +515,7 @@ func setupChainWithChangingValidators(t *testing.T, name string, nBlocks int) (*
 	height++
 	incrementHeight(vss...)
 	removeValidatorTx3 := kvstore.MakeValSetChangeTx(newVal3ABCI, 0)
-	err = assertMempool(css[0].txNotifier).CheckTx(removeValidatorTx3, nil, mempool.TxInfo{})
+	_, err = assertMempool(css[0].txNotifier).CheckTx(removeValidatorTx3)
 	assert.NoError(t, err)
 	propBlock, err = css[0].createProposalBlock(ctx) // changeProposer(t, cs1, vs2)
 	require.NoError(t, err)

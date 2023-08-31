@@ -70,7 +70,7 @@ func NewReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockS
 ) *Reactor {
 
 	storeHeight := store.Height()
-	if offlineStateSyncHeight != 0 {
+	if storeHeight == 0 {
 		// If state sync was performed offline and the stores were bootstrapped to height H
 		// the state store's lastHeight will be H while blockstore's Height and Base are still 0
 		// 1. This scenario should not lead to a panic in this case, which is indicated by
@@ -479,14 +479,14 @@ FOR_LOOP:
 				if peer != nil {
 					// NOTE: we've already removed the peer's request, but we
 					// still need to clean up the rest.
-					bcR.Switch.StopPeerForError(peer, fmt.Errorf("Reactor validation error: %v", err))
+					bcR.Switch.StopPeerForError(peer, ErrReactorValidation{Err: err})
 				}
 				peerID2 := bcR.pool.RedoRequest(second.Height)
 				peer2 := bcR.Switch.Peers().Get(peerID2)
 				if peer2 != nil && peer2 != peer {
 					// NOTE: we've already removed the peer's request, but we
 					// still need to clean up the rest.
-					bcR.Switch.StopPeerForError(peer2, fmt.Errorf("Reactor validation error: %v", err))
+					bcR.Switch.StopPeerForError(peer2, ErrReactorValidation{Err: err})
 				}
 				continue FOR_LOOP
 			}

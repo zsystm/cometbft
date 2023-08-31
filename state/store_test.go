@@ -58,7 +58,7 @@ func BenchmarkLoadValidators(b *testing.B) {
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
 		DiscardABCIResponses: false,
 	})
-	state, err := stateStore.LoadFromDBOrGenesisFile(config.GenesisFile())
+	state, err := sm.MakeGenesisStateFromFile(config.GenesisFile())
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -349,4 +349,10 @@ func TestFinalizeBlockRecoveryUsingLegacyABCIResponses(t *testing.T) {
 	require.Equal(t, resp.ConsensusParamUpdates, &cp)
 	require.Equal(t, resp.Events, legacyResp.LegacyAbciResponses.BeginBlock.Events)
 	require.Equal(t, resp.TxResults[0], legacyResp.LegacyAbciResponses.DeliverTxs[0])
+}
+
+func TestIntConversion(t *testing.T) {
+	x := int64(10)
+	b := sm.Int64ToBytes(x)
+	require.Equal(t, x, sm.Int64FromBytes(b))
 }

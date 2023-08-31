@@ -521,13 +521,6 @@ func ensureNoNewRoundStep(stepCh <-chan cmtpubsub.Message) {
 		"We should be stuck waiting, not receiving NewRoundStep event")
 }
 
-func ensureNoNewUnlock(unlockCh <-chan cmtpubsub.Message) {
-	ensureNoNewEvent(
-		unlockCh,
-		ensureTimeout,
-		"We should be stuck waiting, not receiving Unlock event")
-}
-
 func ensureNoNewTimeout(stepCh <-chan cmtpubsub.Message, timeout int64) {
 	timeoutDuration := time.Duration(timeout*10) * time.Nanosecond
 	ensureNoNewEvent(
@@ -640,9 +633,14 @@ func ensureNewBlockHeader(blockCh <-chan cmtpubsub.Message, height int64, blockH
 	}
 }
 
-func ensureNewUnlock(unlockCh <-chan cmtpubsub.Message, height int64, round int32) {
-	ensureNewEvent(unlockCh, height, round, ensureTimeout,
-		"Timeout expired while waiting for NewUnlock event")
+func ensureLock(lockCh <-chan cmtpubsub.Message, height int64, round int32) {
+	ensureNewEvent(lockCh, height, round, ensureTimeout,
+		"Timeout expired while waiting for LockValue event")
+}
+
+func ensureRelock(relockCh <-chan cmtpubsub.Message, height int64, round int32) {
+	ensureNewEvent(relockCh, height, round, ensureTimeout,
+		"Timeout expired while waiting for RelockValue event")
 }
 
 func ensureProposal(proposalCh <-chan cmtpubsub.Message, height int64, round int32, propID types.BlockID) {
@@ -773,10 +771,7 @@ func randConsensusNet(t *testing.T, nValidators int, testName string, tickerFunc
 	configRootDirs := make([]string, 0, nValidators)
 	for i := 0; i < nValidators; i++ {
 		stateDB := dbm.NewMemDB() // each state needs its own db
-		stateStore := sm.NewStore(stateDB, sm.StoreOptions{
-			DiscardABCIResponses: false,
-		})
-		state, _ := stateStore.LoadFromDBOrGenesisDoc(genDoc)
+		state, _ := sm.MakeGenesisState(genDoc)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
 		for _, opt := range configOpts {
@@ -820,7 +815,7 @@ func randConsensusNetWithPeers(
 			DiscardABCIResponses: false,
 		})
 		t.Cleanup(func() { _ = stateStore.Close() })
-		state, _ := stateStore.LoadFromDBOrGenesisDoc(genDoc)
+		state, _ := sm.MakeGenesisState(genDoc)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
 		ensureDir(filepath.Dir(thisConfig.Consensus.WalFile()), 0o700) // dir for wal
