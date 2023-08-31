@@ -25,19 +25,23 @@ func inserts(backendType dbm.BackendType, keySize int, valueSize int, dbPath str
 	steps = append(steps, Step{
 		Name:     "initial",
 		Size:     dirSize(dbPath),
-		Records:  dbCount(db),
+		Records:  0,
 		Duration: 0,
 		SysMem:   getSysMem(),
 	})
 
 	currentStorageSize := 0
+	currentRecordings := 0
 	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
 	for currentStorageSize < targetStorageSize {
 		select {
 		case <-ctx.Done():
 			return steps
 		default:
-			steps = append(steps, step("insert", recordingsPerStep, db, keySize, valueSize, dbPath, ctx))
+			newStep := step("insert", recordingsPerStep, db, keySize, valueSize, dbPath, ctx)
+			currentRecordings += recordingsPerStep
+			newStep.Records = currentRecordings
+			steps = append(steps, newStep)
 			currentStorageSize += (keySize + valueSize) * recordingsPerStep
 
 			// make sure process is not killed due to the overuse of memory
@@ -67,16 +71,22 @@ func deletions(backendType dbm.BackendType, keySize int, valueSize int, dbPath s
 
 	var steps []Step
 	initialRecordings := initialStorageSize / (keySize + valueSize)
-	steps = append(steps, step("insert", initialRecordings, db, keySize, valueSize, dbPath, ctx))
+	initialStep := step("insert", initialRecordings, db, keySize, valueSize, dbPath, ctx)
+	initialStep.Records = initialRecordings
+	steps = append(steps, initialStep)
 
 	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
 	currentStorageSize := (keySize + valueSize) * initialRecordings
+	currentRecordings := initialRecordings
 	for currentStorageSize > 0 {
 		select {
 		case <-ctx.Done():
 			return steps
 		default:
-			steps = append(steps, step("delete", recordingsPerStep, db, keySize, valueSize, dbPath, ctx))
+			newStep := step("delete", recordingsPerStep, db, keySize, valueSize, dbPath, ctx)
+			currentRecordings -= recordingsPerStep
+			newStep.Records = currentRecordings
+			steps = append(steps, newStep)
 			currentStorageSize -= (keySize + valueSize) * recordingsPerStep
 		}
 	}
@@ -102,19 +112,23 @@ func batchInserts(backendType dbm.BackendType, keySize int, valueSize int, dbPat
 	steps = append(steps, Step{
 		Name:     "initial",
 		Size:     dirSize(dbPath),
-		Records:  dbCount(db),
+		Records:  0,
 		Duration: 0,
 		SysMem:   getSysMem(),
 	})
 
 	currentStorageSize := 0
+	currentRecords := 0
 	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
 	for currentStorageSize < targetStorageSize {
 		select {
 		case <-ctx.Done():
 			return steps
 		default:
-			steps = append(steps, step("batchInsert", recordingsPerStep, db, keySize, valueSize, dbPath, ctx))
+			newStep := step("batchInsert", recordingsPerStep, db, keySize, valueSize, dbPath, ctx)
+			currentRecords += recordingsPerStep
+			newStep.Records = currentRecords
+			steps = append(steps, newStep)
 			currentStorageSize += (keySize + valueSize) * recordingsPerStep
 		}
 	}
@@ -137,17 +151,23 @@ func batchDeletions(backendType dbm.BackendType, keySize int, valueSize int, dbP
 	}(db)
 
 	var steps []Step
-	initialRecordings := initialStorageSize / (keySize + valueSize)
-	steps = append(steps, step("insert", initialRecordings, db, keySize, valueSize, dbPath, ctx))
+	initialRecords := initialStorageSize / (keySize + valueSize)
+	initialStep := step("insert", initialRecords, db, keySize, valueSize, dbPath, ctx)
+	initialStep.Records = initialRecords
+	steps = append(steps, initialStep)
 
 	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
-	currentStorageSize := (keySize + valueSize) * initialRecordings
+	currentStorageSize := (keySize + valueSize) * initialRecords
+	currentRecords := initialRecords
 	for currentStorageSize > 0 {
 		select {
 		case <-ctx.Done():
 			return steps
 		default:
-			steps = append(steps, step("batchDelete", recordingsPerStep, db, keySize, valueSize, dbPath, ctx))
+			newStep := step("batchDelete", recordingsPerStep, db, keySize, valueSize, dbPath, ctx)
+			currentRecords -= recordingsPerStep
+			newStep.Records = currentRecords
+			steps = append(steps, newStep)
 			currentStorageSize -= (keySize + valueSize) * recordingsPerStep
 		}
 	}
@@ -171,19 +191,28 @@ func fluctuations(backendType dbm.BackendType, keySize int, valueSize int, dbPat
 
 	var steps []Step
 	initialRecordings := initialStorageSize / (keySize + valueSize)
-	steps = append(steps, step("insert", initialRecordings, db, keySize, valueSize, dbPath, ctx))
+	initialStep := step("insert", initialRecordings, db, keySize, valueSize, dbPath, ctx)
+	initialStep.Records = initialRecordings
+	steps = append(steps, initialStep)
 
 	nFluctuations := 10
 	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
+	currentRecords := initialRecordings
 	for i := 0; i < nFluctuations; i++ {
 		select {
 		case <-ctx.Done():
 			return steps
 		default:
 			if i%2 == 0 {
-				steps = append(steps, step("delete", recordingsPerStep, db, keySize, valueSize, dbPath, ctx))
+				newStep := step("delete", recordingsPerStep, db, keySize, valueSize, dbPath, ctx)
+				currentRecords -= recordingsPerStep
+				newStep.Records = currentRecords
+				steps = append(steps, newStep)
 			} else {
-				steps = append(steps, step("insert", recordingsPerStep, db, keySize, valueSize, dbPath, ctx))
+				newStep := step("insert", recordingsPerStep, db, keySize, valueSize, dbPath, ctx)
+				currentRecords += recordingsPerStep
+				newStep.Records = currentRecords
+				steps = append(steps, newStep)
 			}
 		}
 	}

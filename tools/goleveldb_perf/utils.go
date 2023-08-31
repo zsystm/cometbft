@@ -154,9 +154,10 @@ func step(
 	}
 
 	return Step{
-		Name:     stepType,
-		Size:     dirSize(dbPath),
-		Records:  dbCount(db),
+		Name: stepType,
+		Size: dirSize(dbPath),
+		// We don't want to call dbCount since for many backends it causes intense memory overuse
+		Records:  0,
 		Duration: time.Since(curTime),
 		SysMem:   getSysMem(),
 	}
