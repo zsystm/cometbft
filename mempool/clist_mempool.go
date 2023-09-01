@@ -394,7 +394,7 @@ func (mem *CListMempool) resCbFirstTime(
 			if mem.InMempool(txKey) {
 				mem.logger.Debug(
 					"transaction already there, not adding it again",
-					"tx", types.Tx(tx).Hash(),
+					"tx", types.Tx(tx).Key().String(),
 					"res", r,
 					"height", mem.height,
 					"total", mem.Size(),
@@ -409,7 +409,7 @@ func (mem *CListMempool) resCbFirstTime(
 			})
 			mem.logger.Debug(
 				"added valid transaction",
-				"tx", types.Tx(tx).Hash(),
+				"tx", types.Tx(tx).Key().String(),
 				"res", r,
 				"height", mem.height,
 				"total", mem.Size(),
@@ -419,7 +419,7 @@ func (mem *CListMempool) resCbFirstTime(
 			mem.tryRemoveFromCache(tx)
 			mem.logger.Debug(
 				"rejected invalid transaction",
-				"tx", types.Tx(tx).Hash(),
+				"tx", types.Tx(tx).Key().String(),
 				"res", r,
 				"err", postCheckErr,
 			)
@@ -476,7 +476,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 
 		if (r.CheckTx.Code != abci.CodeTypeOK) || postCheckErr != nil {
 			// Tx became invalidated due to newly committed block.
-			mem.logger.Debug("tx is no longer valid", "tx", types.Tx(tx).Hash(), "res", r, "err", postCheckErr)
+			mem.logger.Debug("tx is no longer valid", "tx", types.Tx(tx).Key().String(), "res", r, "err", postCheckErr)
 			if err := mem.RemoveTxByKey(memTx.tx.Key()); err != nil {
 				mem.logger.Debug("Transaction could not be removed from mempool", "err", err)
 			}
@@ -618,7 +618,7 @@ func (mem *CListMempool) Update(
 		// https://github.com/tendermint/tendermint/issues/3322.
 		if err := mem.RemoveTxByKey(tx.Key()); err != nil {
 			mem.logger.Debug("Committed transaction not in local mempool (not an error)",
-				"key", tx.Key(),
+				"key", tx.Key().String(),
 				"error", err.Error())
 		}
 	}

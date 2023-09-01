@@ -34,9 +34,13 @@ func (tx Tx) Key() TxKey {
 	return sha256.Sum256(tx)
 }
 
+func (txKey TxKey) String() string {
+	return fmt.Sprintf("TxKey{%X}", txKey[:4])
+}
+
 // String returns the hex-encoded transaction as a string.
 func (tx Tx) String() string {
-	return fmt.Sprintf("Tx{%X}", []byte(tx))
+	return fmt.Sprintf("Tx{%X}", []byte(tx)[:4])
 }
 
 // Txs is a slice of Tx.
@@ -156,7 +160,6 @@ func (tp TxProof) Validate(dataHash []byte) error {
 }
 
 func (tp TxProof) ToProto() cmtproto.TxProof {
-
 	pbProof := tp.Proof.ToProto()
 
 	pbtp := cmtproto.TxProof{
@@ -167,8 +170,8 @@ func (tp TxProof) ToProto() cmtproto.TxProof {
 
 	return pbtp
 }
-func TxProofFromProto(pb cmtproto.TxProof) (TxProof, error) {
 
+func TxProofFromProto(pb cmtproto.TxProof) (TxProof, error) {
 	pbProof, err := merkle.ProofFromProto(pb.Proof)
 	if err != nil {
 		return TxProof{}, err
