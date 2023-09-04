@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 )
 
 // ITF spec: https://apalache.informal.systems/docs/adr/015adr-trace.html#the-itf-format
@@ -39,7 +40,6 @@ func (s *State) UnmarshalJSON(data []byte) error {
 	var meta map[string]any
 	values := make(map[string]*Expr)
 	for k, v := range objmap {
-		// fmt.Printf("unmarshalling \"%s\": %s\n", k, v)
 		if k == "#meta" {
 			if err := json.Unmarshal(v, &meta); err != nil {
 				return err
@@ -64,12 +64,10 @@ type Expr struct {
 
 type (
 	ListExprType = []Expr
-	// MapExprType  = map[Expr]Expr
-	MapExprType = map[string]Expr
+	MapExprType  = map[string]Expr
 )
 
 func toExpr(parsed any) (Expr, error) {
-	// fmt.Printf("toExpr: %+v\n", parsed)
 	switch val := parsed.(type) {
 
 	case nil:
@@ -94,19 +92,14 @@ func toExpr(parsed any) (Expr, error) {
 		if len(val) == 1 && is_map {
 			map_ := make(MapExprType)
 			for _, p := range mapContent {
-				// fmt.Printf("key/value: %+v\n", p)
 				pair, ok := p.([]any)
 				if !ok {
-					return Expr{}, fmt.Errorf("map entry is not a key/value pair: %v", p)
+					return Expr{}, fmt.Errorf("map entry is not a key/value array: %v", p)
 				}
-				// fmt.Printf("key:'%s' value:%s\n", pair[0], pair[1])
-
-				// if keyExpr, err := toExpr(pair[0]); err != nil {
-				// 	return Expr{}, err
 				if valExpr, err := toExpr(pair[1]); err != nil {
 					return Expr{}, err
 				} else {
-					key := hashAny(pair[0])
+					key := toString(pair[0])
 					map_[key] = valExpr
 				}
 			}
@@ -139,6 +132,15 @@ func toExpr(parsed any) (Expr, error) {
 			return Expr{elements}, nil
 		}
 
+		bigintContent, is_bigint := val["#bigint"].(string)
+		if is_bigint {
+			bigint, err := strconv.ParseInt(bigintContent, 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			return Expr{bigint}, nil
+		}
+
 		// Otherwise, it's a record.
 		// "Field names should not start with # and hence should not pose any collision with other constructs."
 		record := make(MapExprType)
@@ -146,50 +148,43 @@ func toExpr(parsed any) (Expr, error) {
 			if valExpr, err := toExpr(val); err != nil {
 				return Expr{}, err
 			} else {
-				record[hashAny(key)] = valExpr
+				record[toString(key)] = valExpr
 			}
 		}
 		return Expr{record}, nil
-
-	// case map[any]any:
-	// TODO
 
 	default:
 		return Expr{}, fmt.Errorf("type %T unexpected", parsed)
 	}
 }
 
-func hashAny(x any) string {
+func toString(x any) string {
 	switch x := x.(type) {
-	case map[string]string:
-		hash := ""
-		keys := make([]string, len(x))
-		for k := range x {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			hash += k + x[k]
-		}
-		return hash
-	case map[string]any:
-		hash := ""
-		keys := make([]string, len(x))
-		for k := range x {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			hash += k + hashAny(x[k])
-		}
-		return hash
-	case string:
-		return x
 	case nil:
 		return ""
+	case string:
+		return x
+	case map[string]string:
+		return mapToString(x)
+	case map[string]any:
+		return mapToString(x)
 	default:
 		return x.(string)
 	}
+}
+
+// TODO: fix collisions
+func mapToString[T any](x map[string]T) string {
+	s := ""
+	keys := make([]string, len(x))
+	for k := range x {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		s += k + toString(x[k])
+	}
+	return s
 }
 
 func (e *Expr) UnmarshalJSON(data []byte) error {

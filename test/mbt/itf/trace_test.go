@@ -32,7 +32,7 @@ func TestUnmarshallList(t *testing.T) {
 	err := json.Unmarshal([]byte(`[123, "abc"]`), &expr)
 	assert.Nil(t, err)
 
-	elems := expr.Value.([]Expr)
+	elems := expr.Value.(ListExprType)
 	assert.NotNil(t, elems)
 	assert.Equal(t, float64(123), elems[0].Value)
 	assert.Equal(t, "abc", elems[1].Value)
@@ -52,15 +52,15 @@ func TestUnmarshallMap(t *testing.T) {
 	assert.Equal(t, float64(123), map2["baz"].Value)
 }
 
+func TestToString(t *testing.T) {
+	keyMap := map[string]string{"a": "b", "c": "d"}
+	key := toString(keyMap)
+	assert.Equal(t, "abcd", key)
+}
+
 func TestUnmarshallMapWithExprKey(t *testing.T) {
 	var expr Expr
-	err := json.Unmarshal([]byte(`{
-        "#map": [
-			[
-				{ "a": "b", "c": "d" },
-				{ "#tup": [1, "foo"] }
-			]
-        ]}`), &expr)
+	err := json.Unmarshal([]byte(`{"#map": [ [ { "a": "b", "c": "d" }, { "#tup": [1, "foo"] } ] ]}`), &expr)
 	assert.Nil(t, err)
 	fmt.Printf("expr: %#v\n", expr)
 
@@ -68,11 +68,8 @@ func TestUnmarshallMapWithExprKey(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(map1))
 
-	keyMap := map[string]string{"a": "b", "c": "d"}
-	key := hashAny(keyMap)
-	assert.Equal(t, "abcd", key)
-
-	val := map1[key].Value.([]Expr)
+	key := toString(map[string]string{"a": "b", "c": "d"})
+	val := map1[key].Value.(ListExprType)
 	assert.Equal(t, float64(1), val[0].Value)
 	assert.Equal(t, "foo", val[1].Value)
 }
@@ -82,10 +79,33 @@ func TestUnmarshallTuple(t *testing.T) {
 	err := json.Unmarshal([]byte(`{ "#tup": ["foo", true] }`), &expr)
 	assert.Nil(t, err)
 
-	elems := expr.Value.([]Expr)
+	elems := expr.Value.(ListExprType)
 	assert.NotNil(t, elems)
 	assert.Equal(t, "foo", elems[0].Value)
 	assert.Equal(t, true, elems[1].Value)
+}
+
+func TestUnmarshallSet(t *testing.T) {
+	var expr Expr
+	err := json.Unmarshal([]byte(`{ "#set": ["foo", "bar", "baz"] }`), &expr)
+	assert.Nil(t, err)
+
+	elems := expr.Value.(ListExprType)
+	assert.NotNil(t, elems)
+	assert.Equal(t, 3, len(elems))
+	assert.Equal(t, "foo", elems[0].Value)
+	assert.Equal(t, "bar", elems[1].Value)
+	assert.Equal(t, "baz", elems[2].Value)
+}
+
+func TestUnmarshallBigInt(t *testing.T) {
+	var expr Expr
+	err := json.Unmarshal([]byte(`{ "#bigint": "-1234567890" }`), &expr)
+	assert.Nil(t, err)
+
+	bigint := expr.Value.(int64)
+	assert.NotNil(t, bigint)
+	assert.Equal(t, int64(-1234567890), bigint)
 }
 
 func TestUnmarshallRecord(t *testing.T) {
