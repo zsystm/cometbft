@@ -59,6 +59,7 @@ func step(
 		defer iter.Close()
 
 		deleted := 0
+	iterating:
 		for ; iter.Valid(); iter.Next() {
 			select {
 			case <-ctx.Done(): // we control if a step should terminate due to timeout
@@ -69,7 +70,7 @@ func step(
 				}
 				deleted++
 				if deleted == count {
-					break
+					break iterating
 				}
 			}
 		}
@@ -131,6 +132,7 @@ func step(
 		}(batch)
 
 		deleted := 0
+	iteratingBatchDelete:
 		for ; iter.Valid(); iter.Next() {
 			select {
 			case <-ctx.Done(): // we control if a step should terminate due to timeout
@@ -141,7 +143,7 @@ func step(
 				}
 				deleted++
 				if deleted == count {
-					break
+					break iteratingBatchDelete
 				}
 			}
 		}
@@ -287,4 +289,37 @@ func runBackendExperimentWithTimeOut(
 	} else {
 		b.Log(fmt.Sprintf("%v timed out", backend))
 	}
+}
+
+func fillStorageToVolume(targetVolume, keySize, valueSize int, db dbm.DB) {
+	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
+	volumePerStep := recordingsPerStep * (keySize + valueSize)
+	nFullSteps := targetVolume / volumePerStep
+	remainingVolume := targetVolume % volumePerStep
+	nRemainingRecordings := remainingVolume / (keySize + valueSize)
+
+	oneStep := func(nRecordings int) {
+		batch := db.NewBatch()
+		defer func(batch dbm.Batch) {
+			err := batch.Close()
+			if err != nil {
+				panic(err)
+			}
+		}(batch)
+		for i := 0; i < nRecordings; i++ {
+			if err := batch.Set(rand.Bytes(keySize), rand.Bytes(valueSize)); err != nil {
+				panic(fmt.Errorf("error during batch Set(): %w", err))
+			}
+		}
+		err := batch.WriteSync()
+		if err != nil {
+			panic(fmt.Errorf("error during bathc WriteSync(): %w", err))
+		}
+	}
+
+	for i := 0; i < nFullSteps; i++ {
+		oneStep(recordingsPerStep)
+	}
+
+	oneStep(nRemainingRecordings)
 }

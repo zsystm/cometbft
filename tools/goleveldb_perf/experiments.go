@@ -70,14 +70,13 @@ func deletions(backendType dbm.BackendType, keySize int, valueSize int, dbPath s
 	}(db)
 
 	var steps []Step
-	initialRecordings := initialStorageSize / (keySize + valueSize)
-	initialStep := step("insert", initialRecordings, db, keySize, valueSize, dbPath, ctx)
-	initialStep.Records = initialRecordings
-	steps = append(steps, initialStep)
+	fillStorageToVolume(initialStorageSize, keySize, valueSize, db)
+	initialRecords := dbCount(db)
+	steps = append(steps, Step{Name: "initial", Size: dirSize(dbPath), Records: initialRecords, SysMem: getSysMem()})
 
 	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
-	currentStorageSize := (keySize + valueSize) * initialRecordings
-	currentRecordings := initialRecordings
+	currentStorageSize := (keySize + valueSize) * initialRecords
+	currentRecordings := initialRecords
 	for currentStorageSize > 0 {
 		select {
 		case <-ctx.Done():
@@ -157,10 +156,9 @@ func batchDeletions(backendType dbm.BackendType, keySize int, valueSize int, dbP
 	}(db)
 
 	var steps []Step
-	initialRecords := initialStorageSize / (keySize + valueSize)
-	initialStep := step("insert", initialRecords, db, keySize, valueSize, dbPath, ctx)
-	initialStep.Records = initialRecords
-	steps = append(steps, initialStep)
+	fillStorageToVolume(initialStorageSize, keySize, valueSize, db)
+	initialRecords := dbCount(db)
+	steps = append(steps, Step{Name: "initial", Size: dirSize(dbPath), Records: initialRecords, SysMem: getSysMem()})
 
 	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
 	currentStorageSize := (keySize + valueSize) * initialRecords
@@ -196,14 +194,13 @@ func fluctuations(backendType dbm.BackendType, keySize int, valueSize int, dbPat
 	}(db)
 
 	var steps []Step
-	initialRecordings := initialStorageSize / (keySize + valueSize)
-	initialStep := step("insert", initialRecordings, db, keySize, valueSize, dbPath, ctx)
-	initialStep.Records = initialRecordings
-	steps = append(steps, initialStep)
+	fillStorageToVolume(initialStorageSize, keySize, valueSize, db)
+	initialRecords := dbCount(db)
+	steps = append(steps, Step{Name: "initial", Size: dirSize(dbPath), Records: initialRecords, SysMem: getSysMem()})
 
 	nFluctuations := 10
 	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
-	currentRecords := initialRecordings
+	currentRecords := initialRecords
 	for i := 0; i < nFluctuations; i++ {
 		select {
 		case <-ctx.Done():
