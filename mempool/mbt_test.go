@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/cometbft/cometbft/abci/example/kvstore"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -155,7 +156,7 @@ func testTrace(t *testing.T, path string) {
 			}
 
 		case "ReceiveCheckTxResponse":
-			t.Logf("🔵 #%d node=%s step=%s(%s, %s) -> error=\"%s\"\n",
+			t.Logf("🔵 #%d node=%s step=%s(%s, responseError:\"%s\") -> error=\"%s\"\n",
 				i, nodeId, stepName, a_tx, a_error, stepError)
 
 			// build parameters
@@ -180,7 +181,7 @@ func testTrace(t *testing.T, path string) {
 			}
 
 		case "ReceiveRecheckTxResponse":
-			t.Logf("🔵 #%d node=%s step=%s(%s, %s) -> error=\"%s\"\n",
+			t.Logf("🔵 #%d node=%s step=%s(%s, responseError:\"%s\") -> error=\"%s\"\n",
 				i, nodeId, stepName, a_tx, a_error, stepError)
 			require.Equal(t, "none", stepError)
 
@@ -210,7 +211,7 @@ func testTrace(t *testing.T, path string) {
 			}
 
 		case "Update":
-			t.Logf("🔵 #%d node=%s step=%s(%d, %s, %s) -> error=\"%s\"\n",
+			t.Logf("🔵 #%d node=%s step=%s(%d, valid:%s, invalid:%s) -> error=\"%s\"\n",
 				i, nodeId, stepName, int(a_height), a_validTxs, a_invalidTxs, stepError)
 			require.Equal(t, "none", stepError)
 
@@ -245,7 +246,7 @@ func testTrace(t *testing.T, path string) {
 			}
 
 		case "P2P_ReceiveTx":
-			t.Logf("🔵 #%d node=%s step=%s(%s, %s) -> error=\"%s\"\n",
+			t.Logf("🔵 #%d node=%s step=%s(%s) from %s -> error=\"%s\"\n",
 				i, nodeId, stepName, a_tx, a_peerId, stepError)
 
 			// build parameters
@@ -265,7 +266,18 @@ func testTrace(t *testing.T, path string) {
 
 			// receive message
 			reactor.Receive(p2p.Envelope{Src: peer, Message: msg, ChannelID: MempoolChannel})
-			// require.True(t, reactor.isSender(tx.Key(), peer.ID()), fmt.Sprintf("%s is not a sender of %s", a_peerId, a_tx))
+
+			// check results
+			switch stepError {
+			case "none":
+				require.True(t, mp.cache.Has(tx))
+				time.Sleep(100 * time.Millisecond) // wait until CheckTx's reqRes callback is invoked :-(
+				require.True(t, reactor.isSender(tx.Key(), peer.ID()), fmt.Sprintf("%s [%s] is not a sender of %s [%s]", a_peerId, peer.ID(), a_tx, tx.Key()))
+			case "err:mempool-full":
+				// nothing to check here; the tx could be or not in the cache
+			case "err:tx-in-cache":
+				require.True(t, mp.cache.Has(tx))
+			}
 
 		case "P2P_BroadcastTx":
 			t.Logf("🔵 #%d node=%s step=%s(%s) -> error=\"%s\"\n",
