@@ -1,0 +1,30 @@
+
+prometheus = true
+load_tx_size_bytes = 4096
+load_tx_batch_size = 200
+load_tx_connections = 2
+# log_level = "mempool:debug,*:info"
+
+[node.validator001]
+send_no_load = false
+
+[node.validator002]
+send_no_load = true
+
+[node.validator003]
+send_no_load = true
+
+[node.validator004]
+send_no_load = true
+
+[node.validator005]
+send_no_load = true
+
+[node.validator006]
+send_no_load = true
+
+[node.validator007]
+send_no_load = true
+
+[node.validator008]
+send_no_load = true
