@@ -17,7 +17,7 @@ type SeenTxSet struct {
 
 type timestampedPeerSet struct {
 	peers map[p2p.ID]struct{}
-	time  time.Time
+	time  time.Time // time at which the set was created
 }
 
 func NewSeenTxSet() *SeenTxSet {
@@ -44,18 +44,18 @@ func (s *SeenTxSet) Add(txKey types.TxKey, peer p2p.ID) {
 }
 
 // only used in tests
-// func (s *SeenTxSet) Pop(txKey types.TxKey) *p2p.ID {
-// 	s.mtx.Lock()
-// 	defer s.mtx.Unlock()
-// 	seenSet, exists := s.set[txKey]
-// 	if exists {
-// 		for peer := range seenSet.peers {
-// 			delete(seenSet.peers, peer)
-// 			return &peer
-// 		}
-// 	}
-// 	return nil
-// }
+func (s *SeenTxSet) Pop(txKey types.TxKey) *p2p.ID {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	seenSet, exists := s.set[txKey]
+	if exists {
+		for peer := range seenSet.peers {
+			delete(seenSet.peers, peer)
+			return &peer
+		}
+	}
+	return nil
+}
 
 func (s *SeenTxSet) RemoveKey(txKey types.TxKey) {
 	s.mtx.Lock()
@@ -76,15 +76,16 @@ func (s *SeenTxSet) Remove(txKey types.TxKey, peer p2p.ID) {
 	}
 }
 
-func (s *SeenTxSet) Prune(limit time.Time) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	for key, seenSet := range s.set {
-		if seenSet.time.Before(limit) {
-			delete(s.set, key)
-		}
-	}
-}
+// not used
+// func (s *SeenTxSet) Prune(limit time.Time) {
+// 	s.mtx.Lock()
+// 	defer s.mtx.Unlock()
+// 	for key, seenSet := range s.set {
+// 		if seenSet.time.Before(limit) {
+// 			delete(s.set, key)
+// 		}
+// 	}
+// }
 
 func (s *SeenTxSet) Has(txKey types.TxKey, peer p2p.ID) bool {
 	s.mtx.Lock()
