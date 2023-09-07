@@ -20,6 +20,8 @@ import (
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/evidence"
 	"github.com/cometbft/cometbft/mempool/cat"
+	"github.com/cometbft/cometbft/mempool/flood"
+	"github.com/cometbft/cometbft/mempool/flood_skip"
 	"github.com/cometbft/cometbft/statesync"
 
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -249,8 +251,14 @@ func createMempoolAndMempoolReactor(
 	case "cat":
 		logger.Info("Using the CAT mempool reactor")
 		reactor = cat.NewReactor(config.Mempool, mp, logger)
-	case "flood", "":
-		logger.Info("Using the default mempool reactor")
+	case "flood":
+		logger.Info("Using the flood mempool reactor")
+		reactor = flood.NewReactor(config.Mempool, mp, logger)
+	case "flood_skip":
+		logger.Info("Using the flood mempool reactor with random tx skip")
+		reactor = flood_skip.NewReactor(config.Mempool, mp, logger)
+	case "v0", "":
+		logger.Info("Using the v0 mempool reactor")
 		reactor = mempl.NewReactor(config.Mempool, mp, logger)
 	default:
 		return nil, nil, fmt.Errorf("unknown mempool reactor \"%s\"", config.Mempool.Reactor)

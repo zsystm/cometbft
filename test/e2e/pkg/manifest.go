@@ -189,6 +189,10 @@ type ManifestNode struct {
 
 	// MempoolReactor determines which reactor to use for the mempool.
 	MempoolReactor string `toml:"mempool_reactor"`
+
+	FloodSkipRate         int8  `toml:"flood_skip_rate"`
+	FloodLimitConcurrency int8  `toml:"flood_limit_concurrency"`
+	FloodRandomSleep      int32 `toml:"flood_random_sleep"`
 }
 
 // Save saves the testnet manifest to a file.

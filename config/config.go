@@ -685,8 +685,17 @@ type MempoolConfig struct {
 	RootDir string `mapstructure:"home"`
 	// Mempool reactor, valid options:
 	// - "cat": reactor with push-pull gossip protocol
-	// - default: reactor with flooding protocol
+	// - "" (default): reactor with flooding protocol
+	// - "flood": copy of the default protocol, used as base for experiments
+	// - "flood_skip": flood, adapted to skip transactions with defined probability
+	// - "flood_limit_concurrency": flood, adapted to limit the number of go routines for sending txs
+	// - "flood_limit_random_delay": flood, with a random sleep between sends
 	Reactor string `mapstructure:"reactor"`
+
+	FloodSkipRate         int8  `mapstructure:"flood_skip_rate"`
+	FloodLimitConcurrency int8  `mapstructure:"flood_limit_concurrency"`
+	FloodRandomSleep      int32 `mapstructure:"flood_random_sleep"`
+
 	// Recheck (default: true) defines whether CometBFT should recheck the
 	// validity for all remaining transaction in the mempool after a block.
 	// Since a block affects the application state, some transactions in the
@@ -728,10 +737,13 @@ type MempoolConfig struct {
 // DefaultMempoolConfig returns a default configuration for the CometBFT mempool
 func DefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
-		Reactor:   "",
-		Recheck:   true,
-		Broadcast: true,
-		WalPath:   "",
+		Reactor:               "",
+		FloodSkipRate:         0,
+		FloodLimitConcurrency: 0,
+		FloodRandomSleep:      0,
+		Recheck:               true,
+		Broadcast:             true,
+		WalPath:               "",
 		// Each signature verification takes .5ms, Size reduced until we implement
 		// ABCI Recheck
 		Size:        5000,

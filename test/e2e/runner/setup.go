@@ -261,6 +261,18 @@ func MakeConfig(node *e2e.Node) (*config.Config, error) {
 		cfg.Mempool.Reactor = node.MempoolReactor
 	}
 
+	if node.FloodSkipRate > 0 {
+		cfg.Mempool.FloodSkipRate = node.FloodSkipRate
+	}
+
+	if node.FloodLimitConcurrency > 0 {
+		cfg.Mempool.FloodLimitConcurrency = node.FloodLimitConcurrency
+	}
+
+	if node.FloodRandomSleep > 0 {
+		cfg.Mempool.FloodRandomSleep = node.FloodRandomSleep
+	}
+
 	if node.Prometheus {
 		cfg.Instrumentation.Prometheus = true
 	}

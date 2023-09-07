@@ -1,0 +1,60 @@
+
+prometheus = true
+load_tx_size_bytes = 4096
+load_tx_batch_size = 200
+load_tx_connections = 1
+log_level = "mempool:debug,*:info"
+
+
+[node.validator001]
+send_no_load = false
+mempool_reactor = "flood_skip"
+flood_skip_rate = 100
+flood_skip_concurrency = 0
+flood_random_sleep = 0
+
+[node.validator002]
+send_no_load = true
+mempool_reactor = "flood_skip"
+flood_skip_rate = 100
+flood_skip_concurrency = 0
+flood_random_sleep = 0
+
+[node.validator003]
+send_no_load = true
+mempool_reactor = "flood_skip"
+flood_skip_rate = 100
+flood_skip_concurrency = 0
+flood_random_sleep = 0
+
+[node.validator004]
+send_no_load = true
+mempool_reactor = "flood_skip"
+flood_skip_rate = 100
+flood_skip_concurrency = 0
+flood_random_sleep = 0
+
+[node.validator005]
+send_no_load = true
+mempool_reactor = "flood_skip"
+flood_skip_rate = 100
+flood_skip_concurrency = 0
+flood_random_sleep = 0
+
+[node.validator006]
+send_no_load = true
+mempool_reactor = "flood_skip"
+flood_skip_rate = 100
+flood_skip_concurrency = 0
+flood_random_sleep = 0
+
+[node.validator007]
+send_no_load = true
+mempool_reactor = "flood_skip"
+flood_skip_rate = 100
+flood_skip_concurrency = 0
+flood_random_sleep = 0
+
+[node.validator008]
+send_no_load = true
+mempool_reactor = "flood_skip"
