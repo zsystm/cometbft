@@ -262,6 +262,8 @@ func (memR *Reactor) sendRequestedTx(txKey types.TxKey, peer p2p.Peer) {
 		}
 		if peer.Send(txsMsg) {
 			memR.markPeerHasTx(peer.ID(), txKey)
+		} else {
+			memR.Logger.Error("send Txs message failed", "txKey", txKey, "peerID", peer.ID())
 		}
 	}
 }
@@ -395,6 +397,8 @@ func (memR *Reactor) requestTx(txKey types.TxKey, peerID p2p.ID) {
 		if !requested {
 			memR.Logger.Error("have already marked a tx as requested", "txKey", txKey, "peerID", peerID)
 		}
+	} else {
+		memR.Logger.Error("send WantTx message failed", "txKey", txKey, "peerID", peerID)
 	}
 }
 
