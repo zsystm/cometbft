@@ -1,9 +1,12 @@
 
 prometheus = true
-load_tx_size_bytes = 4096
-load_tx_batch_size = 200
+log_level = "mempool:debug,*:info"
+
+# The configuration c=1, r=400, s=1024 is the one we use as saturation point in
+# the QΑ experiments.
 load_tx_connections = 1
-# log_level = "mempool:debug,*:info"
+load_tx_batch_size = 400
+load_tx_size_bytes = 1024
 
 [node.validator001]
 send_no_load = false

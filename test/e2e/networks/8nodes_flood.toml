@@ -1,7 +1,7 @@
 
 prometheus = true
-load_tx_size_bytes = 4096
-load_tx_batch_size = 200
+load_tx_size_bytes = 1024
+load_tx_batch_size = 400
 load_tx_connections = 1
 log_level = "mempool:debug,*:info"
 
