@@ -45,9 +45,6 @@ func newRequestScheduler(responseTime, globalTimeout time.Duration) *requestSche
 }
 
 func (r *requestScheduler) Add(key types.TxKey, peer p2p.ID, onTimeout func(key types.TxKey)) bool {
-	// if peer == 0 {
-	// 	return false
-	// }
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 

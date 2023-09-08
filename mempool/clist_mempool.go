@@ -36,6 +36,8 @@ type CListMempool struct {
 	// from the mempool.
 	removeTxOnReactorCb func(txKey types.TxKey)
 
+	// Function set by the reactor to be called when a new transaction is added
+	// to the mempool. Used only by the CAT mempool reactor.
 	newTxReceivedCb func(txKey types.TxKey)
 
 	config *config.MempoolConfig
@@ -118,7 +120,7 @@ func (mem *CListMempool) GetCElement(txKey types.TxKey) (*clist.CElement, bool) 
 	return nil, false
 }
 
-func (mem *CListMempool) GetEntry(txKey types.TxKey) *MempoolTx { //TODO: follow the same design as GetCElement and allow nil elements?
+func (mem *CListMempool) GetEntry(txKey types.TxKey) *MempoolTx { // TODO: follow the same design as GetCElement and allow nil elements?
 	elem, _ := mem.GetCElement(txKey)
 	if elem == nil {
 		return nil

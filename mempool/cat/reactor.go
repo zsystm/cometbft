@@ -263,7 +263,7 @@ func (memR *Reactor) sendRequestedTx(txKey types.TxKey, peer p2p.Peer) {
 		if peer.Send(txsMsg) {
 			memR.markPeerHasTx(peer.ID(), txKey)
 		} else {
-			memR.Logger.Error("send Txs message failed", "txKey", txKey, "peerID", peer.ID())
+			memR.Logger.Error("send Txs message with requested transactions failed", "txKey", txKey, "peerID", peer.ID())
 		}
 	}
 }
@@ -322,7 +322,7 @@ func (memR *Reactor) broadcastSeenTx(txKey types.TxKey) {
 			memR.Logger.Debug("SeenTx sent", "tx", txKey, "peer", peerID)
 			return true
 		}
-		memR.Logger.Error("Could not send SeenTx", "tx", txKey, "peer", peerID)
+		memR.Logger.Error("send SeenTx message failed", "txKey", txKey, "peerID", peer.ID())
 		return true
 	})
 }
@@ -369,7 +369,7 @@ func (memR *Reactor) broadcastNewTx(memTx *mempool.MempoolTx) {
 			return true
 		}
 
-		memR.Logger.Error("Could not send new tx", "tx", txKey, "peer", peerID)
+		memR.Logger.Error("send Txs message with new transactions failed", "txKey", txKey, "peerID", peer.ID())
 		return true
 	})
 }
