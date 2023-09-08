@@ -17,12 +17,17 @@ func TestFillStorageSequential(t *testing.T) {
 		}
 	}(db)
 
-	fillStorageToVolumeSequentialKeys(5*units.MiB, 1*units.MiB, db)
+	n := 228
+	fillStorageToVolumeSequentialKeys(n*units.MiB, 1*units.MiB, db)
 	itr, err := db.Iterator(nil, nil)
 	require.NoError(t, err)
 	var keys []uint64
 	for ; itr.Valid(); itr.Next() {
 		keys = append(keys, bytesToUint64(itr.Key()))
 	}
-	require.Equal(t, []uint64{0, 1, 2, 3}, keys)
+	expected := make([]uint64, n-1)
+	for i := uint64(0); i < uint64(n-1); i++ {
+		expected[i] = i
+	}
+	require.Equal(t, expected, keys)
 }
