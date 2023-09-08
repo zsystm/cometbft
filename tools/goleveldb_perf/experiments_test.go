@@ -120,3 +120,22 @@ func BenchmarkSmallFluctuations(b *testing.B) {
 		)
 	}
 }
+
+func BenchmarkFluctuationsSequentialKeys(b *testing.B) {
+	keySize := 64
+	valueSize := 1 * units.MiB
+	for _, backend := range []dbm.BackendType{
+		dbm.BadgerDBBackend,
+		dbm.GoLevelDBBackend,
+		dbm.BoltDBBackend,
+	} {
+		runBackendExperimentWithTimeOut(
+			fluctuationsSequentialKeys,
+			backend,
+			keySize,
+			valueSize,
+			30*time.Minute,
+			b,
+		)
+	}
+}

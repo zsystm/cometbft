@@ -2,6 +2,7 @@ package db_experiments
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,6 +33,10 @@ type Step struct {
 	SysMem uint64
 }
 
+type StepOptions struct {
+	LastInserted uint64
+}
+
 // Performs one step as part of a test.
 //
 // The step is defined by `stepType`: `delete` or `insert`.
@@ -47,6 +52,7 @@ func step(
 	valueSize int,
 	dbPath string,
 	ctx context.Context,
+	options StepOptions,
 ) Step {
 	curTime := time.Now()
 	if stepType == "delete" {
@@ -85,6 +91,21 @@ func step(
 				if err := db.Set(rand.Bytes(keySize), rand.Bytes(valueSize)); err != nil {
 					panic(fmt.Errorf("error during Set(): %w", err))
 				}
+			}
+		}
+	} else if stepType == "insertSequential" {
+		// Handle the insertion of records
+		// Write `count` records to the db
+		lastKeyInserted := options.LastInserted
+		for i := 0; i < count; i++ {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Set(uint64ToBytes(lastKeyInserted+1), rand.Bytes(valueSize)); err != nil {
+					panic(fmt.Errorf("error during Set(): %w", err))
+				}
+				lastKeyInserted += 1
 			}
 		}
 	} else if stepType == "batchInsert" {
@@ -310,6 +331,55 @@ func fillStorageToVolume(targetVolume, keySize, valueSize int, db dbm.DB) {
 			if err := batch.Set(rand.Bytes(keySize), rand.Bytes(valueSize)); err != nil {
 				panic(fmt.Errorf("error during batch Set(): %w", err))
 			}
+		}
+		err := batch.WriteSync()
+		if err != nil {
+			panic(fmt.Errorf("error during bathc WriteSync(): %w", err))
+		}
+	}
+
+	for i := 0; i < nFullSteps; i++ {
+		oneStep(recordingsPerStep)
+	}
+
+	oneStep(nRemainingRecordings)
+}
+
+func uint64ToBytes(v uint64) []byte {
+	byteSlice := make([]byte, 8) // 8 bytes for a uint64
+	binary.BigEndian.PutUint64(byteSlice, v)
+	return byteSlice
+}
+
+func bytesToUint64(v []byte) uint64 {
+	if len(v) != 8 {
+		panic(fmt.Errorf("should be 8 bytes"))
+	}
+	return binary.BigEndian.Uint64(v)
+}
+
+func fillStorageToVolumeSequentialKeys(targetVolume, valueSize int, db dbm.DB) {
+	keySize := 64
+	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
+	volumePerStep := recordingsPerStep * (keySize + valueSize)
+	nFullSteps := targetVolume / volumePerStep
+	remainingVolume := targetVolume % volumePerStep
+	nRemainingRecordings := remainingVolume / (keySize + valueSize)
+
+	lastKey := uint64(0)
+	oneStep := func(nRecordings int) {
+		batch := db.NewBatch()
+		defer func(batch dbm.Batch) {
+			err := batch.Close()
+			if err != nil {
+				panic(err)
+			}
+		}(batch)
+		for i := 0; i < nRecordings; i++ {
+			if err := batch.Set(uint64ToBytes(lastKey), rand.Bytes(valueSize)); err != nil {
+				panic(fmt.Errorf("error during batch Set(): %w", err))
+			}
+			lastKey++
 		}
 		err := batch.WriteSync()
 		if err != nil {
