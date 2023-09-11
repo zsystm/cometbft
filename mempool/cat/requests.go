@@ -44,23 +44,24 @@ func newRequestScheduler(responseTime, globalTimeout time.Duration) *requestSche
 	}
 }
 
-func (r *requestScheduler) Add(key types.TxKey, peer p2p.ID, onTimeout func(key types.TxKey)) bool {
+// Return true iff the pair (txKey, peerID) was successfully added to the scheduler.
+func (r *requestScheduler) Add(txKey types.TxKey, peerID p2p.ID, onTimeout func(key types.TxKey)) bool {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
 	// not allowed to have more than one outgoing transaction at once
-	if _, ok := r.requestsByTx[key]; ok {
+	if _, ok := r.requestsByTx[txKey]; ok {
 		return false
 	}
 
 	timer := time.AfterFunc(r.responseTime, func() {
 		r.mtx.Lock()
-		delete(r.requestsByTx, key)
+		delete(r.requestsByTx, txKey)
 		r.mtx.Unlock()
 
 		// trigger callback. Callback can `Add` the tx back to the scheduler
 		if onTimeout != nil {
-			onTimeout(key)
+			onTimeout(txKey)
 		}
 
 		// We set another timeout because the peer could still send
@@ -72,15 +73,15 @@ func (r *requestScheduler) Add(key types.TxKey, peer p2p.ID, onTimeout func(key 
 		time.AfterFunc(r.globalTimeout, func() {
 			r.mtx.Lock()
 			defer r.mtx.Unlock()
-			delete(r.requestsByPeer[peer], key)
+			delete(r.requestsByPeer[peerID], txKey)
 		})
 	})
-	if _, ok := r.requestsByPeer[peer]; !ok {
-		r.requestsByPeer[peer] = requestSet{key: timer}
+	if _, ok := r.requestsByPeer[peerID]; !ok {
+		r.requestsByPeer[peerID] = requestSet{txKey: timer}
 	} else {
-		r.requestsByPeer[peer][key] = timer
+		r.requestsByPeer[peerID][txKey] = timer
 	}
-	r.requestsByTx[key] = peer
+	r.requestsByTx[txKey] = peerID
 	return true
 }
 

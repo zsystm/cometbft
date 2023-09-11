@@ -269,9 +269,9 @@ func (memR *Reactor) sendRequestedTx(txKey types.TxKey, peer p2p.Peer) {
 }
 
 // PeerHasTx marks that the transaction has been seen by a peer.
-func (memR *Reactor) markPeerHasTx(peer p2p.ID, txKey types.TxKey) {
-	memR.Logger.Debug("mark that peer has tx", "peer", peer, "txKey", txKey.String())
-	memR.seenByPeersSet.Add(txKey, peer)
+func (memR *Reactor) markPeerHasTx(peerID p2p.ID, txKey types.TxKey) {
+	memR.Logger.Debug("mark that peer has tx", "peer", peerID, "txKey", txKey.String())
+	memR.seenByPeersSet.Add(txKey, peerID)
 }
 
 // PeerState describes the state of a peer.
@@ -369,7 +369,7 @@ func (memR *Reactor) broadcastNewTx(memTx *mempool.MempoolTx) {
 			return true
 		}
 
-		memR.Logger.Error("send Txs message with new transactions failed", "txKey", txKey, "peerID", peer.ID())
+		memR.Logger.Error("send Txs message with new transactions failed", "txKey", txKey, "peerID", peerID)
 		return true
 	})
 }
@@ -394,8 +394,8 @@ func (memR *Reactor) requestTx(txKey types.TxKey, peerID p2p.ID) {
 	}
 	if peer.Send(msg) {
 		memR.mempool.Metrics.RequestedTxs.Add(1)
-		requested := memR.requests.Add(txKey, peerID, memR.findNewPeerToRequestTx)
-		if !requested {
+		added := memR.requests.Add(txKey, peerID, memR.findNewPeerToRequestTx)
+		if !added {
 			memR.Logger.Error("have already marked a tx as requested", "txKey", txKey, "peerID", peerID)
 		}
 	} else {
@@ -430,6 +430,7 @@ func (memR *Reactor) findNewPeerToRequestTx(txKey types.TxKey) {
 		memR.Logger.Info("no other peer has the tx we are looking for", "txKey", txKey)
 		return
 	}
+
 	if !memR.Switch.Peers().Has(*peerID) {
 		// we disconnected from that peer, retry again until we exhaust the list
 		memR.findNewPeerToRequestTx(txKey)
