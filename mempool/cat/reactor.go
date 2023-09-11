@@ -134,7 +134,7 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	// we won't receive any responses from them.
 	outboundRequests := memR.requests.ClearAllRequestsFrom(peer.ID())
 	for key := range outboundRequests {
-		// memR.mempool.metrics.RequestedTxs.Add(1)
+		memR.mempool.Metrics.RequestedTxs.Add(1)
 		memR.findNewPeerToRequestTx(key)
 	}
 }
@@ -393,6 +393,7 @@ func (memR *Reactor) requestTx(txKey types.TxKey, peerID p2p.ID) {
 		Message:   &protomem.WantTx{TxKey: txKey[:]},
 	}
 	if peer.Send(msg) {
+		memR.mempool.Metrics.RequestedTxs.Add(1)
 		requested := memR.requests.Add(txKey, peerID, memR.findNewPeerToRequestTx)
 		if !requested {
 			memR.Logger.Error("have already marked a tx as requested", "txKey", txKey, "peerID", peerID)
@@ -425,6 +426,7 @@ func (memR *Reactor) findNewPeerToRequestTx(txKey types.TxKey) {
 		// No other free peer has the transaction we are looking for.
 		// We give up 🤷‍♂️ and hope either a peer responds late or the tx
 		// is gossiped again
+		memR.mempool.Metrics.NoPeerForTx.Add(1)
 		memR.Logger.Info("no other peer has the tx we are looking for", "txKey", txKey)
 		return
 	}
@@ -432,6 +434,7 @@ func (memR *Reactor) findNewPeerToRequestTx(txKey types.TxKey) {
 		// we disconnected from that peer, retry again until we exhaust the list
 		memR.findNewPeerToRequestTx(txKey)
 	} else {
+		memR.mempool.Metrics.RerequestedTxs.Add(1)
 		memR.requestTx(txKey, *peerID)
 	}
 }

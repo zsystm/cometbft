@@ -70,7 +70,7 @@ type CListMempool struct {
 	rejectedTxsCache TxCache[types.TxKey]
 
 	logger  log.Logger
-	metrics *Metrics
+	Metrics *Metrics
 }
 
 var _ Mempool = &CListMempool{}
@@ -95,7 +95,7 @@ func NewCListMempool(
 		recheckEnd:       nil,
 		rejectedTxsCache: NewLRUTxCache[types.TxKey](cfg.CacheSize), // TODO: check size
 		logger:           log.NewNopLogger(),
-		metrics:          NopMetrics(),
+		Metrics:          NopMetrics(),
 	}
 
 	if cfg.CacheSize > 0 {
@@ -209,7 +209,7 @@ func WithPostCheck(f PostCheckFunc) CListMempoolOption {
 
 // WithMetrics sets the metrics.
 func WithMetrics(metrics *Metrics) CListMempoolOption {
-	return func(mem *CListMempool) { mem.metrics = metrics }
+	return func(mem *CListMempool) { mem.Metrics = metrics }
 }
 
 // Safe for concurrent use by multiple goroutines.
@@ -309,7 +309,7 @@ func (mem *CListMempool) CheckTx(tx types.Tx) (*abcicli.ReqRes, error) {
 	}
 
 	if added := mem.addToCache(tx.Key()); !added {
-		mem.metrics.AlreadyReceivedTxs.Add(1)
+		mem.Metrics.AlreadyReceivedTxs.Add(1)
 		// TODO: consider punishing peer for dups,
 		// its non-trivial since invalid txs can become valid,
 		// but they can spam the same tx with little cost to them atm.
@@ -357,12 +357,12 @@ func (mem *CListMempool) globalCb(req *abci.Request, res *abci.Response) {
 			if mem.recheckCursor == nil {
 				return
 			}
-			mem.metrics.RecheckTimes.Add(1)
+			mem.Metrics.RecheckTimes.Add(1)
 			mem.resCbRecheck(req, res)
 		}
 
 		// update metrics
-		mem.metrics.Size.Set(float64(mem.Size()))
+		mem.Metrics.Size.Set(float64(mem.Size()))
 
 	default:
 		// ignore other messages
@@ -375,7 +375,7 @@ func (mem *CListMempool) addTx(memTx *MempoolTx) {
 	e := mem.txs.PushBack(memTx)
 	mem.txsMap.Store(memTx.tx.Key(), e)
 	atomic.AddInt64(&mem.txsBytes, int64(len(memTx.tx)))
-	mem.metrics.TxSizeBytes.Observe(float64(len(memTx.tx)))
+	mem.Metrics.TxSizeBytes.Observe(float64(len(memTx.tx)))
 }
 
 // RemoveTxByKey removes a transaction from the mempool by its TxKey index.
@@ -473,7 +473,7 @@ func (mem *CListMempool) resCbFirstTime(
 				"res", r,
 				"err", postCheckErr,
 			)
-			mem.metrics.FailedTxs.Add(1)
+			mem.Metrics.FailedTxs.Add(1)
 		}
 
 	default:
@@ -678,7 +678,7 @@ func (mem *CListMempool) Update(
 	}
 
 	// Update metrics
-	mem.metrics.Size.Set(float64(mem.Size()))
+	mem.Metrics.Size.Set(float64(mem.Size()))
 
 	return nil
 }
