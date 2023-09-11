@@ -1,6 +1,6 @@
 
 prometheus = true
-log_level = "mempool:debug,*:info"
+# log_level = "mempool:debug,*:info"
 
 # The configuration c=1, r=400, s=1024 is the one we use as saturation point in
 # the QΑ experiments.
