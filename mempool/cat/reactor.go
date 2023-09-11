@@ -3,6 +3,7 @@ package cat
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -190,7 +191,7 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 
 						// We broadcast only transactions that we deem valid and
 						// actually have in our mempool.
-						go memR.broadcastSeenTx(key)
+						memR.broadcastSeenTx(key)
 					}
 				})
 			}
@@ -228,7 +229,7 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 
 		// We don't have the transaction, nor are we requesting it so we send the node
 		// a want msg
-		go memR.requestTx(txKey, e.Src.ID())
+		memR.requestTx(txKey, e.Src.ID())
 
 	// A peer is requesting a transaction that we have claimed to have. Find the specified
 	// transaction and broadcast it to the peer. We may no longer have the transaction
@@ -240,7 +241,7 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 			return
 		}
 		memR.Logger.Debug("Received SeenTx", "src", e.Src, "chId", e.ChannelID, "txKey", txKey)
-		go memR.sendRequestedTx(txKey, e.Src)
+		memR.sendRequestedTx(txKey, e.Src)
 
 	default:
 		memR.Logger.Error("Received unknown message type", "src", e.Src, "chId", e.ChannelID, "msg", e.Message)
@@ -295,7 +296,7 @@ func (memR *Reactor) broadcastSeenTx(txKey types.TxKey) {
 
 	// Add jitter to when the node broadcasts it's seen txs to stagger when nodes
 	// in the network broadcast their seenTx messages.
-	// time.Sleep(time.Duration(rand.Intn(10)*10) * time.Millisecond) //nolint:gosec //BUG? Why stagger? So small
+	time.Sleep(time.Duration(rand.Intn(10)*10) * time.Millisecond) //nolint:gosec //BUG? Why stagger? So small
 
 	memR.peerIDs.Range(func(key, _ interface{}) bool {
 		peerID := key.(p2p.ID)
