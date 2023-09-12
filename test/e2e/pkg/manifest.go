@@ -104,6 +104,13 @@ type Manifest struct {
 
 	// Upper bound of sleep duration then gossipping votes and block parts
 	PeerGossipIntraloopSleepDuration time.Duration `toml:"peer_gossip_intraloop_sleep_duration"`
+
+	// MempoolReactor determines which reactor to use for the mempool.
+	MempoolReactor string `toml:"mempool_reactor"`
+
+	FloodSkipRate         int8          `toml:"flood_skip_rate"`
+	FloodLimitConcurrency int8          `toml:"flood_limit_concurrency"`
+	FloodRandomSleep      time.Duration `toml:"flood_random_sleep"`
 }
 
 // ManifestNode represents a node in a testnet manifest.
@@ -186,13 +193,6 @@ type ManifestNode struct {
 
 	// Maximum number of outbound peers to connect to, excluding persistent peers
 	MaxNumOutboundPeers int `toml:"max_num_outbound_peers"`
-
-	// MempoolReactor determines which reactor to use for the mempool.
-	MempoolReactor string `toml:"mempool_reactor"`
-
-	FloodSkipRate         int8  `toml:"flood_skip_rate"`
-	FloodLimitConcurrency int8  `toml:"flood_limit_concurrency"`
-	FloodRandomSleep      int32 `toml:"flood_random_sleep"`
 }
 
 // Save saves the testnet manifest to a file.

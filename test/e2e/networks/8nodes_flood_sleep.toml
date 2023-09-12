@@ -1,15 +1,14 @@
 
 prometheus = true
 # log_level = "mempool:debug,*:info"
+log_level = "info"
 
 load_tx_connections = 1
 load_tx_batch_size = 40
 load_tx_size_bytes = 1024
 
-mempool_reactor = "flood_skip"
-flood_skip_rate = 50
-flood_skip_concurrency = 0
-flood_random_sleep = 0
+mempool_reactor = "flood_sleep"
+flood_random_sleep = 100
 
 [node.validator001]
 send_no_load = false

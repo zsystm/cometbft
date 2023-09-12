@@ -692,9 +692,9 @@ type MempoolConfig struct {
 	// - "flood_limit_random_delay": flood, with a random sleep between sends
 	Reactor string `mapstructure:"reactor"`
 
-	FloodSkipRate         int8  `mapstructure:"flood_skip_rate"`
-	FloodLimitConcurrency int8  `mapstructure:"flood_limit_concurrency"`
-	FloodRandomSleep      int32 `mapstructure:"flood_random_sleep"`
+	FloodSkipRate         int8          `mapstructure:"flood_skip_rate"`
+	FloodLimitConcurrency int8          `mapstructure:"flood_limit_concurrency"`
+	FloodRandomSleep      time.Duration `mapstructure:"flood_random_sleep"`
 
 	// Recheck (default: true) defines whether CometBFT should recheck the
 	// validity for all remaining transaction in the mempool after a block.

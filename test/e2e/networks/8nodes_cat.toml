@@ -7,35 +7,28 @@ prometheus = true
 load_tx_connections = 1
 load_tx_batch_size = 400
 load_tx_size_bytes = 1024
+mempool_reactor = "cat"
 
 [node.validator001]
 send_no_load = false
-mempool_reactor = "cat"
 
 [node.validator002]
 send_no_load = true
-mempool_reactor = "cat"
 
 [node.validator003]
 send_no_load = true
-mempool_reactor = "cat"
 
 [node.validator004]
 send_no_load = true
-mempool_reactor = "cat"
 
 [node.validator005]
 send_no_load = true
-mempool_reactor = "cat"
 
 [node.validator006]
 send_no_load = true
-mempool_reactor = "cat"
 
 [node.validator007]
 send_no_load = true
-mempool_reactor = "cat"
 
 [node.validator008]
 send_no_load = true
-mempool_reactor = "cat"

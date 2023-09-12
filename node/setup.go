@@ -21,7 +21,9 @@ import (
 	"github.com/cometbft/cometbft/evidence"
 	"github.com/cometbft/cometbft/mempool/cat"
 	"github.com/cometbft/cometbft/mempool/flood"
+	"github.com/cometbft/cometbft/mempool/flood_limit_concurrency"
 	"github.com/cometbft/cometbft/mempool/flood_skip"
+	"github.com/cometbft/cometbft/mempool/flood_sleep"
 	"github.com/cometbft/cometbft/statesync"
 
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -257,6 +259,12 @@ func createMempoolAndMempoolReactor(
 	case "flood_skip":
 		logger.Info("Using the flood mempool reactor with random tx skip")
 		reactor = flood_skip.NewReactor(config.Mempool, mp, logger)
+	case "flood_sleep":
+		logger.Info("Using the flood mempool reactor with random sleep")
+		reactor = flood_sleep.NewReactor(config.Mempool, mp, logger)
+	case "flood_limit_concurrency":
+		logger.Info("Using the flood mempool reactor with limited concurrency")
+		reactor = flood_limit_concurrency.NewReactor(config.Mempool, mp, logger)
 	case "v0", "":
 		logger.Info("Using the v0 mempool reactor")
 		reactor = mempl.NewReactor(config.Mempool, mp, logger)

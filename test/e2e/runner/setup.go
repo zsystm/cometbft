@@ -257,20 +257,20 @@ func MakeConfig(node *e2e.Node) (*config.Config, error) {
 		cfg.P2P.MaxNumOutboundPeers = node.MaxNumOutboundPeers
 	}
 
-	if node.MempoolReactor != "" {
-		cfg.Mempool.Reactor = node.MempoolReactor
+	if node.Testnet.MempoolReactor != "" {
+		cfg.Mempool.Reactor = node.Testnet.MempoolReactor
 	}
 
-	if node.FloodSkipRate > 0 {
-		cfg.Mempool.FloodSkipRate = node.FloodSkipRate
+	if node.Testnet.FloodSkipRate > 0 {
+		cfg.Mempool.FloodSkipRate = node.Testnet.FloodSkipRate
 	}
 
-	if node.FloodLimitConcurrency > 0 {
-		cfg.Mempool.FloodLimitConcurrency = node.FloodLimitConcurrency
+	if node.Testnet.FloodLimitConcurrency > 0 {
+		cfg.Mempool.FloodLimitConcurrency = node.Testnet.FloodLimitConcurrency
 	}
 
-	if node.FloodRandomSleep > 0 {
-		cfg.Mempool.FloodRandomSleep = node.FloodRandomSleep
+	if node.Testnet.FloodRandomSleep > 0 {
+		cfg.Mempool.FloodRandomSleep = node.Testnet.FloodRandomSleep
 	}
 
 	if node.Prometheus {

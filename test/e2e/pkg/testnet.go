@@ -93,6 +93,11 @@ type Testnet struct {
 	VoteExtensionsEnableHeight       int64
 	VoteExtensionSize                uint
 	PeerGossipIntraloopSleepDuration time.Duration
+
+	MempoolReactor        string
+	FloodSkipRate         int8
+	FloodLimitConcurrency int8
+	FloodRandomSleep      time.Duration
 }
 
 // Node represents a CometBFT node in a testnet.
@@ -123,11 +128,6 @@ type Node struct {
 	MaxNumOutboundPeers int
 	Prometheus          bool
 	PrometheusProxyPort uint32
-	MempoolReactor      string
-
-	FloodSkipRate         int8
-	FloodLimitConcurrency int8
-	FloodRandomSleep      int32
 }
 
 // LoadTestnet loads a testnet from a manifest file, using the filename to
@@ -181,6 +181,11 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 		VoteExtensionsEnableHeight:       manifest.VoteExtensionsEnableHeight,
 		VoteExtensionSize:                manifest.VoteExtensionSize,
 		PeerGossipIntraloopSleepDuration: manifest.PeerGossipIntraloopSleepDuration,
+
+		MempoolReactor:        manifest.MempoolReactor,
+		FloodSkipRate:         manifest.FloodSkipRate,
+		FloodRandomSleep:      manifest.FloodRandomSleep,
+		FloodLimitConcurrency: manifest.FloodLimitConcurrency,
 	}
 	if len(manifest.KeyType) != 0 {
 		testnet.KeyType = manifest.KeyType
@@ -223,33 +228,29 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 		}
 
 		node := &Node{
-			Name:                  name,
-			Version:               v,
-			Testnet:               testnet,
-			PrivvalKey:            keyGen.Generate(manifest.KeyType),
-			NodeKey:               keyGen.Generate("ed25519"),
-			InternalIP:            ind.IPAddress,
-			ExternalIP:            extIP,
-			ProxyPort:             ind.Port,
-			Mode:                  ModeValidator,
-			Database:              "goleveldb",
-			ABCIProtocol:          Protocol(testnet.ABCIProtocol),
-			PrivvalProtocol:       ProtocolFile,
-			StartAt:               nodeManifest.StartAt,
-			BlockSyncVersion:      nodeManifest.BlockSyncVersion,
-			StateSync:             nodeManifest.StateSync,
-			PersistInterval:       1,
-			SnapshotInterval:      nodeManifest.SnapshotInterval,
-			RetainBlocks:          nodeManifest.RetainBlocks,
-			Perturbations:         []Perturbation{},
-			SendNoLoad:            nodeManifest.SendNoLoad,
-			MaxNumInboundPeers:    nodeManifest.MaxNumInboundPeers,
-			MaxNumOutboundPeers:   nodeManifest.MaxNumOutboundPeers,
-			Prometheus:            testnet.Prometheus,
-			MempoolReactor:        nodeManifest.MempoolReactor,
-			FloodSkipRate:         nodeManifest.FloodSkipRate,
-			FloodLimitConcurrency: nodeManifest.FloodLimitConcurrency,
-			FloodRandomSleep:      nodeManifest.FloodRandomSleep,
+			Name:                name,
+			Version:             v,
+			Testnet:             testnet,
+			PrivvalKey:          keyGen.Generate(manifest.KeyType),
+			NodeKey:             keyGen.Generate("ed25519"),
+			InternalIP:          ind.IPAddress,
+			ExternalIP:          extIP,
+			ProxyPort:           ind.Port,
+			Mode:                ModeValidator,
+			Database:            "goleveldb",
+			ABCIProtocol:        Protocol(testnet.ABCIProtocol),
+			PrivvalProtocol:     ProtocolFile,
+			StartAt:             nodeManifest.StartAt,
+			BlockSyncVersion:    nodeManifest.BlockSyncVersion,
+			StateSync:           nodeManifest.StateSync,
+			PersistInterval:     1,
+			SnapshotInterval:    nodeManifest.SnapshotInterval,
+			RetainBlocks:        nodeManifest.RetainBlocks,
+			Perturbations:       []Perturbation{},
+			SendNoLoad:          nodeManifest.SendNoLoad,
+			MaxNumInboundPeers:  nodeManifest.MaxNumInboundPeers,
+			MaxNumOutboundPeers: nodeManifest.MaxNumOutboundPeers,
+			Prometheus:          testnet.Prometheus,
 		}
 		if node.StartAt == testnet.InitialHeight {
 			node.StartAt = 0 // normalize to 0 for initial nodes, since code expects this
