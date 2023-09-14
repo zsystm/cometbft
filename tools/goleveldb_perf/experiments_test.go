@@ -1,17 +1,17 @@
 package db_experiments
 
 import (
+	"context"
+	"fmt"
+	"math"
 	"os"
 	"testing"
 	"time"
 
 	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cometbft/cometbft/internal/test"
-	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/docker/go-units"
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 var backends = []dbm.BackendType{
@@ -158,33 +158,33 @@ func BenchmarkFluctuationsSequentialKeysDeleteSync(b *testing.B) {
 }
 
 func TestGoLevelDBCompaction(t *testing.T) {
-	config := test.ResetTestRoot("db_benchmark")
-	defer func(path string) {
-		err := os.RemoveAll(path)
-		require.NoError(t, err)
-	}(config.RootDir)
-
-	db, err := leveldb.OpenFile(config.DBDir(), &opt.Options{})
-	require.NoError(t, err)
-	defer func(db *leveldb.DB) {
-		err := db.Close()
-		require.NoError(t, err)
-	}(db)
-
-	nCycles := 10
-	recordsPerCycle := uint64(16)
-	for i := 0; i < nCycles; i++ {
-		firstKey := uint64(i) * recordsPerCycle
-		for key := firstKey; key < firstKey+recordsPerCycle; key++ {
-			err := db.Put(uint64ToBytes(key), rand.Bytes(1*units.MiB), nil)
+	experiment := func(nCycles, recordsPerCycle int) []Step {
+		config := test.ResetTestRoot("db_benchmark")
+		defer func(path string) {
+			err := os.RemoveAll(path)
 			require.NoError(t, err)
-		}
+		}(config.RootDir)
 
-		for key := firstKey; key < firstKey+recordsPerCycle; key++ {
-			err := db.Delete(uint64ToBytes(key), nil)
-			require.NoError(t, err)
-		}
+		db, err := dbm.NewDB("test_db", dbm.GoLevelDBBackend, config.DBDir())
+		require.NoError(t, err)
+		var steps []Step
+		for i := 0; i < nCycles; i++ {
+			if i%20 == 0 && i > 0 {
+				fmt.Println(i, recordsPerCycle)
+			}
+			lastKeyInserted := uint64(i*recordsPerCycle) + math.MaxUint64
 
-		require.True(t, dirSize(config.DBDir()) < 20)
+			steps = append(steps, step("insertSequential", recordsPerCycle, db, 64, 1*units.MiB, config.DBDir(), context.Background(), StepOptions{LastInserted: lastKeyInserted}))
+
+			steps = append(steps, step("deleteSequential", recordsPerCycle, db, 64, 1*units.MiB, config.DBDir(), context.Background(), StepOptions{LastDeleted: lastKeyInserted}))
+		}
+		return steps
+	}
+
+	nCycles := 100
+	recordsPerCycleList := []int{64, 256, 1024}
+	for _, recordsPerCycle := range recordsPerCycleList {
+		steps := experiment(nCycles, recordsPerCycle)
+		PrintSteps(steps, fmt.Sprintf("%s_%v", t.Name(), recordsPerCycle), dbm.GoLevelDBBackend)
 	}
 }
