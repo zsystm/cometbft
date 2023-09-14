@@ -35,6 +35,7 @@ type Step struct {
 
 type StepOptions struct {
 	LastInserted uint64
+	LastDeleted  uint64
 }
 
 // Performs one step as part of a test.
@@ -79,6 +80,21 @@ func step(
 					break iterating
 				}
 			}
+		}
+	} else if stepType == "deleteSequential" {
+		for curKey := options.LastDeleted + 1; curKey < options.LastDeleted+uint64(count); curKey++ {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Delete(uint64ToBytes(curKey)); err != nil {
+					panic(fmt.Errorf("error during Delete(): %w", err))
+				}
+			}
+		}
+		err := db.DeleteSync(uint64ToBytes(options.LastDeleted + uint64(count)))
+		if err != nil {
+			panic(err)
 		}
 	} else if stepType == "insert" {
 		// Handle the insertion of records
@@ -215,7 +231,7 @@ func dbCount(db dbm.DB) int {
 	return iterCount
 }
 
-// Computes the size of the given `path` directory in bytes.
+// Computes the size of the given `path` directory in Megabytes.
 // Panics if any error occurs.
 func dirSize(path string) int64 {
 	err := fmt.Errorf("empty error")
