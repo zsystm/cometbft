@@ -20,6 +20,7 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/test/mbt/itf"
 	"github.com/cometbft/cometbft/types"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,16 +36,18 @@ func TestAllTraces(t *testing.T) {
 	}
 
 	for _, trace := range traces {
-		testTrace(t, dir+"/"+trace.Name())
+		testTrace(t, dir+"/"+trace.Name(), 1)
 	}
 }
 
 func TestOneTrace(t *testing.T) {
-	testTrace(t, tracesDir()+"/notFullChain_trace-1.itf.json")
+	testTrace(t, tracesDir()+"/notFullChain_trace-1.itf.json", 1)
 }
 
-func testTrace(t *testing.T, path string) {
-	t.Logf("🟡 Testing trace %s", path)
+// txMultiplier will convert each transaction in the model by to txMultiplier
+// transactions in the test.
+func testTrace(t *testing.T, path string, txMultiplier int) {
+	t.Logf("🟡 Testing trace %s (mult=%d)", path, txMultiplier)
 	var err error
 
 	// Load trace
@@ -62,9 +65,14 @@ func testTrace(t *testing.T, path string) {
 	numNodes := len(nodeIds)
 
 	// Create transactions and map them to model values.
-	txsMap := make(map[string]types.Tx, numNodes)
+	txsMap := make(map[string][]types.Tx, numNodes)
 	for i, tx := range txs {
-		txsMap[tx] = kvstore.NewTxFromID(i)
+		txs := make([]types.Tx, txMultiplier)
+		for j := 0; j < txMultiplier; j++ {
+			txs[j] = mkTx(i, j)
+		}
+		txsMap[tx] = txs
+
 	}
 
 	// Create peers and map them to model values.
@@ -134,50 +142,62 @@ func testTrace(t *testing.T, path string) {
 				i, nodeId, stepName, a_tx, stepError)
 
 			// build parameters
-			tx, ok := txsMap[a_tx]
+			txs, ok := txsMap[a_tx]
 			require.True(t, ok)
 
-			// try to add transaction
-			_, err = mp.CheckTx(tx)
-
-			// check results
+			// try to add transactions and check results
 			switch stepError {
 			case "err:tx-in-cache":
-				require.True(t, mp.cache.Has(tx))
-				require.Equal(t, ErrTxInCache, err)
+				for _, tx := range txs {
+					_, err = mp.CheckTx(tx)
+					require.True(t, mp.cache.Has(tx))
+					require.Equal(t, ErrTxInCache, err)
+				}
 			case "warn:invalid-tx":
-				require.False(t, mp.cache.Has(tx))
-				require.False(t, mp.InMempool(tx.Key()))
-				require.NoError(t, err)
+				for _, tx := range txs {
+					_, err = mp.CheckTx(tx)
+					require.False(t, mp.cache.Has(tx))
+					require.False(t, mp.InMempool(tx.Key()))
+					require.NoError(t, err)
+				}
 			case "none":
-				require.True(t, mp.cache.Has(tx))
-				require.False(t, mp.InMempool(tx.Key()))
-				require.NoError(t, err)
+				for _, tx := range txs {
+					_, err = mp.CheckTx(tx)
+					require.True(t, mp.cache.Has(tx))
+					require.False(t, mp.InMempool(tx.Key()))
+					require.NoError(t, err)
+				}
 			}
 
 		case "ReceiveCheckTxResponse":
-			t.Logf("🔵 #%d node=%s step=%s(%s, responseError:\"%s\") -> error=\"%s\"\n",
-				i, nodeId, stepName, a_tx, a_error, stepError)
+			// t.Logf("🔵 #%d node=%s step=%s(%s, responseError:\"%s\") -> error=\"%s\"\n",
+			// 	i, nodeId, stepName, a_tx, a_error, stepError)
 
 			// build parameters
-			tx, ok := txsMap[a_tx]
+			txs, ok := txsMap[a_tx]
 			require.True(t, ok)
 			res := mkResponse(a_error)
 
-			// process response
-			mp.resCbFirstTime(tx, res)
-
-			// check results
+			// process response and check results
 			switch stepError {
 			case "err:mempool-full":
-				require.True(t, mp.cache.Has(tx))
-				require.False(t, mp.InMempool(tx.Key()))
+				for _, tx := range txs {
+					mp.resCbFirstTime(tx, res)
+					require.True(t, mp.cache.Has(tx))
+					require.False(t, mp.InMempool(tx.Key()))
+				}
 			case "warn:invalid-tx":
-				require.False(t, mp.cache.Has(tx))
-				require.False(t, mp.InMempool(tx.Key()))
+				for _, tx := range txs {
+					mp.resCbFirstTime(tx, res)
+					require.False(t, mp.cache.Has(tx))
+					require.False(t, mp.InMempool(tx.Key()))
+				}
 			case "none":
-				require.True(t, mp.cache.Has(tx))
-				require.True(t, mp.InMempool(tx.Key()))
+				for _, tx := range txs {
+					mp.resCbFirstTime(tx, res)
+					require.True(t, mp.cache.Has(tx))
+					require.True(t, mp.InMempool(tx.Key()))
+				}
 			}
 
 		case "ReceiveRecheckTxResponse":
@@ -186,28 +206,40 @@ func testTrace(t *testing.T, path string) {
 			require.Equal(t, "none", stepError)
 
 			// build parameters
-			tx, ok := txsMap[a_tx]
+			txs, ok := txsMap[a_tx]
 			require.True(t, ok)
-			req := mkRequest(tx, abci.CheckTxType_Recheck)
 			res := mkResponse(a_error)
 
-			// process request and response
-			mp.resCbRecheck(req, res)
-
-			// check results
+			// build request, process request and response, and check results
 			switch a_error {
 			case "err:mempool-full":
-				require.True(t, mp.cache.Has(tx))
-				require.False(t, mp.InMempool(tx.Key()))
+				for _, tx := range txs {
+					req := mkRequest(tx, abci.CheckTxType_Recheck)
+					mp.resCbRecheck(req, res)
+					require.True(t, mp.cache.Has(tx))
+					require.False(t, mp.InMempool(tx.Key()))
+				}
 			case "err:invalid-tx":
-				require.False(t, mp.cache.Has(tx))
-				require.False(t, mp.InMempool(tx.Key()))
+				for _, tx := range txs {
+					req := mkRequest(tx, abci.CheckTxType_Recheck)
+					mp.resCbRecheck(req, res)
+					require.False(t, mp.cache.Has(tx))
+					require.False(t, mp.InMempool(tx.Key()))
+				}
 			case "warn:invalid-tx":
-				require.False(t, mp.cache.Has(tx))
-				require.False(t, mp.InMempool(tx.Key()))
+				for _, tx := range txs {
+					req := mkRequest(tx, abci.CheckTxType_Recheck)
+					mp.resCbRecheck(req, res)
+					require.False(t, mp.cache.Has(tx))
+					require.False(t, mp.InMempool(tx.Key()))
+				}
 			case "none":
-				require.True(t, mp.cache.Has(tx))
-				require.True(t, mp.InMempool(tx.Key()))
+				for _, tx := range txs {
+					req := mkRequest(tx, abci.CheckTxType_Recheck)
+					mp.resCbRecheck(req, res)
+					require.True(t, mp.cache.Has(tx))
+					require.True(t, mp.InMempool(tx.Key()))
+				}
 			}
 
 		case "Update":
@@ -226,7 +258,7 @@ func testTrace(t *testing.T, path string) {
 				invalidTxs = append(invalidTxs, tx.Value.(string))
 			}
 
-			txs, results := mkTxsResults(txsMap, validTxs, invalidTxs)
+			txs, results := mkTxsResults(txsMap, txMultiplier, validTxs, invalidTxs)
 
 			// update mempool
 			err = mp.Update(int64(a_height), txs, results, nil, nil)
@@ -251,32 +283,30 @@ func testTrace(t *testing.T, path string) {
 
 			// build parameters
 			peer := peersMap[a_peerId]
-			tx, ok := txsMap[a_tx]
+			txs, ok := txsMap[a_tx]
 			require.True(t, ok)
 
-			// build message
-			txsMsg := protomem.Txs{Txs: [][]byte{tx}}
-			msg := txsMsg.Wrap()
-			if w, ok := msg.(p2p.Unwrapper); ok {
-				msg, err = w.Unwrap()
-				if err != nil {
-					panic(fmt.Errorf("unwrapping message: %s", err))
-				}
-			}
-
-			// receive message
-			reactor.Receive(p2p.Envelope{Src: peer, Message: msg, ChannelID: MempoolChannel})
-
-			// check results
+			// build and receive message; check results
 			switch stepError {
 			case "none":
-				require.True(t, mp.cache.Has(tx))
-				time.Sleep(100 * time.Millisecond) // wait until CheckTx's reqRes callback is invoked :-(
-				require.True(t, reactor.isSender(tx.Key(), peer.ID()), fmt.Sprintf("%s [%s] is not a sender of %s [%s]", a_peerId, peer.ID(), a_tx, tx.Key()))
+				for _, tx := range txs {
+					reactor.Receive(p2p.Envelope{Src: peer, Message: mkTxMsg(tx), ChannelID: MempoolChannel})
+					require.True(t, mp.cache.Has(tx))
+					time.Sleep(100 * time.Millisecond) // wait until CheckTx's reqRes callback is invoked :-(
+					require.True(t, reactor.isSender(tx.Key(), peer.ID()), fmt.Sprintf("%s [%s] is not a sender of %s [%s]", a_peerId, peer.ID(), a_tx, tx.Key()))
+				}
 			case "err:mempool-full":
-				// nothing to check here; the tx could be or not in the cache
+				for _, tx := range txs {
+					reactor.Receive(p2p.Envelope{Src: peer, Message: mkTxMsg(tx), ChannelID: MempoolChannel})
+					// nothing to check here; the tx could be or not in the cache
+					// TODO: check in the model's state
+				}
 			case "err:tx-in-cache":
-				require.True(t, mp.cache.Has(tx))
+				for _, tx := range txs {
+					require.True(t, mp.cache.Has(tx))
+					reactor.Receive(p2p.Envelope{Src: peer, Message: mkTxMsg(tx), ChannelID: MempoolChannel})
+					require.True(t, mp.cache.Has(tx))
+				}
 			}
 
 		case "P2P_BroadcastTx":
@@ -284,13 +314,15 @@ func testTrace(t *testing.T, path string) {
 				i, nodeId, stepName, a_tx, stepError)
 
 			// build parameters
-			tx, ok := txsMap[a_tx]
+			txs, ok := txsMap[a_tx]
 			require.True(t, ok)
 
 			// broadcast
 			for id, peer := range peersMap {
 				if id != nodeId {
-					reactor.send(tx, peer)
+					for _, tx := range txs {
+						reactor.send(tx, peer)
+					}
 				}
 			}
 
@@ -305,6 +337,10 @@ func tracesDir() string {
 		panic(err)
 	}
 	return wd + "/traces"
+}
+
+func mkTx(i int, j int) []byte {
+	return []byte(fmt.Sprintf("%d.%d=x", i, j))
 }
 
 func (reactor *Reactor) send(tx types.Tx, peer p2p.Peer) {
@@ -362,24 +398,27 @@ func makeReactors(t *testing.T, config *cfg.Config, n int) []*Reactor {
 }
 
 func mkTxsResults(
-	txsMap map[string]types.Tx,
+	txsMap map[string][]types.Tx,
+	txMultiplier int,
 	validTxs []string,
 	invalidTxs []string,
 ) ([]types.Tx, []*abci.ExecTxResult) {
-	size := len(validTxs) + len(invalidTxs)
-	txs := make([]types.Tx, 0, size)
+	size := (len(validTxs) + len(invalidTxs)) * txMultiplier
+	allTxs := make([]types.Tx, 0, size)
 	results := make([]*abci.ExecTxResult, 0, size)
 	for _, txName := range validTxs {
-		tx := txsMap[txName]
-		txs = append(txs, tx)
-		results = append(results, &abci.ExecTxResult{Code: abci.CodeTypeOK})
+		for _, tx := range txsMap[txName] {
+			allTxs = append(allTxs, tx)
+			results = append(results, &abci.ExecTxResult{Code: abci.CodeTypeOK})
+		}
 	}
 	for _, txName := range invalidTxs {
-		tx := txsMap[txName]
-		txs = append(txs, tx)
-		results = append(results, &abci.ExecTxResult{Code: 1})
+		for _, tx := range txsMap[txName] {
+			allTxs = append(allTxs, tx)
+			results = append(results, &abci.ExecTxResult{Code: 1})
+		}
 	}
-	return txs, results
+	return allTxs, results
 }
 
 func mkRequest(tx types.Tx, checkType abci.CheckTxType) *abci.Request {
@@ -394,6 +433,19 @@ func mkResponse(respErr string) *abci.Response {
 		re = abci.ResponseCheckTx{Code: 1}
 	}
 	return abci.ToResponseCheckTx(&re)
+}
+
+func mkTxMsg(tx types.Tx) proto.Message {
+	txsMsg := protomem.Txs{Txs: [][]byte{tx}}
+	msg := txsMsg.Wrap()
+	var err error
+	if w, ok := msg.(p2p.Unwrapper); ok {
+		msg, err = w.Unwrap()
+		if err != nil {
+			panic(fmt.Errorf("unwrapping message: %s", err))
+		}
+	}
+	return msg
 }
 
 // func printCList(txs *clist.CList) {
