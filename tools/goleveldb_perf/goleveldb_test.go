@@ -113,6 +113,33 @@ func TestGoLevelDBCompactionSequentialRangeCompact(t *testing.T) {
 	}
 }
 
+func TestLongFluctuations(t *testing.T) {
+	config := test.ResetTestRoot("db_benchmark")
+	defer func(path string) {
+		err := os.RemoveAll(path)
+		require.NoError(t, err)
+	}(config.RootDir)
+
+	db, err := leveldb.OpenFile(config.DBDir(), nil)
+	require.NoError(t, err)
+
+	lastKeyInserted := fillGoLevelDBStorageToVolumeSequentialKeys(5*units.GiB, 1*units.MiB, db)
+	fmt.Println("Filled to initial volume")
+
+	startTime := time.Now()
+	var steps []Step
+	recordsPerCycle := 1024
+	for i := 0; time.Since(startTime) < time.Hour; i++ {
+		steps = append(steps, stepGoLevelDB("insertSequential", recordsPerCycle, db, 64, 1*units.MiB, config.DBDir(), context.Background(), StepOptions{LastInserted: lastKeyInserted}))
+		steps = append(steps, stepGoLevelDB("deleteSequentialCompactRange", recordsPerCycle, db, 64, 1*units.MiB, config.DBDir(), context.Background(), StepOptions{LastDeleted: lastKeyInserted}))
+		lastKeyInserted += uint64(recordsPerCycle)
+		if i%10 == 0 && i > 0 {
+			fmt.Println(fmt.Sprintf("Done %v steps; Last step: %v", i, steps[len(steps)-1]))
+			PrintSteps(steps, t.Name(), dbm.GoLevelDBBackend)
+		}
+	}
+}
+
 func stepGoLevelDB(
 	stepType string,
 	count int,
@@ -231,4 +258,36 @@ func dbCountGoLevelDB(db *leveldb.DB) int {
 		iterCount++
 	}
 	return iterCount
+}
+
+func fillGoLevelDBStorageToVolumeSequentialKeys(targetVolume, valueSize int, db *leveldb.DB) uint64 {
+	keySize := 64
+	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
+	volumePerStep := recordingsPerStep * (keySize + valueSize)
+	nFullSteps := targetVolume / volumePerStep
+	remainingVolume := targetVolume % volumePerStep
+	nRemainingRecordings := remainingVolume / (keySize + valueSize)
+
+	lastKey := uint64(0)
+	oneStep := func(nRecordings int) {
+		batch := new(leveldb.Batch)
+		defer func(batch *leveldb.Batch) {
+			batch.Reset()
+		}(batch)
+		for i := 0; i < nRecordings; i++ {
+			batch.Put(uint64ToBytes(lastKey), rand.Bytes(valueSize))
+			lastKey++
+		}
+		err := db.Write(batch, &opt.WriteOptions{Sync: true})
+		if err != nil {
+			panic(fmt.Errorf("error during bathc WriteSync(): %w", err))
+		}
+	}
+
+	for i := 0; i < nFullSteps; i++ {
+		oneStep(recordingsPerStep)
+	}
+
+	oneStep(nRemainingRecordings)
+	return lastKey - 1
 }

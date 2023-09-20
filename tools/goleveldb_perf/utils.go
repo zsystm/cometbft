@@ -241,7 +241,6 @@ func dirSize(path string) int64 {
 		size = 0
 		err = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
 			if err != nil {
-				fmt.Println(err)
 				return err
 			}
 			if !info.IsDir() {
