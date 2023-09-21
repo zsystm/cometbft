@@ -14,7 +14,6 @@ import (
 	"github.com/docker/go-units"
 	"github.com/stretchr/testify/require"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
@@ -140,154 +139,57 @@ func TestLongFluctuations(t *testing.T) {
 	}
 }
 
-func stepGoLevelDB(
-	stepType string,
-	count int,
-	db *leveldb.DB,
-	keySize int,
-	valueSize int,
-	dbPath string,
-	ctx context.Context,
-	options StepOptions,
-) Step {
-	curTime := time.Now()
-	if stepType == "delete" {
-		// Handle the deletion of records
-		// Iterate over the db and delete the first `count` records
-		iter := db.NewIterator(&util.Range{}, nil)
-		iter.Seek([]byte{})
-		defer iter.Release()
-
-		deleted := 0
-	iterating:
-		for ; iter.Valid(); iter.Next() {
-			select {
-			case <-ctx.Done(): // we control if a step should terminate due to timeout
-				return Step{Name: "timeout"}
-			default:
-				if err := db.Delete(iter.Key(), nil); err != nil {
-					panic(fmt.Errorf("error during Delete(): %w", err))
-				}
-				deleted++
-				if deleted == count {
-					break iterating
-				}
-			}
-		}
-	} else if stepType == "deleteSequential" {
-		for curKey := options.LastDeleted + 1; curKey < options.LastDeleted+uint64(count); curKey++ {
-			select {
-			case <-ctx.Done(): // we control if a step should terminate due to timeout
-				return Step{Name: "timeout"}
-			default:
-				if err := db.Delete(uint64ToBytes(curKey), nil); err != nil {
-					panic(fmt.Errorf("error during Delete(): %w", err))
-				}
-			}
-		}
-		err := db.Delete(uint64ToBytes(options.LastDeleted+uint64(count)), &opt.WriteOptions{Sync: true})
+func BenchmarkCompactionOverheadSequential(b *testing.B) {
+	config := test.ResetTestRoot("db_benchmark")
+	defer func(path string) {
+		err := os.RemoveAll(path)
 		if err != nil {
-			panic(err)
+			b.Fatal(err)
 		}
-	} else if stepType == "deleteSequentialCompactRange" {
-		for curKey := options.LastDeleted + 1; curKey < options.LastDeleted+uint64(count); curKey++ {
-			select {
-			case <-ctx.Done(): // we control if a step should terminate due to timeout
-				return Step{Name: "timeout"}
-			default:
-				if err := db.Delete(uint64ToBytes(curKey), nil); err != nil {
-					panic(fmt.Errorf("error during Delete(): %w", err))
-				}
+	}(config.RootDir)
+
+	db, err := leveldb.OpenFile(config.DBDir(), nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	totalPutDuration := 0 * time.Second
+	totalCompactionDuration := 0 * time.Second
+	nRounds := 10
+	nInsertsPerRound := 1024
+	for i := 0; i < nRounds; i++ {
+		// insert range
+		for j := 0; j < nInsertsPerRound; j++ {
+			key := uint64ToBytes(uint64(i*nInsertsPerRound + j))
+			value := rand.Bytes(1 * units.MiB)
+			startPut := time.Now()
+			err := db.Put(key, value, nil)
+			if err != nil {
+				b.Fatal(err)
 			}
+			totalPutDuration += time.Since(startPut)
 		}
-		err := db.Delete(uint64ToBytes(options.LastDeleted+uint64(count)), &opt.WriteOptions{Sync: true})
-		if err != nil {
-			panic(err)
-		}
-		err = db.CompactRange(util.Range{Start: uint64ToBytes(options.LastDeleted), Limit: uint64ToBytes(options.LastDeleted + uint64(count+1))})
-		if err != nil {
-			panic(err)
-		}
-	} else if stepType == "insert" {
-		// Handle the insertion of records
-		// Write `count` records to the db
-		for i := 0; i < count; i++ {
-			select {
-			case <-ctx.Done(): // we control if a step should terminate due to timeout
-				return Step{Name: "timeout"}
-			default:
-				if err := db.Put(rand.Bytes(keySize), rand.Bytes(valueSize), nil); err != nil {
-					panic(fmt.Errorf("error during Set(): %w", err))
-				}
+		// delete range
+		for j := 0; j < nInsertsPerRound; j++ {
+			key := uint64ToBytes(uint64(i*nInsertsPerRound + j))
+			startPut := time.Now()
+			err := db.Delete(key, nil)
+			if err != nil {
+				b.Fatal(err)
 			}
+			totalPutDuration += time.Since(startPut)
 		}
-	} else if stepType == "insertSequential" {
-		// Handle the insertion of records
-		// Write `count` records to the db
-		lastKeyInserted := options.LastInserted
-		for i := 0; i < count; i++ {
-			select {
-			case <-ctx.Done(): // we control if a step should terminate due to timeout
-				return Step{Name: "timeout"}
-			default:
-				if err := db.Put(uint64ToBytes(lastKeyInserted+1), rand.Bytes(valueSize), nil); err != nil {
-					panic(fmt.Errorf("error during Set(): %w", err))
-				}
-				lastKeyInserted += 1
-			}
+		//compact range
+		rangeToCompact := util.Range{
+			Start: uint64ToBytes(uint64(i * nInsertsPerRound)),
+			Limit: uint64ToBytes(uint64((i + 1) * nInsertsPerRound)),
 		}
-	} else {
-		panic("invalid step type")
-	}
-
-	return Step{
-		Name:     stepType,
-		Size:     dirSize(dbPath),
-		Records:  dbCountGoLevelDB(db),
-		Duration: time.Since(curTime),
-		SysMem:   getSysMem(),
-	}
-}
-
-func dbCountGoLevelDB(db *leveldb.DB) int {
-	iter := db.NewIterator(&util.Range{}, nil)
-	iter.Seek([]byte{})
-	defer iter.Release()
-	iterCount := 0
-	for ; iter.Valid(); iter.Next() {
-		iterCount++
-	}
-	return iterCount
-}
-
-func fillGoLevelDBStorageToVolumeSequentialKeys(targetVolume, valueSize int, db *leveldb.DB) uint64 {
-	keySize := 64
-	recordingsPerStep := 1 * units.GiB / (keySize + valueSize)
-	volumePerStep := recordingsPerStep * (keySize + valueSize)
-	nFullSteps := targetVolume / volumePerStep
-	remainingVolume := targetVolume % volumePerStep
-	nRemainingRecordings := remainingVolume / (keySize + valueSize)
-
-	lastKey := uint64(0)
-	oneStep := func(nRecordings int) {
-		batch := new(leveldb.Batch)
-		defer func(batch *leveldb.Batch) {
-			batch.Reset()
-		}(batch)
-		for i := 0; i < nRecordings; i++ {
-			batch.Put(uint64ToBytes(lastKey), rand.Bytes(valueSize))
-			lastKey++
-		}
-		err := db.Write(batch, &opt.WriteOptions{Sync: true})
+		startCompact := time.Now()
+		err := db.CompactRange(rangeToCompact)
+		totalCompactionDuration += time.Since(startCompact)
 		if err != nil {
-			panic(fmt.Errorf("error during bathc WriteSync(): %w", err))
+			b.Fatal(err)
 		}
 	}
-
-	for i := 0; i < nFullSteps; i++ {
-		oneStep(recordingsPerStep)
-	}
-
-	oneStep(nRemainingRecordings)
-	return lastKey - 1
+	fmt.Println(fmt.Sprintf("Compaction duration: %v\nPut duration: %v\nDirSize: %v", totalCompactionDuration, totalPutDuration, dirSize(config.DBDir())))
 }
