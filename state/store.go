@@ -463,7 +463,7 @@ func (store dbStore) PruneABCIResponses(targetRetainHeight int64) (int64, int64,
 	batchPruned := int64(0)
 
 	for h := lastRetainHeight; h < targetRetainHeight; h++ {
-		if err := batch.Delete(calcABCIResponsesKey(h)); err != nil {
+		if err := batch.Delete(abciResponsesKey(h)); err != nil {
 			return pruned, lastRetainHeight + pruned, fmt.Errorf("failed to delete ABCI responses at height %d: %w", h, err)
 		}
 		batchPruned++
@@ -586,7 +586,6 @@ func (store dbStore) LoadLastFinalizeBlockResponse(height int64) (*abci.Response
 //
 // CONTRACT: height must be monotonically increasing every time this is called.
 func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.ResponseFinalizeBlock) error {
-	defer addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "save_abci_responses"))()
 	var dtxs []*abci.ExecTxResult
 	// strip nil values,
 	for _, tx := range resp.TxResults {
@@ -603,7 +602,8 @@ func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.Response
 		if err != nil {
 			return err
 		}
-		if err := store.db.Set(calcABCIResponsesKey(height), bz); err != nil {
+		defer addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "save_abci_responses"))()
+		if err := store.db.Set(abciResponsesKey(height), bz); err != nil {
 			return err
 		}
 	}
@@ -624,7 +624,6 @@ func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.Response
 
 func (store dbStore) getValue(key []byte) ([]byte, error) {
 	bz, err := store.db.Get(key)
-	err = store.db.SetSync(abciResponsesKey(height), bz)
 	if err != nil {
 		return nil, err
 	}

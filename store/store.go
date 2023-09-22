@@ -227,7 +227,7 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 // hash. If none is found, returns nil.
 func (bs *BlockStore) LoadBlockMetaByHash(hash []byte) *types.BlockMeta {
 	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_meta_by_hash"))()
-	bz, err := bs.db.Get(calcBlockHashKey(hash))
+	bz, err := bs.db.Get(blockHashKey(hash))
 	if err != nil {
 		panic(err)
 	}
@@ -274,7 +274,7 @@ func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 func (bs *BlockStore) LoadBlockExtendedCommit(height int64) *types.ExtendedCommit {
 	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_seen_ext_commit"))()
 	pbec := new(cmtproto.ExtendedCommit)
-	bz, err := bs.db.Get(calcExtCommitKey(height))
+	bz, err := bs.db.Get(blockExtCommitKey(height))
 	if err != nil {
 		panic(fmt.Errorf("fetching extended commit: %w", err))
 	}
@@ -376,6 +376,7 @@ func (bs *BlockStore) PruneBlocks(height int64, state sm.State) (uint64, int64, 
 			if err := batch.Delete(blockMetaKey(h)); err != nil {
 				return 0, -1, err
 			}
+		}
 		if err := batch.Delete(blockHashKey(meta.BlockID.Hash)); err != nil {
 			return 0, -1, err
 		}
@@ -453,7 +454,7 @@ func (bs *BlockStore) SaveBlockWithExtendedCommit(block *types.Block, blockParts
 
 	pbec := seenExtendedCommit.ToProto()
 	extCommitBytes := mustEncode(pbec)
-	if err := bs.db.Set(calcExtCommitKey(height), extCommitBytes); err != nil {
+	if err := bs.db.Set(blockExtCommitKey(height), extCommitBytes); err != nil {
 		panic(err)
 	}
 
@@ -570,11 +571,12 @@ func (bs *BlockStore) Close() error {
 // key prefixes
 const (
 	// prefixes are unique across all tm db's
-	prefixBlockMeta   = int64(0)
-	prefixBlockPart   = int64(1)
-	prefixBlockCommit = int64(2)
-	prefixSeenCommit  = int64(3)
-	prefixBlockHash   = int64(4)
+	prefixBlockMeta      = int64(0)
+	prefixBlockPart      = int64(1)
+	prefixBlockCommit    = int64(2)
+	prefixExtBlockCommit = int64(3)
+	prefixSeenCommit     = int64(4)
+	prefixBlockHash      = int64(5)
 )
 
 func blockMetaKey(height int64) []byte {
@@ -595,6 +597,14 @@ func blockPartKey(height int64, partIndex int) []byte {
 
 func blockCommitKey(height int64) []byte {
 	key, err := orderedcode.Append(nil, prefixBlockCommit, height)
+	if err != nil {
+		panic(err)
+	}
+	return key
+}
+
+func blockExtCommitKey(height int64) []byte {
+	key, err := orderedcode.Append(nil, prefixExtBlockCommit, height)
 	if err != nil {
 		panic(err)
 	}
@@ -683,23 +693,23 @@ func (bs *BlockStore) DeleteLatestBlock() error {
 	// delete what we can, skipping what's already missing, to ensure partial
 	// blocks get deleted fully.
 	if meta := bs.LoadBlockMeta(targetHeight); meta != nil {
-		if err := batch.Delete(calcBlockHashKey(meta.BlockID.Hash)); err != nil {
+		if err := batch.Delete(blockHashKey(meta.BlockID.Hash)); err != nil {
 			return err
 		}
 		for p := 0; p < int(meta.BlockID.PartSetHeader.Total); p++ {
-			if err := batch.Delete(calcBlockPartKey(targetHeight, p)); err != nil {
+			if err := batch.Delete(blockPartKey(targetHeight, p)); err != nil {
 				return err
 			}
 		}
 	}
-	if err := batch.Delete(calcBlockCommitKey(targetHeight)); err != nil {
+	if err := batch.Delete(blockCommitKey(targetHeight)); err != nil {
 		return err
 	}
-	if err := batch.Delete(calcSeenCommitKey(targetHeight)); err != nil {
+	if err := batch.Delete(seenCommitKey(targetHeight)); err != nil {
 		return err
 	}
 	// delete last, so as to not leave keys built on meta.BlockID dangling
-	if err := batch.Delete(calcBlockMetaKey(targetHeight)); err != nil {
+	if err := batch.Delete(blockMetaKey(targetHeight)); err != nil {
 		return err
 	}
 
