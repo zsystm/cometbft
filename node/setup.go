@@ -26,6 +26,7 @@ import (
 	"github.com/cometbft/cometbft/mempool/flood_limit_concurrency"
 	"github.com/cometbft/cometbft/mempool/flood_skip"
 	"github.com/cometbft/cometbft/mempool/flood_sleep"
+	"github.com/cometbft/cometbft/mempool/greenredtxs"
 	"github.com/cometbft/cometbft/statesync"
 
 	"github.com/cometbft/cometbft/libs/log"
@@ -285,8 +286,11 @@ func createMempoolAndMempoolReactor(
 	case "flood_limit_concurrency":
 		logger.Info("Using the flood mempool reactor with limited concurrency")
 		reactor = flood_limit_concurrency.NewReactor(config.Mempool, mp, logger)
+	case "greenredtxs":
+		logger.Info("Using the mempool reactor with lists of read and green txs")
+		reactor = greenredtxs.NewReactor(config.Mempool, mp, logger)
 	case "v0", "":
-		logger.Info("Using the v0 mempool reactor")
+		logger.Info("Using the default mempool reactor")
 		reactor = mempl.NewReactor(config.Mempool, mp, logger)
 	default:
 		return nil, nil, fmt.Errorf("unknown mempool reactor \"%s\"", config.Mempool.Reactor)
@@ -576,8 +580,10 @@ func startStateSync(
 
 //------------------------------------------------------------------------------
 
-var genesisDocKey = []byte("genesisDoc")
-var genesisDocHashKey = []byte("genesisDocHash")
+var (
+	genesisDocKey     = []byte("genesisDoc")
+	genesisDocHashKey = []byte("genesisDocHash")
+)
 
 // LoadStateFromDBOrGenesisDocProvider attempts to load the state from the
 // database, or creates one using the given genesisDocProvider. On success this also
