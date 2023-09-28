@@ -1,0 +1,10 @@
+manifest_template_path: "networks/simple.toml"
+duration: 300
+interval: 60
+
+reactors: [flood, skip, cat]
+
+load:
+  connections: [1, 2]
+  tx_rates: [100, 200, 400]
+  tx_sizes: [512, 1024, 2048]
