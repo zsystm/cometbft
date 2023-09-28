@@ -28,6 +28,7 @@ type TxGenerator struct {
 	conns uint64
 	rate  uint64
 	size  uint64
+	count uint32
 }
 
 func main() {
@@ -69,5 +70,6 @@ func (c *TxGenerator) GenerateTx() ([]byte, error) {
 		Rate:        c.rate,
 		Size:        c.size,
 		Id:          c.id,
+		TxCounter:   c.count,
 	})
 }

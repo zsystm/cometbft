@@ -81,6 +81,8 @@ func MaxUnpaddedSize() (int, error) {
 		Rate:        math.MaxUint64,
 		Size:        math.MaxUint64,
 		Padding:     make([]byte, 1),
+		WorkerId:    math.MaxUint32,
+		TxCounter:   math.MaxUint32,
 	}
 	return CalculateUnpaddedSize(p)
 }

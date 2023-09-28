@@ -98,16 +98,21 @@ func createTxBatch(ctx context.Context, txCh chan<- types.Tx, testnet *e2e.Testn
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			j := 0
 			for range genCh {
 				tx, err := payload.NewBytes(&payload.Payload{
 					Id:          id,
 					Size:        uint64(testnet.LoadTxSizeBytes),
 					Rate:        uint64(testnet.LoadTxBatchSize),
 					Connections: uint64(testnet.LoadTxConnections),
+					WorkerId:    uint32(i),
+					TxCounter:   uint32(j),
 				})
 				if err != nil {
 					panic(fmt.Sprintf("Failed to generate tx: %v", err))
 				}
+
+				j = j + 1
 
 				select {
 				case txCh <- tx:

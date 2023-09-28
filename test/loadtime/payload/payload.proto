@@ -15,4 +15,6 @@ message Payload {
   google.protobuf.Timestamp time        = 4;
   bytes                     id          = 5;
   bytes                     padding     = 6;
+  uint32                    worker_id   = 7;
+  uint32                    tx_counter  = 8;
 }
