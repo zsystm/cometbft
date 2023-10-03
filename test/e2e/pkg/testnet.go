@@ -100,7 +100,8 @@ type Node struct {
 	Mode                Mode
 	PrivvalKey          crypto.PrivKey
 	NodeKey             crypto.PrivKey
-	IP                  net.IP
+	InternalIP          net.IP
+	ExternalIP          net.IP
 	RPCProxyPort        uint32
 	GRPCProxyPort       uint32
 	StartAt             int64
@@ -211,9 +212,10 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 			Testnet:          testnet,
 			PrivvalKey:       keyGen.Generate(manifest.KeyType),
 			NodeKey:          keyGen.Generate("ed25519"),
-			IP:               ind.IPAddress,
-			RPCProxyPort:     proxyPortGen.Next(),
-			GRPCProxyPort:    proxyPortGen.Next(),
+			InternalIP:       ind.IPAddress,
+			ExternalIP:       extIP,
+			RPCProxyPort:     ind.Port, // TODO We need to find a way to get two ports into ind. this proxyGen was introduced in main ,we cant keep it proxyPortGen.Next(),
+			GRPCProxyPort:    ind.Port, // TODO Obviously cant use two ports, need to find a way to get two ports proxyPortGen.Next(),
 			Mode:             ModeValidator,
 			Database:         "goleveldb",
 			ABCIProtocol:     Protocol(testnet.ABCIProtocol),

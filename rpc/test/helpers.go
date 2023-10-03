@@ -19,7 +19,6 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
-	core_grpc "github.com/cometbft/cometbft/rpc/grpc"
 	rpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 )
 
@@ -56,15 +55,16 @@ func waitForRPC() {
 	}
 }
 
-func waitForGRPC() {
-	client := GetGRPCClient()
-	for {
-		_, err := client.Ping(context.Background(), &core_grpc.RequestPing{})
-		if err == nil {
-			return
-		}
-	}
-}
+// REMOVED when gRPC was removed
+// func waitForGRPC() {
+// 	client := GetGRPCClient()
+// 	for {
+// 		_, err := client.Ping(context.Background(), &core_grpc.RequestPing{})
+// 		if err == nil {
+// 			return
+// 		}
+// 	}
+// }
 
 // f**ing long, but unique for each test
 func makePathname() string {
@@ -104,6 +104,7 @@ func createConfig() *cfg.Config {
 	c.RPC.GRPCListenAddress = grpc
 	c.GRPC.ListenAddress = grpc // New change needs to be removed
 	c.GRPC.VersionService.Enabled = true
+	c.GRPC.BroadcastTxService.Enabled = true
 	return c
 }
 
@@ -115,11 +116,11 @@ func GetConfig(forceCreate ...bool) *cfg.Config {
 	return globalConfig
 }
 
-func GetGRPCClient() core_grpc.BroadcastAPIClient {
-	grpcAddr := globalConfig.RPC.GRPCListenAddress
-	//nolint:staticcheck // SA1019: core_grpc.StartGRPCClient is deprecated: A new gRPC API will be introduced after v0.38.
-	return core_grpc.StartGRPCClient(grpcAddr)
-}
+// func GetGRPCClient() core_grpc.BroadcastAPIClient {
+// 	grpcAddr := globalConfig.RPC.GRPCListenAddress
+// 	//nolint:staticcheck // SA1019: core_grpc.StartGRPCClient is deprecated: A new gRPC API will be introduced after v0.38.
+// 	return core_grpc.StartGRPCClient(grpcAddr)
+// }
 
 // StartTendermint starts a test CometBFT server in a go routine and returns when it is initialized
 func StartTendermint(app abci.Application, opts ...func(*Options)) *nm.Node {
@@ -135,7 +136,7 @@ func StartTendermint(app abci.Application, opts ...func(*Options)) *nm.Node {
 
 	// wait for rpc
 	waitForRPC()
-	waitForGRPC()
+	// REMOVED FROM LEGACY gRPC	waitForGRPC()
 
 	if !nodeOpts.suppressStdout {
 		fmt.Println("CometBFT running!")

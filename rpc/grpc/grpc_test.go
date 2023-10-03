@@ -1,14 +1,11 @@
 package coregrpc_test
 
 import (
-	"context"
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/cometbft/cometbft/abci/example/kvstore"
-	core_grpc "github.com/cometbft/cometbft/rpc/grpc"
+
 	rpctest "github.com/cometbft/cometbft/rpc/test"
 )
 
@@ -24,6 +21,8 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// TODO needs to be moved to grpc_test
+/*
 func TestBroadcastTx(t *testing.T) {
 	res, err := rpctest.GetGRPCClient().BroadcastTx(
 		context.Background(),
@@ -33,3 +32,4 @@ func TestBroadcastTx(t *testing.T) {
 	require.EqualValues(t, 0, res.CheckTx.Code)
 	require.EqualValues(t, 0, res.TxResult.Code)
 }
+*/

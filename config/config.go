@@ -538,19 +538,23 @@ type GRPCConfig struct {
 	// The gRPC version service provides version information about the node and
 	// the protocols it uses.
 	VersionService *GRPCVersionServiceConfig `mapstructure:"version_service"`
+
+	BroadcastTxService *GRPCBroadcastTxServiceConfig `mapstructure:"broadcast_tx_service"`
 }
 
 func DefaultGRPCConfig() *GRPCConfig {
 	return &GRPCConfig{
-		ListenAddress:  "",
-		VersionService: DefaultGRPCVersionServiceConfig(),
+		ListenAddress:      "",
+		VersionService:     DefaultGRPCVersionServiceConfig(),
+		BroadcastTxService: DefaultGRPCBroadcastTxServiceConfig(),
 	}
 }
 
 func TestGRPCConfig() *GRPCConfig {
 	return &GRPCConfig{
-		ListenAddress:  "tcp://127.0.0.1:36670",
-		VersionService: TestGRPCVersionServiceConfig(),
+		ListenAddress:      "tcp://127.0.0.1:36670",
+		VersionService:     TestGRPCVersionServiceConfig(),
+		BroadcastTxService: TestGRPCBroadcastTxServiceConfig(),
 	}
 }
 
@@ -579,6 +583,22 @@ func DefaultGRPCVersionServiceConfig() *GRPCVersionServiceConfig {
 
 func TestGRPCVersionServiceConfig() *GRPCVersionServiceConfig {
 	return &GRPCVersionServiceConfig{
+		Enabled: true,
+	}
+}
+
+type GRPCBroadcastTxServiceConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
+func DefaultGRPCBroadcastTxServiceConfig() *GRPCBroadcastTxServiceConfig {
+	return &GRPCBroadcastTxServiceConfig{
+		Enabled: false,
+	}
+}
+
+func TestGRPCBroadcastTxServiceConfig() *GRPCBroadcastTxServiceConfig {
+	return &GRPCBroadcastTxServiceConfig{
 		Enabled: true,
 	}
 }

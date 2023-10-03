@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"golang.org/x/net/netutil"
 
 	bc "github.com/cometbft/cometbft/blocksync"
 	cfg "github.com/cometbft/cometbft/config"
@@ -772,41 +773,50 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 	}
 
 	// we expose a simplified api over grpc for convenience to app devs
-/*	grpcListenAddr := n.config.RPC.GRPCListenAddress
-	if grpcListenAddr != "" {
-		config := rpcserver.DefaultConfig()
-		config.MaxBodyBytes = n.config.RPC.MaxBodyBytes
-		config.MaxHeaderBytes = n.config.RPC.MaxHeaderBytes
-		// NOTE: GRPCMaxOpenConnections is used, not MaxOpenConnections
-		config.MaxOpenConnections = n.config.RPC.GRPCMaxOpenConnections
-		// If necessary adjust global WriteTimeout to ensure it's greater than
-		// TimeoutBroadcastTxCommit.
-		// See https://github.com/tendermint/tendermint/issues/3435
-		if config.WriteTimeout <= n.config.RPC.TimeoutBroadcastTxCommit {
-			config.WriteTimeout = n.config.RPC.TimeoutBroadcastTxCommit + 1*time.Second
-		}
-		listener, err := rpcserver.Listen(grpcListenAddr, config.MaxOpenConnections)
-		if err != nil {
-			return nil, err
-		}
-		go func() {
-			//nolint:staticcheck // SA1019: core_grpc.StartGRPCClient is deprecated: A new gRPC API will be introduced after v0.38.
-			if err := grpccore.StartGRPCServer(env, listener); err != nil {
-				n.Logger.Error("Error starting gRPC server", "err", err)
+	/*	grpcListenAddr := n.config.RPC.GRPCListenAddress
+		if grpcListenAddr != "" {
+			config := rpcserver.DefaultConfig()
+			config.MaxBodyBytes = n.config.RPC.MaxBodyBytes
+			config.MaxHeaderBytes = n.config.RPC.MaxHeaderBytes
+			// NOTE: GRPCMaxOpenConnections is used, not MaxOpenConnections
+			config.MaxOpenConnections = n.config.RPC.GRPCMaxOpenConnections
+			// If necessary adjust global WriteTimeout to ensure it's greater than
+			// TimeoutBroadcastTxCommit.
+			// See https://github.com/tendermint/tendermint/issues/3435
+			if config.WriteTimeout <= n.config.RPC.TimeoutBroadcastTxCommit {
+				config.WriteTimeout = n.config.RPC.TimeoutBroadcastTxCommit + 1*time.Second
 			}
-		}()
-		listeners = append(listeners, listener)
+			listener, err := rpcserver.Listen(grpcListenAddr, config.MaxOpenConnections)
+			if err != nil {
+				return nil, err
+			}
+			go func() {
+				//nolint:staticcheck // SA1019: core_grpc.StartGRPCClient is deprecated: A new gRPC API will be introduced after v0.38.
+				if err := grpccore.StartGRPCServer(env, listener); err != nil {
+					n.Logger.Error("Error starting gRPC server", "err", err)
+				}
+			}()
+			listeners = append(listeners, listener)
 
-	} OLD
-*/
+		} OLD
+	*/
 	if n.config.GRPC.ListenAddress != "" {
 		listener, err := grpcserver.Listen(n.config.GRPC.ListenAddress)
 		if err != nil {
 			return nil, err
 		}
+		// This is added to conform to the behaviour of the gRPC in 0.38.x
+		if n.config.RPC.GRPCMaxOpenConnections > 0 {
+			listener = netutil.LimitListener(listener, n.config.RPC.GRPCMaxOpenConnections)
+		}
 		opts := []grpcserver.Option{
 			grpcserver.WithLogger(n.Logger),
 		}
+
+		if n.config.GRPC.BroadcastTxService.Enabled {
+			opts = append(opts, grpcserver.WithBroadcastTxService())
+		}
+
 		if n.config.GRPC.VersionService.Enabled {
 			opts = append(opts, grpcserver.WithVersionService())
 		}

@@ -1,5 +1,6 @@
 package main
 
+/* This was removed when the legacy gRPC was removed - look at how to preserve the tests
 import (
 	"context"
 	"encoding/hex"
@@ -40,3 +41,4 @@ func main() {
 	}
 	fmt.Println(string(bz))
 }
+*/

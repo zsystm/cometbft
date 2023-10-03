@@ -277,8 +277,8 @@ pprof_laddr = "{{ .RPC.PprofListenAddress }}"
 
 # TCP or UNIX socket address for the RPC server to listen on. If not specified,
 # the gRPC server will be disabled.
-laddr = "{{ .GRPC.ListenAddress }}"
-
+laddr = "{{ .GRPC.ListenAddress }}" 
+# TO BE REMOVED AS IT IS PART OF RPC CONFIG
 #
 # Each gRPC service can be turned on/off, and in some cases configured,
 # individually. If the gRPC server is not enabled, all individual services'
@@ -289,6 +289,10 @@ laddr = "{{ .GRPC.ListenAddress }}"
 # protocols it uses.
 [grpc.version_service]
 enabled = {{ .GRPC.VersionService.Enabled }}
+
+#The gRPC BroadcastTx service calls the RPC BroadcastTxCommit function.7
+[grpc.broadcast_tx_service]
+enabled = {{ .GRPC.BroadcastTxService.Enabled }}
 
 #######################################################
 ###           P2P Configuration Options             ###

@@ -7,6 +7,8 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	pbversionsvc "github.com/cometbft/cometbft/proto/tendermint/services/version/v1"
+	legacygrpc "github.com/cometbft/cometbft/rpc/grpc"
+	"github.com/cometbft/cometbft/rpc/grpc/server/services/broadcastxservice"
 	"github.com/cometbft/cometbft/rpc/grpc/server/services/versionservice"
 	"google.golang.org/grpc"
 )
@@ -16,10 +18,11 @@ import (
 type Option func(*serverBuilder)
 
 type serverBuilder struct {
-	listener       net.Listener
-	versionService pbversionsvc.VersionServiceServer
-	logger         log.Logger
-	grpcOpts       []grpc.ServerOption
+	listener           net.Listener
+	versionService     pbversionsvc.VersionServiceServer
+	broadcastTxService legacygrpc.BroadcastAPIServer
+	logger             log.Logger
+	grpcOpts           []grpc.ServerOption
 }
 
 func newServerBuilder(listener net.Listener) *serverBuilder {
@@ -53,6 +56,13 @@ func WithVersionService() Option {
 	}
 }
 
+// WithBroadcastTxService enables the version service on the CometBFT server.
+func WithBroadcastTxService() Option {
+	return func(b *serverBuilder) {
+		b.broadcastTxService = broadcastxservice.New()
+	}
+}
+
 // WithLogger enables logging using the given logger. If not specified, the
 // gRPC server does not log anything.
 func WithLogger(logger log.Logger) Option {
@@ -83,6 +93,10 @@ func Serve(listener net.Listener, opts ...Option) error {
 	if b.versionService != nil {
 		pbversionsvc.RegisterVersionServiceServer(server, b.versionService)
 		b.logger.Debug("Registered version service")
+	}
+	if b.broadcastTxService != nil {
+		legacygrpc.RegisterBroadcastAPIServer(server, b.broadcastTxService)
+		b.logger.Debug("Registered broadcast tx service")
 	}
 	b.logger.Info("serve", "msg", fmt.Sprintf("Starting gRPC server on %s", listener.Addr()))
 	return server.Serve(b.listener)
