@@ -271,7 +271,7 @@ Any modification to the grammar (`test/e2e/pkg/grammar/clean-start/abci_grammar_
 going to the `test/e2e/` directory and running:
 
 ```bash 
-make grammar
+make grammar-gen
 ``` 
 Notice here that you need to have `gogll` installed 
 on your machine to run the make successfully. If this is not the case, you can install it with the following command: 
