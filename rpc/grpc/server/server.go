@@ -7,6 +7,7 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	pbversionsvc "github.com/cometbft/cometbft/proto/tendermint/services/version/v1"
+	"github.com/cometbft/cometbft/rpc/core"
 	legacygrpc "github.com/cometbft/cometbft/rpc/grpc"
 	"github.com/cometbft/cometbft/rpc/grpc/server/services/broadcastxservice"
 	"github.com/cometbft/cometbft/rpc/grpc/server/services/versionservice"
@@ -57,9 +58,9 @@ func WithVersionService() Option {
 }
 
 // WithBroadcastTxService enables the version service on the CometBFT server.
-func WithBroadcastTxService() Option {
+func WithBroadcastTxService(env *core.Environment) Option {
 	return func(b *serverBuilder) {
-		b.broadcastTxService = broadcastxservice.New()
+		b.broadcastTxService = broadcastxservice.New(env)
 	}
 }
 

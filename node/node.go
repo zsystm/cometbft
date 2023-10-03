@@ -814,7 +814,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 		}
 
 		if n.config.GRPC.BroadcastTxService.Enabled {
-			opts = append(opts, grpcserver.WithBroadcastTxService())
+			opts = append(opts, grpcserver.WithBroadcastTxService(env))
 		}
 
 		if n.config.GRPC.VersionService.Enabled {

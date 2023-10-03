@@ -14,8 +14,8 @@ type broadcastAPIServer struct {
 }
 
 // New creates a new CometBFT version service server.
-func New() legacygrpc.BroadcastAPIServer {
-	return &broadcastAPIServer{}
+func New(e *core.Environment) legacygrpc.BroadcastAPIServer {
+	return &broadcastAPIServer{env: e}
 }
 
 // GetVersion implements v1.VersionServiceServer

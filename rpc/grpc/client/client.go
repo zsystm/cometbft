@@ -10,6 +10,7 @@ import (
 	"net"
 
 	cmtnet "github.com/cometbft/cometbft/libs/net"
+	legacygrpc "github.com/cometbft/cometbft/rpc/grpc"
 	"github.com/cosmos/gogoproto/grpc"
 	ggrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,6 +22,7 @@ type Option func(*clientBuilder)
 // node via gRPC.
 type Client interface {
 	VersionServiceClient
+	legacygrpc.BroadcastAPIClient
 }
 
 type clientBuilder struct {
@@ -28,13 +30,16 @@ type clientBuilder struct {
 	grpcOpts   []ggrpc.DialOption
 
 	versionServiceEnabled bool
+
+	broadcastTxServiceEnabled bool
 }
 
 func newClientBuilder() *clientBuilder {
 	return &clientBuilder{
-		dialerFunc:            defaultDialerFunc,
-		grpcOpts:              make([]ggrpc.DialOption, 0),
-		versionServiceEnabled: true,
+		dialerFunc:                defaultDialerFunc,
+		grpcOpts:                  make([]ggrpc.DialOption, 0),
+		versionServiceEnabled:     true,
+		broadcastTxServiceEnabled: true,
 	}
 }
 
@@ -46,6 +51,8 @@ type client struct {
 	conn grpc.ClientConn
 
 	VersionServiceClient
+
+	legacygrpc.BroadcastAPIClient
 }
 
 // WithInsecure disables transport security for the underlying client
@@ -65,6 +72,12 @@ func WithInsecure() Option {
 func WithVersionServiceEnabled(enabled bool) Option {
 	return func(b *clientBuilder) {
 		b.versionServiceEnabled = enabled
+	}
+}
+
+func WithBroadcastTxServiceEnabled(enabled bool) Option {
+	return func(b *clientBuilder) {
+		b.broadcastTxServiceEnabled = enabled
 	}
 }
 
@@ -98,9 +111,15 @@ func New(ctx context.Context, addr string, opts ...Option) (Client, error) {
 	if builder.versionServiceEnabled {
 		versionServiceClient = newVersionServiceClient(conn)
 	}
+
+	broadcastAPIClient := newDisabledBroadcastAPIServiceClient()
+	if builder.broadcastTxServiceEnabled {
+		broadcastAPIClient = newBroadcastAPIClient(conn)
+	}
 	client := &client{
 		conn:                 conn,
 		VersionServiceClient: versionServiceClient,
+		BroadcastAPIClient:   broadcastAPIClient,
 	}
 	return client, nil
 }
