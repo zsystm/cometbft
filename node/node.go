@@ -800,8 +800,8 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 		} OLD
 	*/
-	if n.config.GRPC.ListenAddress != "" {
-		listener, err := grpcserver.Listen(n.config.GRPC.ListenAddress)
+	if n.config.RPC.GRPCListenAddress != "" {
+		listener, err := grpcserver.Listen(n.config.RPC.GRPCListenAddress)
 		if err != nil {
 			return nil, err
 		}

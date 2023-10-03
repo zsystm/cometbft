@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/cometbft/cometbft/version"
@@ -531,10 +530,6 @@ func (cfg RPCConfig) IsTLSEnabled() bool {
 
 // GRPCConfig defines the configuration for the CometBFT gRPC server.
 type GRPCConfig struct {
-	// TCP or Unix socket address for the gRPC server to listen on. If empty,
-	// the gRPC server will be disabled.
-	ListenAddress string `mapstructure:"laddr"`
-
 	// The gRPC version service provides version information about the node and
 	// the protocols it uses.
 	VersionService *GRPCVersionServiceConfig `mapstructure:"version_service"`
@@ -544,7 +539,6 @@ type GRPCConfig struct {
 
 func DefaultGRPCConfig() *GRPCConfig {
 	return &GRPCConfig{
-		ListenAddress:      "",
 		VersionService:     DefaultGRPCVersionServiceConfig(),
 		BroadcastTxService: DefaultGRPCBroadcastTxServiceConfig(),
 	}
@@ -552,22 +546,12 @@ func DefaultGRPCConfig() *GRPCConfig {
 
 func TestGRPCConfig() *GRPCConfig {
 	return &GRPCConfig{
-		ListenAddress:      "tcp://127.0.0.1:36670",
 		VersionService:     TestGRPCVersionServiceConfig(),
 		BroadcastTxService: TestGRPCBroadcastTxServiceConfig(),
 	}
 }
 
 func (cfg *GRPCConfig) ValidateBasic() error {
-	if len(cfg.ListenAddress) > 0 {
-		addrParts := strings.SplitN(cfg.ListenAddress, "://", 2)
-		if len(addrParts) != 2 {
-			return fmt.Errorf(
-				"invalid listening address %s (use fully formed addresses, including the tcp:// or unix:// prefix)",
-				cfg.ListenAddress,
-			)
-		}
-	}
 	return nil
 }
 
