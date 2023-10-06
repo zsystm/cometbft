@@ -18,6 +18,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/tecbot/gorocksdb"
 )
 
 // Step is used to keep track of the steps taken during the test.
@@ -521,10 +522,131 @@ func stepGoLevelDB(
 	}
 }
 
+func stepRocksDB(
+	stepType string,
+	count int,
+	db *gorocksdb.DB,
+	keySize int,
+	valueSize int,
+	dbPath string,
+	ctx context.Context,
+	options StepOptions,
+) Step {
+	curTime := time.Now()
+	if stepType == "delete" {
+		// Handle the deletion of records
+		// Iterate over the db and delete the first `count` records
+		iter := db.NewIterator(gorocksdb.NewDefaultReadOptions())
+		iter.Seek([]byte{})
+		defer iter.Close()
+
+		deleted := 0
+	iterating:
+		for ; iter.Valid(); iter.Next() {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Delete(gorocksdb.NewDefaultWriteOptions(), iter.Key().Data()); err != nil {
+					panic(fmt.Errorf("error during Delete(): %w", err))
+				}
+				deleted++
+				if deleted == count {
+					break iterating
+				}
+			}
+		}
+	} else if stepType == "deleteSequential" {
+		for curKey := options.LastDeleted + 1; curKey < options.LastDeleted+uint64(count); curKey++ {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Delete(gorocksdb.NewDefaultWriteOptions(), uint64ToBytes(curKey)); err != nil {
+					panic(fmt.Errorf("error during Delete(): %w", err))
+				}
+			}
+		}
+		woSync := gorocksdb.NewDefaultWriteOptions()
+		woSync.SetSync(true)
+		err := db.Delete(woSync, uint64ToBytes(options.LastDeleted+uint64(count)))
+		if err != nil {
+			panic(err)
+		}
+	} else if stepType == "deleteSequentialCompactRange" {
+		for curKey := options.LastDeleted + 1; curKey < options.LastDeleted+uint64(count); curKey++ {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Delete(gorocksdb.NewDefaultWriteOptions(), uint64ToBytes(curKey)); err != nil {
+					panic(fmt.Errorf("error during Delete(): %w", err))
+				}
+			}
+		}
+		woSync := gorocksdb.NewDefaultWriteOptions()
+		woSync.SetSync(true)
+		err := db.Delete(woSync, uint64ToBytes(options.LastDeleted+uint64(count)))
+		if err != nil {
+			panic(err)
+		}
+		db.CompactRange(gorocksdb.Range{Start: uint64ToBytes(options.LastDeleted), Limit: uint64ToBytes(options.LastDeleted + uint64(count+1))})
+	} else if stepType == "insert" {
+		// Handle the insertion of records
+		// Write `count` records to the db
+		for i := 0; i < count; i++ {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Put(gorocksdb.NewDefaultWriteOptions(), rand.Bytes(keySize), rand.Bytes(valueSize)); err != nil {
+					panic(fmt.Errorf("error during Set(): %w", err))
+				}
+			}
+		}
+	} else if stepType == "insertSequential" {
+		// Handle the insertion of records
+		// Write `count` records to the db
+		lastKeyInserted := options.LastInserted
+		for i := 0; i < count; i++ {
+			select {
+			case <-ctx.Done(): // we control if a step should terminate due to timeout
+				return Step{Name: "timeout"}
+			default:
+				if err := db.Put(gorocksdb.NewDefaultWriteOptions(), uint64ToBytes(lastKeyInserted+1), rand.Bytes(valueSize)); err != nil {
+					panic(fmt.Errorf("error during Set(): %w", err))
+				}
+				lastKeyInserted += 1
+			}
+		}
+	} else {
+		panic("invalid step type")
+	}
+
+	return Step{
+		Name:     stepType,
+		Size:     dirSize(dbPath),
+		Records:  dbCountRocksDB(db),
+		Duration: time.Since(curTime),
+		SysMem:   getSysMem(),
+	}
+}
+
 func dbCountGoLevelDB(db *leveldb.DB) int {
 	iter := db.NewIterator(&util.Range{}, nil)
 	iter.Seek([]byte{})
 	defer iter.Release()
+	iterCount := 0
+	for ; iter.Valid(); iter.Next() {
+		iterCount++
+	}
+	return iterCount
+}
+
+func dbCountRocksDB(db *gorocksdb.DB) int {
+	iter := db.NewIterator(gorocksdb.NewDefaultReadOptions())
+	iter.Seek([]byte{})
+	defer iter.Close()
 	iterCount := 0
 	for ; iter.Valid(); iter.Next() {
 		iterCount++
