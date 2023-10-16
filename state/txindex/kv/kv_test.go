@@ -340,6 +340,57 @@ func TestTxSearchWithCancelation(t *testing.T) {
 	assert.Empty(t, results)
 }
 
+func TestTxSearchWithHeightRange(t *testing.T) {
+	indexer := NewTxIndex(db.NewMemDB())
+
+	txResult := txResultWithEvents([]abci.Event{
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}, {Key: "owner", Value: "Ivan", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "Ivan", Index: true}}},
+		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Vlad", Index: true}}},
+	})
+	txResult.Height = 1
+	txResult.Tx = types.Tx("HELLO WORLD")
+	err := indexer.Index(txResult)
+	require.NoError(t, err)
+
+	txResult2 := txResultWithEvents([]abci.Event{
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "2", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "bla", Index: true}}},
+		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Ana", Index: true}}},
+	})
+	txResult.Height = 2
+	txResult2.Tx = types.Tx("HELLO WORLD 2")
+	err = indexer.Index(txResult2)
+	require.NoError(t, err)
+
+	txResult3 := txResultWithEvents([]abci.Event{
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "3", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "Ivan", Index: true}}},
+		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Bu", Index: true}}},
+	})
+	txResult3.Height = 3
+	txResult3.Tx = types.Tx("HELLO WORLD 3")
+	err = indexer.Index(txResult3)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	results, err := indexer.Search(ctx, query.MustParse("account.number = 1"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, results)
+
+	results, err = indexer.Search(ctx, query.MustParse("tx.height >= 1 AND tx.height <=2 AND account.owner = 'Ivan'"))
+	t.Log(len(results))
+	assert.NoError(t, err)
+	assert.Equal(t, len(results), 1)
+
+	results, err = indexer.Search(ctx, query.MustParse("account.number >= 1 AND account.number <=3 AND account.owner = 'Ivan'"))
+	t.Log(len(results))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, results)
+
+}
+
 func TestTxSearchDeprecatedIndexing(t *testing.T) {
 	indexer := NewTxIndex(db.NewMemDB())
 
