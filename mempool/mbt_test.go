@@ -18,9 +18,9 @@ import (
 	"github.com/cometbft/cometbft/p2p/mock"
 	protomem "github.com/cometbft/cometbft/proto/tendermint/mempool"
 	"github.com/cometbft/cometbft/proxy"
-	"github.com/cometbft/cometbft/test/mbt/itf"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/gogoproto/proto"
+	"github.com/informalsystems/itf-go/itf"
 	"github.com/stretchr/testify/require"
 )
 
