@@ -10,8 +10,10 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	clean_start_lexer "github.com/cometbft/cometbft/test/e2e/pkg/grammar/clean-start/grammar-auto/lexer"
 	clean_start_parser "github.com/cometbft/cometbft/test/e2e/pkg/grammar/clean-start/grammar-auto/parser"
+	clean_start_token "github.com/cometbft/cometbft/test/e2e/pkg/grammar/clean-start/grammar-auto/token"
 	recovery_lexer "github.com/cometbft/cometbft/test/e2e/pkg/grammar/recovery/grammar-auto/lexer"
 	recovery_parser "github.com/cometbft/cometbft/test/e2e/pkg/grammar/recovery/grammar-auto/parser"
+	recovery_token "github.com/cometbft/cometbft/test/e2e/pkg/grammar/recovery/grammar-auto/token"
 )
 
 const COMMIT = "commit"
@@ -148,33 +150,55 @@ func (g *GrammarChecker) Verify(reqs []*abci.Request, isCleanStart bool) (bool, 
 	return false, fmt.Errorf("%v\nFull execution:\n%v", g.combineErrors(errors, g.cfg.NumberOfErrorsToShow), g.addHeightNumbersToTheExecution(execution))
 }
 
+type GrammarError[K comparable] struct {
+	expected map[K]string
+	line     int
+	typeID   string
+}
+
 // verifyCleanStart verifies if a specific execution is a valid clean-start execution.
 func (g *GrammarChecker) verifyCleanStart(execution string) []*Error {
 	lexer := clean_start_lexer.New([]rune(execution))
 	_, errs := clean_start_parser.Parse(lexer)
-	return verifyCommon[clean_start_parser.Error](errs, "clean-start")
+	grammarErrs := make([]GrammarError[clean_start_token.Type], 0)
+	for _, err := range errs {
+		grammarErrs = append(grammarErrs, GrammarError[clean_start_token.Type]{
+			expected: err.Expected,
+			typeID:   err.Token.TypeID(),
+			line:     err.Line,
+		})
+	}
+	return verifyCommon(grammarErrs, "clean-start")
 }
 
 // verifyRecovery verifies if a specific execution is a valid recovery execution.
 func (g *GrammarChecker) verifyRecovery(execution string) []*Error {
 	lexer := recovery_lexer.New([]rune(execution))
 	_, errs := recovery_parser.Parse(lexer)
-	return verifyCommon[recovery_parser.Error](errs, "recovery")
+	grammarErrs := make([]GrammarError[recovery_token.Type], 0)
+	for _, err := range errs {
+		grammarErrs = append(grammarErrs, GrammarError[recovery_token.Type]{
+			expected: err.Expected,
+			typeID:   err.Token.TypeID(),
+			line:     err.Line,
+		})
+	}
+	return verifyCommon(grammarErrs, "recovery")
 }
 
 // verifyCommon goes through the list of provided errors and return the the list of specifically formated errors.
-func verifyCommon[E clean_start_parser.Error | recovery_parser.Error](errs []*E, executionType string) []*Error {
-	var errors []*Error
+func verifyCommon[K comparable](errs []GrammarError[K], executionType string) []*Error {
+	errors := make([]*Error, 0)
 	for _, err := range errs {
 		exp := []string{}
-		for _, ex := range err.Expected {
+		for _, ex := range err.expected {
 			exp = append(exp, ex)
 		}
 		expectedTokens := strings.Join(exp, ",")
-		unexpectedToken := err.Token.TypeID()
+		unexpectedToken := err.typeID
 		e := &Error{
 			description: fmt.Sprintf("Invalid %v execution: parser was expecting one of [%v], got [%v] instead.", executionType, expectedTokens, unexpectedToken),
-			height:      err.Line - 1,
+			height:      err.line - 1,
 		}
 		errors = append(errors, e)
 	}
