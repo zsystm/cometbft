@@ -150,30 +150,21 @@ func (g *GrammarChecker) Verify(reqs []*abci.Request, isCleanStart bool) (bool, 
 
 // verifyCleanStart verifies if a specific execution is a valid clean-start execution.
 func (g *GrammarChecker) verifyCleanStart(execution string) []*Error {
-	var errors []*Error
 	lexer := clean_start_lexer.New([]rune(execution))
 	_, errs := clean_start_parser.Parse(lexer)
-	for _, err := range errs {
-		exp := []string{}
-		for _, ex := range err.Expected {
-			exp = append(exp, ex)
-		}
-		expectedTokens := strings.Join(exp, ",")
-		unexpectedToken := err.Token.TypeID()
-		e := &Error{
-			description: fmt.Sprintf("Invalid clean-start execution: parser was expecting one of [%v], got [%v] instead.", expectedTokens, unexpectedToken),
-			height:      err.Line - 1,
-		}
-		errors = append(errors, e)
-	}
-	return errors
+	return verifyCommon[clean_start_parser.Error](errs, "clean-start")
 }
 
 // verifyRecovery verifies if a specific execution is a valid recovery execution.
 func (g *GrammarChecker) verifyRecovery(execution string) []*Error {
-	var errors []*Error
 	lexer := recovery_lexer.New([]rune(execution))
 	_, errs := recovery_parser.Parse(lexer)
+	return verifyCommon[recovery_parser.Error](errs, "recovery")
+}
+
+// verifyCommon goes through the list of provided errors and return the the list of specifically formated errors.
+func verifyCommon[E clean_start_parser.Error | recovery_parser.Error](errs []*E, executionType string) []*Error {
+	var errors []*Error
 	for _, err := range errs {
 		exp := []string{}
 		for _, ex := range err.Expected {
@@ -182,7 +173,7 @@ func (g *GrammarChecker) verifyRecovery(execution string) []*Error {
 		expectedTokens := strings.Join(exp, ",")
 		unexpectedToken := err.Token.TypeID()
 		e := &Error{
-			description: fmt.Sprintf("Invalid recovery execution: parser was expecting one of [%v], got [%v] instead.", expectedTokens, unexpectedToken),
+			description: fmt.Sprintf("Invalid %v execution: parser was expecting one of [%v], got [%v] instead.", executionType, expectedTokens, unexpectedToken),
 			height:      err.Line - 1,
 		}
 		errors = append(errors, e)
@@ -194,9 +185,10 @@ func (g *GrammarChecker) verifyRecovery(execution string) []*Error {
 func (g *GrammarChecker) addHeightNumbersToTheExecution(execution string) string {
 	heights := strings.Split(execution, "\n")
 	s := ""
-	// assert that last element of heights == "" (if with error) 
-	heights = heights[:len(heights)-1] // Remove last element
 	for i, l := range heights {
+		if i == len(heights)-1 && l == "" {
+			break
+		}
 		s = fmt.Sprintf("%v%v: %v\n", s, i, l)
 	}
 	return s
