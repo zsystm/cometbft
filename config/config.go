@@ -843,15 +843,16 @@ func (cfg *MempoolConfig) ValidateBasic() error {
 
 // StateSyncConfig defines the configuration for the CometBFT state sync service
 type StateSyncConfig struct {
-	Enable              bool          `mapstructure:"enable"`
-	TempDir             string        `mapstructure:"temp_dir"`
-	RPCServers          []string      `mapstructure:"rpc_servers"`
-	TrustPeriod         time.Duration `mapstructure:"trust_period"`
-	TrustHeight         int64         `mapstructure:"trust_height"`
-	TrustHash           string        `mapstructure:"trust_hash"`
-	DiscoveryTime       time.Duration `mapstructure:"discovery_time"`
-	ChunkRequestTimeout time.Duration `mapstructure:"chunk_request_timeout"`
-	ChunkFetchers       int32         `mapstructure:"chunk_fetchers"`
+	Enable                 bool          `mapstructure:"enable"`
+	TempDir                string        `mapstructure:"temp_dir"`
+	RPCServers             []string      `mapstructure:"rpc_servers"`
+	TrustPeriod            time.Duration `mapstructure:"trust_period"`
+	TrustHeight            int64         `mapstructure:"trust_height"`
+	TrustHash              string        `mapstructure:"trust_hash"`
+	DiscoveryTime          time.Duration `mapstructure:"discovery_time"`
+	ChunkRequestTimeout    time.Duration `mapstructure:"chunk_request_timeout"`
+	ChunkFetchers          int32         `mapstructure:"chunk_fetchers"`
+	StateSyncOfflineHeight int64         `mapstructure:"statesync_offline_height"`
 }
 
 func (cfg *StateSyncConfig) TrustHashBytes() []byte {

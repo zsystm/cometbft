@@ -409,6 +409,7 @@ FOR_LOOP:
 			}
 			blocksSynced++
 
+			fmt.Println("Blocks synced ", blocksSynced)
 			if blocksSynced%100 == 0 {
 				lastRate = 0.9*lastRate + 0.1*(100/time.Since(lastHundred).Seconds())
 				bcR.Logger.Info("Block Sync Rate", "height", bcR.pool.height,
