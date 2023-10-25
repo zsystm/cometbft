@@ -22,6 +22,7 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	cmtrand "github.com/cometbft/cometbft/libs/rand"
 	cmtstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	abcitypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/store"
 	"github.com/cometbft/cometbft/types"
@@ -564,6 +565,48 @@ func TestLastFinalizeBlockResponses(t *testing.T) {
 		_, err = stateStore.LoadFinalizeBlockResponse(height + 1)
 		assert.Equal(t, sm.ErrFinalizeBlockResponsesNotPersisted, err)
 	})
+}
+
+func TestABCIResponsesInfoWithChangeFieldName(t *testing.T) {
+	abciResp := cmtstate.ABCIResponsesInfo{
+		Height: 10,
+		ResponseFinalizeBlock: &abci.ResponseFinalizeBlock{
+			Events: []abci.Event{{
+				Type: "event1",
+				Attributes: []abci.EventAttribute{{
+					Key:   "key1",
+					Value: "value1",
+				}},
+			}},
+			TxResults: []*abci.ExecTxResult{{
+				Events: []abci.Event{{
+					Type: "tx1",
+					Attributes: []abci.EventAttribute{{
+						Key:   "key1",
+						Value: "value1",
+					}},
+				}},
+			}},
+			ValidatorUpdates: []abci.ValidatorUpdate{
+				types.TM2PB.NewValidatorUpdate(ed25519.GenPrivKey().PubKey(), 10),
+			},
+			ConsensusParamUpdates: &abcitypes.ConsensusParams{
+				Block: &abcitypes.BlockParams{MaxGas: 199},
+			},
+			AppHash: []byte("A_HASH"),
+		},
+	}
+
+	bz, err := abciResp.Marshal()
+	require.NoError(t, err)
+
+	abciResp2 := new(cmtstate.ABCIResponsesInfo2)
+	err = abciResp2.Unmarshal(bz)
+	require.NoError(t, err)
+
+	require.Equal(t, abciResp.Height, abciResp2.Height)
+	require.Equal(t, abciResp.ResponseFinalizeBlock, abciResp2.FinalizeBlockResponse)
+
 }
 
 func TestFinalizeBlockRecoveryUsingLegacyABCIResponses(t *testing.T) {
