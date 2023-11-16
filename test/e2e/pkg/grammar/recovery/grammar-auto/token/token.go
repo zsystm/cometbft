@@ -136,9 +136,11 @@ const(
     Error  Type = iota  // Error 
     EOF  // $ 
     T_0  // commit 
-    T_1  // finalize_block 
-    T_2  // prepare_proposal 
-    T_3  // process_proposal 
+    T_1  // extend_vote 
+    T_2  // finalize_block 
+    T_3  // prepare_proposal 
+    T_4  // process_proposal 
+    T_5  // verify_vote_extension 
 )
 
 var TypeToString = []string{ 
@@ -148,6 +150,8 @@ var TypeToString = []string{
     "T_1",
     "T_2",
     "T_3",
+    "T_4",
+    "T_5",
 }
 
 var StringToType = map[string] Type { 
@@ -157,27 +161,35 @@ var StringToType = map[string] Type {
     "T_1" : T_1, 
     "T_2" : T_2, 
     "T_3" : T_3, 
+    "T_4" : T_4, 
+    "T_5" : T_5, 
 }
 
 var TypeToID = []string { 
     "Error", 
     "$", 
     "commit", 
+    "extend_vote", 
     "finalize_block", 
     "prepare_proposal", 
     "process_proposal", 
+    "verify_vote_extension", 
 }
 
 var IDToType = map[string]Type { 
     "Error": 0, 
     "$": 1, 
     "commit": 2, 
-    "finalize_block": 3, 
-    "prepare_proposal": 4, 
-    "process_proposal": 5, 
+    "extend_vote": 3, 
+    "finalize_block": 4, 
+    "prepare_proposal": 5, 
+    "process_proposal": 6, 
+    "verify_vote_extension": 7, 
 }
 
 var Suppress = []bool { 
+    false, 
+    false, 
     false, 
     false, 
     false, 

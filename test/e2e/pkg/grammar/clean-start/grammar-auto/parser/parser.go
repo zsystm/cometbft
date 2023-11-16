@@ -285,6 +285,87 @@ func (p *parser) parse() (*bsr.Set, []*Error) {
 			} else {
 				p.parseError(slot.ConsensusRounds1R0, p.cI, followSets[symbols.NT_ConsensusRounds])
 			}
+		case slot.Extend0R0: // Extend : ∙ExtendVote
+
+			p.call(slot.Extend0R1, cU, p.cI)
+		case slot.Extend0R1: // Extend : ExtendVote ∙
+
+			if p.follow(symbols.NT_Extend) {
+				p.rtn(symbols.NT_Extend, cU, p.cI)
+			} else {
+				p.parseError(slot.Extend0R0, p.cI, followSets[symbols.NT_Extend])
+			}
+		case slot.Extend1R0: // Extend : ∙GotVotes ExtendVote
+
+			p.call(slot.Extend1R1, cU, p.cI)
+		case slot.Extend1R1: // Extend : GotVotes ∙ExtendVote
+
+			if !p.testSelect(slot.Extend1R1) {
+				p.parseError(slot.Extend1R1, p.cI, first[slot.Extend1R1])
+				break
+			}
+
+			p.call(slot.Extend1R2, cU, p.cI)
+		case slot.Extend1R2: // Extend : GotVotes ExtendVote ∙
+
+			if p.follow(symbols.NT_Extend) {
+				p.rtn(symbols.NT_Extend, cU, p.cI)
+			} else {
+				p.parseError(slot.Extend1R0, p.cI, followSets[symbols.NT_Extend])
+			}
+		case slot.Extend2R0: // Extend : ∙ExtendVote GotVotes
+
+			p.call(slot.Extend2R1, cU, p.cI)
+		case slot.Extend2R1: // Extend : ExtendVote ∙GotVotes
+
+			if !p.testSelect(slot.Extend2R1) {
+				p.parseError(slot.Extend2R1, p.cI, first[slot.Extend2R1])
+				break
+			}
+
+			p.call(slot.Extend2R2, cU, p.cI)
+		case slot.Extend2R2: // Extend : ExtendVote GotVotes ∙
+
+			if p.follow(symbols.NT_Extend) {
+				p.rtn(symbols.NT_Extend, cU, p.cI)
+			} else {
+				p.parseError(slot.Extend2R0, p.cI, followSets[symbols.NT_Extend])
+			}
+		case slot.Extend3R0: // Extend : ∙GotVotes ExtendVote GotVotes
+
+			p.call(slot.Extend3R1, cU, p.cI)
+		case slot.Extend3R1: // Extend : GotVotes ∙ExtendVote GotVotes
+
+			if !p.testSelect(slot.Extend3R1) {
+				p.parseError(slot.Extend3R1, p.cI, first[slot.Extend3R1])
+				break
+			}
+
+			p.call(slot.Extend3R2, cU, p.cI)
+		case slot.Extend3R2: // Extend : GotVotes ExtendVote ∙GotVotes
+
+			if !p.testSelect(slot.Extend3R2) {
+				p.parseError(slot.Extend3R2, p.cI, first[slot.Extend3R2])
+				break
+			}
+
+			p.call(slot.Extend3R3, cU, p.cI)
+		case slot.Extend3R3: // Extend : GotVotes ExtendVote GotVotes ∙
+
+			if p.follow(symbols.NT_Extend) {
+				p.rtn(symbols.NT_Extend, cU, p.cI)
+			} else {
+				p.parseError(slot.Extend3R0, p.cI, followSets[symbols.NT_Extend])
+			}
+		case slot.ExtendVote0R0: // ExtendVote : ∙extend_vote
+
+			p.bsrSet.Add(slot.ExtendVote0R1, cU, p.cI, p.cI+1)
+			p.cI++
+			if p.follow(symbols.NT_ExtendVote) {
+				p.rtn(symbols.NT_ExtendVote, cU, p.cI)
+			} else {
+				p.parseError(slot.ExtendVote0R0, p.cI, followSets[symbols.NT_ExtendVote])
+			}
 		case slot.FinalizeBlock0R0: // FinalizeBlock : ∙finalize_block
 
 			p.bsrSet.Add(slot.FinalizeBlock0R1, cU, p.cI, p.cI+1)
@@ -293,6 +374,43 @@ func (p *parser) parse() (*bsr.Set, []*Error) {
 				p.rtn(symbols.NT_FinalizeBlock, cU, p.cI)
 			} else {
 				p.parseError(slot.FinalizeBlock0R0, p.cI, followSets[symbols.NT_FinalizeBlock])
+			}
+		case slot.GotVote0R0: // GotVote : ∙verify_vote_extension
+
+			p.bsrSet.Add(slot.GotVote0R1, cU, p.cI, p.cI+1)
+			p.cI++
+			if p.follow(symbols.NT_GotVote) {
+				p.rtn(symbols.NT_GotVote, cU, p.cI)
+			} else {
+				p.parseError(slot.GotVote0R0, p.cI, followSets[symbols.NT_GotVote])
+			}
+		case slot.GotVotes0R0: // GotVotes : ∙GotVote
+
+			p.call(slot.GotVotes0R1, cU, p.cI)
+		case slot.GotVotes0R1: // GotVotes : GotVote ∙
+
+			if p.follow(symbols.NT_GotVotes) {
+				p.rtn(symbols.NT_GotVotes, cU, p.cI)
+			} else {
+				p.parseError(slot.GotVotes0R0, p.cI, followSets[symbols.NT_GotVotes])
+			}
+		case slot.GotVotes1R0: // GotVotes : ∙GotVote GotVotes
+
+			p.call(slot.GotVotes1R1, cU, p.cI)
+		case slot.GotVotes1R1: // GotVotes : GotVote ∙GotVotes
+
+			if !p.testSelect(slot.GotVotes1R1) {
+				p.parseError(slot.GotVotes1R1, p.cI, first[slot.GotVotes1R1])
+				break
+			}
+
+			p.call(slot.GotVotes1R2, cU, p.cI)
+		case slot.GotVotes1R2: // GotVotes : GotVote GotVotes ∙
+
+			if p.follow(symbols.NT_GotVotes) {
+				p.rtn(symbols.NT_GotVotes, cU, p.cI)
+			} else {
+				p.parseError(slot.GotVotes1R0, p.cI, followSets[symbols.NT_GotVotes])
 			}
 		case slot.InitChain0R0: // InitChain : ∙init_chain
 
@@ -303,15 +421,115 @@ func (p *parser) parse() (*bsr.Set, []*Error) {
 			} else {
 				p.parseError(slot.InitChain0R0, p.cI, followSets[symbols.NT_InitChain])
 			}
-		case slot.NonProposer0R0: // NonProposer : ∙ProcessProposal
+		case slot.NonProposer0R0: // NonProposer : ∙GotVotes
 
 			p.call(slot.NonProposer0R1, cU, p.cI)
-		case slot.NonProposer0R1: // NonProposer : ProcessProposal ∙
+		case slot.NonProposer0R1: // NonProposer : GotVotes ∙
 
 			if p.follow(symbols.NT_NonProposer) {
 				p.rtn(symbols.NT_NonProposer, cU, p.cI)
 			} else {
 				p.parseError(slot.NonProposer0R0, p.cI, followSets[symbols.NT_NonProposer])
+			}
+		case slot.NonProposer1R0: // NonProposer : ∙ProcessProposal
+
+			p.call(slot.NonProposer1R1, cU, p.cI)
+		case slot.NonProposer1R1: // NonProposer : ProcessProposal ∙
+
+			if p.follow(symbols.NT_NonProposer) {
+				p.rtn(symbols.NT_NonProposer, cU, p.cI)
+			} else {
+				p.parseError(slot.NonProposer1R0, p.cI, followSets[symbols.NT_NonProposer])
+			}
+		case slot.NonProposer2R0: // NonProposer : ∙Extend
+
+			p.call(slot.NonProposer2R1, cU, p.cI)
+		case slot.NonProposer2R1: // NonProposer : Extend ∙
+
+			if p.follow(symbols.NT_NonProposer) {
+				p.rtn(symbols.NT_NonProposer, cU, p.cI)
+			} else {
+				p.parseError(slot.NonProposer2R0, p.cI, followSets[symbols.NT_NonProposer])
+			}
+		case slot.NonProposer3R0: // NonProposer : ∙GotVotes ProcessProposal
+
+			p.call(slot.NonProposer3R1, cU, p.cI)
+		case slot.NonProposer3R1: // NonProposer : GotVotes ∙ProcessProposal
+
+			if !p.testSelect(slot.NonProposer3R1) {
+				p.parseError(slot.NonProposer3R1, p.cI, first[slot.NonProposer3R1])
+				break
+			}
+
+			p.call(slot.NonProposer3R2, cU, p.cI)
+		case slot.NonProposer3R2: // NonProposer : GotVotes ProcessProposal ∙
+
+			if p.follow(symbols.NT_NonProposer) {
+				p.rtn(symbols.NT_NonProposer, cU, p.cI)
+			} else {
+				p.parseError(slot.NonProposer3R0, p.cI, followSets[symbols.NT_NonProposer])
+			}
+		case slot.NonProposer4R0: // NonProposer : ∙GotVotes Extend
+
+			p.call(slot.NonProposer4R1, cU, p.cI)
+		case slot.NonProposer4R1: // NonProposer : GotVotes ∙Extend
+
+			if !p.testSelect(slot.NonProposer4R1) {
+				p.parseError(slot.NonProposer4R1, p.cI, first[slot.NonProposer4R1])
+				break
+			}
+
+			p.call(slot.NonProposer4R2, cU, p.cI)
+		case slot.NonProposer4R2: // NonProposer : GotVotes Extend ∙
+
+			if p.follow(symbols.NT_NonProposer) {
+				p.rtn(symbols.NT_NonProposer, cU, p.cI)
+			} else {
+				p.parseError(slot.NonProposer4R0, p.cI, followSets[symbols.NT_NonProposer])
+			}
+		case slot.NonProposer5R0: // NonProposer : ∙ProcessProposal Extend
+
+			p.call(slot.NonProposer5R1, cU, p.cI)
+		case slot.NonProposer5R1: // NonProposer : ProcessProposal ∙Extend
+
+			if !p.testSelect(slot.NonProposer5R1) {
+				p.parseError(slot.NonProposer5R1, p.cI, first[slot.NonProposer5R1])
+				break
+			}
+
+			p.call(slot.NonProposer5R2, cU, p.cI)
+		case slot.NonProposer5R2: // NonProposer : ProcessProposal Extend ∙
+
+			if p.follow(symbols.NT_NonProposer) {
+				p.rtn(symbols.NT_NonProposer, cU, p.cI)
+			} else {
+				p.parseError(slot.NonProposer5R0, p.cI, followSets[symbols.NT_NonProposer])
+			}
+		case slot.NonProposer6R0: // NonProposer : ∙GotVotes ProcessProposal Extend
+
+			p.call(slot.NonProposer6R1, cU, p.cI)
+		case slot.NonProposer6R1: // NonProposer : GotVotes ∙ProcessProposal Extend
+
+			if !p.testSelect(slot.NonProposer6R1) {
+				p.parseError(slot.NonProposer6R1, p.cI, first[slot.NonProposer6R1])
+				break
+			}
+
+			p.call(slot.NonProposer6R2, cU, p.cI)
+		case slot.NonProposer6R2: // NonProposer : GotVotes ProcessProposal ∙Extend
+
+			if !p.testSelect(slot.NonProposer6R2) {
+				p.parseError(slot.NonProposer6R2, p.cI, first[slot.NonProposer6R2])
+				break
+			}
+
+			p.call(slot.NonProposer6R3, cU, p.cI)
+		case slot.NonProposer6R3: // NonProposer : GotVotes ProcessProposal Extend ∙
+
+			if p.follow(symbols.NT_NonProposer) {
+				p.rtn(symbols.NT_NonProposer, cU, p.cI)
+			} else {
+				p.parseError(slot.NonProposer6R0, p.cI, followSets[symbols.NT_NonProposer])
 			}
 		case slot.OfferSnapshot0R0: // OfferSnapshot : ∙offer_snapshot
 
@@ -340,33 +558,143 @@ func (p *parser) parse() (*bsr.Set, []*Error) {
 			} else {
 				p.parseError(slot.ProcessProposal0R0, p.cI, followSets[symbols.NT_ProcessProposal])
 			}
-		case slot.Proposer0R0: // Proposer : ∙PrepareProposal
+		case slot.Proposer0R0: // Proposer : ∙GotVotes
 
 			p.call(slot.Proposer0R1, cU, p.cI)
-		case slot.Proposer0R1: // Proposer : PrepareProposal ∙
+		case slot.Proposer0R1: // Proposer : GotVotes ∙
 
 			if p.follow(symbols.NT_Proposer) {
 				p.rtn(symbols.NT_Proposer, cU, p.cI)
 			} else {
 				p.parseError(slot.Proposer0R0, p.cI, followSets[symbols.NT_Proposer])
 			}
-		case slot.Proposer1R0: // Proposer : ∙PrepareProposal ProcessProposal
+		case slot.Proposer1R0: // Proposer : ∙ProposerSimple
 
 			p.call(slot.Proposer1R1, cU, p.cI)
-		case slot.Proposer1R1: // Proposer : PrepareProposal ∙ProcessProposal
-
-			if !p.testSelect(slot.Proposer1R1) {
-				p.parseError(slot.Proposer1R1, p.cI, first[slot.Proposer1R1])
-				break
-			}
-
-			p.call(slot.Proposer1R2, cU, p.cI)
-		case slot.Proposer1R2: // Proposer : PrepareProposal ProcessProposal ∙
+		case slot.Proposer1R1: // Proposer : ProposerSimple ∙
 
 			if p.follow(symbols.NT_Proposer) {
 				p.rtn(symbols.NT_Proposer, cU, p.cI)
 			} else {
 				p.parseError(slot.Proposer1R0, p.cI, followSets[symbols.NT_Proposer])
+			}
+		case slot.Proposer2R0: // Proposer : ∙Extend
+
+			p.call(slot.Proposer2R1, cU, p.cI)
+		case slot.Proposer2R1: // Proposer : Extend ∙
+
+			if p.follow(symbols.NT_Proposer) {
+				p.rtn(symbols.NT_Proposer, cU, p.cI)
+			} else {
+				p.parseError(slot.Proposer2R0, p.cI, followSets[symbols.NT_Proposer])
+			}
+		case slot.Proposer3R0: // Proposer : ∙GotVotes ProposerSimple
+
+			p.call(slot.Proposer3R1, cU, p.cI)
+		case slot.Proposer3R1: // Proposer : GotVotes ∙ProposerSimple
+
+			if !p.testSelect(slot.Proposer3R1) {
+				p.parseError(slot.Proposer3R1, p.cI, first[slot.Proposer3R1])
+				break
+			}
+
+			p.call(slot.Proposer3R2, cU, p.cI)
+		case slot.Proposer3R2: // Proposer : GotVotes ProposerSimple ∙
+
+			if p.follow(symbols.NT_Proposer) {
+				p.rtn(symbols.NT_Proposer, cU, p.cI)
+			} else {
+				p.parseError(slot.Proposer3R0, p.cI, followSets[symbols.NT_Proposer])
+			}
+		case slot.Proposer4R0: // Proposer : ∙GotVotes Extend
+
+			p.call(slot.Proposer4R1, cU, p.cI)
+		case slot.Proposer4R1: // Proposer : GotVotes ∙Extend
+
+			if !p.testSelect(slot.Proposer4R1) {
+				p.parseError(slot.Proposer4R1, p.cI, first[slot.Proposer4R1])
+				break
+			}
+
+			p.call(slot.Proposer4R2, cU, p.cI)
+		case slot.Proposer4R2: // Proposer : GotVotes Extend ∙
+
+			if p.follow(symbols.NT_Proposer) {
+				p.rtn(symbols.NT_Proposer, cU, p.cI)
+			} else {
+				p.parseError(slot.Proposer4R0, p.cI, followSets[symbols.NT_Proposer])
+			}
+		case slot.Proposer5R0: // Proposer : ∙ProposerSimple Extend
+
+			p.call(slot.Proposer5R1, cU, p.cI)
+		case slot.Proposer5R1: // Proposer : ProposerSimple ∙Extend
+
+			if !p.testSelect(slot.Proposer5R1) {
+				p.parseError(slot.Proposer5R1, p.cI, first[slot.Proposer5R1])
+				break
+			}
+
+			p.call(slot.Proposer5R2, cU, p.cI)
+		case slot.Proposer5R2: // Proposer : ProposerSimple Extend ∙
+
+			if p.follow(symbols.NT_Proposer) {
+				p.rtn(symbols.NT_Proposer, cU, p.cI)
+			} else {
+				p.parseError(slot.Proposer5R0, p.cI, followSets[symbols.NT_Proposer])
+			}
+		case slot.Proposer6R0: // Proposer : ∙GotVotes ProposerSimple Extend
+
+			p.call(slot.Proposer6R1, cU, p.cI)
+		case slot.Proposer6R1: // Proposer : GotVotes ∙ProposerSimple Extend
+
+			if !p.testSelect(slot.Proposer6R1) {
+				p.parseError(slot.Proposer6R1, p.cI, first[slot.Proposer6R1])
+				break
+			}
+
+			p.call(slot.Proposer6R2, cU, p.cI)
+		case slot.Proposer6R2: // Proposer : GotVotes ProposerSimple ∙Extend
+
+			if !p.testSelect(slot.Proposer6R2) {
+				p.parseError(slot.Proposer6R2, p.cI, first[slot.Proposer6R2])
+				break
+			}
+
+			p.call(slot.Proposer6R3, cU, p.cI)
+		case slot.Proposer6R3: // Proposer : GotVotes ProposerSimple Extend ∙
+
+			if p.follow(symbols.NT_Proposer) {
+				p.rtn(symbols.NT_Proposer, cU, p.cI)
+			} else {
+				p.parseError(slot.Proposer6R0, p.cI, followSets[symbols.NT_Proposer])
+			}
+		case slot.ProposerSimple0R0: // ProposerSimple : ∙PrepareProposal
+
+			p.call(slot.ProposerSimple0R1, cU, p.cI)
+		case slot.ProposerSimple0R1: // ProposerSimple : PrepareProposal ∙
+
+			if p.follow(symbols.NT_ProposerSimple) {
+				p.rtn(symbols.NT_ProposerSimple, cU, p.cI)
+			} else {
+				p.parseError(slot.ProposerSimple0R0, p.cI, followSets[symbols.NT_ProposerSimple])
+			}
+		case slot.ProposerSimple1R0: // ProposerSimple : ∙PrepareProposal ProcessProposal
+
+			p.call(slot.ProposerSimple1R1, cU, p.cI)
+		case slot.ProposerSimple1R1: // ProposerSimple : PrepareProposal ∙ProcessProposal
+
+			if !p.testSelect(slot.ProposerSimple1R1) {
+				p.parseError(slot.ProposerSimple1R1, p.cI, first[slot.ProposerSimple1R1])
+				break
+			}
+
+			p.call(slot.ProposerSimple1R2, cU, p.cI)
+		case slot.ProposerSimple1R2: // ProposerSimple : PrepareProposal ProcessProposal ∙
+
+			if p.follow(symbols.NT_ProposerSimple) {
+				p.rtn(symbols.NT_ProposerSimple, cU, p.cI)
+			} else {
+				p.parseError(slot.ProposerSimple1R0, p.cI, followSets[symbols.NT_ProposerSimple])
 			}
 		case slot.Start0R0: // Start : ∙CleanStart
 
@@ -733,10 +1061,12 @@ var first = []map[token.Type]string{
 	// ApplyChunk : apply_snapshot_chunk ∙
 	{
 		token.T_0: "apply_snapshot_chunk",
-		token.T_2: "finalize_block",
-		token.T_4: "offer_snapshot",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_5: "offer_snapshot",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ApplyChunks : ∙ApplyChunk
 	{
@@ -744,10 +1074,12 @@ var first = []map[token.Type]string{
 	},
 	// ApplyChunks : ApplyChunk ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_4: "offer_snapshot",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_5: "offer_snapshot",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ApplyChunks : ∙ApplyChunk ApplyChunks
 	{
@@ -759,24 +1091,28 @@ var first = []map[token.Type]string{
 	},
 	// ApplyChunks : ApplyChunk ApplyChunks ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_4: "offer_snapshot",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_5: "offer_snapshot",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// CleanStart : ∙InitChain StateSync ConsensusExec
 	{
-		token.T_3: "init_chain",
+		token.T_4: "init_chain",
 	},
 	// CleanStart : InitChain ∙StateSync ConsensusExec
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// CleanStart : InitChain StateSync ∙ConsensusExec
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// CleanStart : InitChain StateSync ConsensusExec ∙
 	{
@@ -784,13 +1120,15 @@ var first = []map[token.Type]string{
 	},
 	// CleanStart : ∙InitChain ConsensusExec
 	{
-		token.T_3: "init_chain",
+		token.T_4: "init_chain",
 	},
 	// CleanStart : InitChain ∙ConsensusExec
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// CleanStart : InitChain ConsensusExec ∙
 	{
@@ -803,15 +1141,19 @@ var first = []map[token.Type]string{
 	// Commit : commit ∙
 	{
 		token.EOF: "$",
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusExec : ∙ConsensusHeights
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusExec : ConsensusHeights ∙
 	{
@@ -819,12 +1161,14 @@ var first = []map[token.Type]string{
 	},
 	// ConsensusHeight : ∙ConsensusRounds FinalizeBlock Commit
 	{
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusHeight : ConsensusRounds ∙FinalizeBlock Commit
 	{
-		token.T_2: "finalize_block",
+		token.T_3: "finalize_block",
 	},
 	// ConsensusHeight : ConsensusRounds FinalizeBlock ∙Commit
 	{
@@ -833,13 +1177,15 @@ var first = []map[token.Type]string{
 	// ConsensusHeight : ConsensusRounds FinalizeBlock Commit ∙
 	{
 		token.EOF: "$",
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusHeight : ∙FinalizeBlock Commit
 	{
-		token.T_2: "finalize_block",
+		token.T_3: "finalize_block",
 	},
 	// ConsensusHeight : FinalizeBlock ∙Commit
 	{
@@ -848,15 +1194,19 @@ var first = []map[token.Type]string{
 	// ConsensusHeight : FinalizeBlock Commit ∙
 	{
 		token.EOF: "$",
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusHeights : ∙ConsensusHeight
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusHeights : ConsensusHeight ∙
 	{
@@ -864,15 +1214,19 @@ var first = []map[token.Type]string{
 	},
 	// ConsensusHeights : ∙ConsensusHeight ConsensusHeights
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusHeights : ConsensusHeight ∙ConsensusHeights
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusHeights : ConsensusHeight ConsensusHeights ∙
 	{
@@ -880,132 +1234,478 @@ var first = []map[token.Type]string{
 	},
 	// ConsensusRound : ∙Proposer
 	{
-		token.T_5: "prepare_proposal",
+		token.T_2: "extend_vote",
+		token.T_6: "prepare_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusRound : Proposer ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusRound : ∙NonProposer
 	{
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusRound : NonProposer ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusRounds : ∙ConsensusRound
 	{
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusRounds : ConsensusRound ∙
 	{
-		token.T_2: "finalize_block",
+		token.T_3: "finalize_block",
 	},
 	// ConsensusRounds : ∙ConsensusRound ConsensusRounds
 	{
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusRounds : ConsensusRound ∙ConsensusRounds
 	{
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusRounds : ConsensusRound ConsensusRounds ∙
 	{
-		token.T_2: "finalize_block",
+		token.T_3: "finalize_block",
+	},
+	// Extend : ∙ExtendVote
+	{
+		token.T_2: "extend_vote",
+	},
+	// Extend : ExtendVote ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// Extend : ∙GotVotes ExtendVote
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// Extend : GotVotes ∙ExtendVote
+	{
+		token.T_2: "extend_vote",
+	},
+	// Extend : GotVotes ExtendVote ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// Extend : ∙ExtendVote GotVotes
+	{
+		token.T_2: "extend_vote",
+	},
+	// Extend : ExtendVote ∙GotVotes
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// Extend : ExtendVote GotVotes ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// Extend : ∙GotVotes ExtendVote GotVotes
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// Extend : GotVotes ∙ExtendVote GotVotes
+	{
+		token.T_2: "extend_vote",
+	},
+	// Extend : GotVotes ExtendVote ∙GotVotes
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// Extend : GotVotes ExtendVote GotVotes ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// ExtendVote : ∙extend_vote
+	{
+		token.T_2: "extend_vote",
+	},
+	// ExtendVote : extend_vote ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// FinalizeBlock : ∙finalize_block
 	{
-		token.T_2: "finalize_block",
+		token.T_3: "finalize_block",
 	},
 	// FinalizeBlock : finalize_block ∙
 	{
 		token.T_1: "commit",
 	},
+	// GotVote : ∙verify_vote_extension
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// GotVote : verify_vote_extension ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// GotVotes : ∙GotVote
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// GotVotes : GotVote ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// GotVotes : ∙GotVote GotVotes
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// GotVotes : GotVote ∙GotVotes
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// GotVotes : GotVote GotVotes ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
 	// InitChain : ∙init_chain
 	{
-		token.T_3: "init_chain",
+		token.T_4: "init_chain",
 	},
 	// InitChain : init_chain ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_4: "offer_snapshot",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_5: "offer_snapshot",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : ∙GotVotes
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : GotVotes ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// NonProposer : ∙ProcessProposal
 	{
-		token.T_6: "process_proposal",
+		token.T_7: "process_proposal",
 	},
 	// NonProposer : ProcessProposal ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : ∙Extend
+	{
+		token.T_2: "extend_vote",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : Extend ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : ∙GotVotes ProcessProposal
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : GotVotes ∙ProcessProposal
+	{
+		token.T_7: "process_proposal",
+	},
+	// NonProposer : GotVotes ProcessProposal ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : ∙GotVotes Extend
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : GotVotes ∙Extend
+	{
+		token.T_2: "extend_vote",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : GotVotes Extend ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : ∙ProcessProposal Extend
+	{
+		token.T_7: "process_proposal",
+	},
+	// NonProposer : ProcessProposal ∙Extend
+	{
+		token.T_2: "extend_vote",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : ProcessProposal Extend ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : ∙GotVotes ProcessProposal Extend
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : GotVotes ∙ProcessProposal Extend
+	{
+		token.T_7: "process_proposal",
+	},
+	// NonProposer : GotVotes ProcessProposal ∙Extend
+	{
+		token.T_2: "extend_vote",
+		token.T_8: "verify_vote_extension",
+	},
+	// NonProposer : GotVotes ProcessProposal Extend ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// OfferSnapshot : ∙offer_snapshot
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// OfferSnapshot : offer_snapshot ∙
 	{
 		token.T_0: "apply_snapshot_chunk",
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// PrepareProposal : ∙prepare_proposal
 	{
-		token.T_5: "prepare_proposal",
+		token.T_6: "prepare_proposal",
 	},
 	// PrepareProposal : prepare_proposal ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ProcessProposal : ∙process_proposal
 	{
-		token.T_6: "process_proposal",
+		token.T_7: "process_proposal",
 	},
 	// ProcessProposal : process_proposal ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
-	// Proposer : ∙PrepareProposal
+	// Proposer : ∙GotVotes
 	{
-		token.T_5: "prepare_proposal",
+		token.T_8: "verify_vote_extension",
 	},
-	// Proposer : PrepareProposal ∙
+	// Proposer : GotVotes ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
-	// Proposer : ∙PrepareProposal ProcessProposal
+	// Proposer : ∙ProposerSimple
 	{
-		token.T_5: "prepare_proposal",
+		token.T_6: "prepare_proposal",
 	},
-	// Proposer : PrepareProposal ∙ProcessProposal
+	// Proposer : ProposerSimple ∙
 	{
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
-	// Proposer : PrepareProposal ProcessProposal ∙
+	// Proposer : ∙Extend
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : Extend ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : ∙GotVotes ProposerSimple
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : GotVotes ∙ProposerSimple
+	{
+		token.T_6: "prepare_proposal",
+	},
+	// Proposer : GotVotes ProposerSimple ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : ∙GotVotes Extend
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : GotVotes ∙Extend
+	{
+		token.T_2: "extend_vote",
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : GotVotes Extend ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : ∙ProposerSimple Extend
+	{
+		token.T_6: "prepare_proposal",
+	},
+	// Proposer : ProposerSimple ∙Extend
+	{
+		token.T_2: "extend_vote",
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : ProposerSimple Extend ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : ∙GotVotes ProposerSimple Extend
+	{
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : GotVotes ∙ProposerSimple Extend
+	{
+		token.T_6: "prepare_proposal",
+	},
+	// Proposer : GotVotes ProposerSimple ∙Extend
+	{
+		token.T_2: "extend_vote",
+		token.T_8: "verify_vote_extension",
+	},
+	// Proposer : GotVotes ProposerSimple Extend ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// ProposerSimple : ∙PrepareProposal
+	{
+		token.T_6: "prepare_proposal",
+	},
+	// ProposerSimple : PrepareProposal ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// ProposerSimple : ∙PrepareProposal ProcessProposal
+	{
+		token.T_6: "prepare_proposal",
+	},
+	// ProposerSimple : PrepareProposal ∙ProcessProposal
+	{
+		token.T_7: "process_proposal",
+	},
+	// ProposerSimple : PrepareProposal ProcessProposal ∙
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// Start : ∙CleanStart
 	{
-		token.T_3: "init_chain",
+		token.T_4: "init_chain",
 	},
 	// Start : CleanStart ∙
 	{
@@ -1013,31 +1713,35 @@ var first = []map[token.Type]string{
 	},
 	// StateSync : ∙StateSyncAttempts SuccessSync
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSync : StateSyncAttempts ∙SuccessSync
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSync : StateSyncAttempts SuccessSync ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// StateSync : ∙SuccessSync
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSync : SuccessSync ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// StateSyncAttempt : ∙OfferSnapshot ApplyChunks
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempt : OfferSnapshot ∙ApplyChunks
 	{
@@ -1045,39 +1749,39 @@ var first = []map[token.Type]string{
 	},
 	// StateSyncAttempt : OfferSnapshot ApplyChunks ∙
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempt : ∙OfferSnapshot
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempt : OfferSnapshot ∙
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempts : ∙StateSyncAttempt
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempts : StateSyncAttempt ∙
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempts : ∙StateSyncAttempt StateSyncAttempts
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempts : StateSyncAttempt ∙StateSyncAttempts
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempts : StateSyncAttempt StateSyncAttempts ∙
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// SuccessSync : ∙OfferSnapshot ApplyChunks
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// SuccessSync : OfferSnapshot ∙ApplyChunks
 	{
@@ -1085,9 +1789,11 @@ var first = []map[token.Type]string{
 	},
 	// SuccessSync : OfferSnapshot ApplyChunks ∙
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 }
 
@@ -1095,17 +1801,21 @@ var followSets = []map[token.Type]string{
 	// ApplyChunk
 	{
 		token.T_0: "apply_snapshot_chunk",
-		token.T_2: "finalize_block",
-		token.T_4: "offer_snapshot",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_5: "offer_snapshot",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ApplyChunks
 	{
-		token.T_2: "finalize_block",
-		token.T_4: "offer_snapshot",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_5: "offer_snapshot",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// CleanStart
 	{
@@ -1114,9 +1824,11 @@ var followSets = []map[token.Type]string{
 	// Commit
 	{
 		token.EOF: "$",
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusExec
 	{
@@ -1125,9 +1837,11 @@ var followSets = []map[token.Type]string{
 	// ConsensusHeight
 	{
 		token.EOF: "$",
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusHeights
 	{
@@ -1135,53 +1849,105 @@ var followSets = []map[token.Type]string{
 	},
 	// ConsensusRound
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ConsensusRounds
 	{
-		token.T_2: "finalize_block",
+		token.T_3: "finalize_block",
+	},
+	// Extend
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// ExtendVote
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// FinalizeBlock
 	{
 		token.T_1: "commit",
 	},
+	// GotVote
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// GotVotes
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
 	// InitChain
 	{
-		token.T_2: "finalize_block",
-		token.T_4: "offer_snapshot",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_5: "offer_snapshot",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// NonProposer
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// OfferSnapshot
 	{
 		token.T_0: "apply_snapshot_chunk",
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// PrepareProposal
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// ProcessProposal
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// Proposer
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
+	},
+	// ProposerSimple
+	{
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// Start
 	{
@@ -1189,23 +1955,27 @@ var followSets = []map[token.Type]string{
 	},
 	// StateSync
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 	// StateSyncAttempt
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// StateSyncAttempts
 	{
-		token.T_4: "offer_snapshot",
+		token.T_5: "offer_snapshot",
 	},
 	// SuccessSync
 	{
-		token.T_2: "finalize_block",
-		token.T_5: "prepare_proposal",
-		token.T_6: "process_proposal",
+		token.T_2: "extend_vote",
+		token.T_3: "finalize_block",
+		token.T_6: "prepare_proposal",
+		token.T_7: "process_proposal",
+		token.T_8: "verify_vote_extension",
 	},
 }
 

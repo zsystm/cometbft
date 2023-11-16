@@ -11,13 +11,18 @@ ConsensusHeight : ConsensusRounds FinalizeBlock Commit | FinalizeBlock Commit ;
 ConsensusRounds : ConsensusRound | ConsensusRound ConsensusRounds ;
 ConsensusRound : Proposer | NonProposer ; 
 
-Proposer : PrepareProposal | PrepareProposal ProcessProposal ; 
-NonProposer: ProcessProposal ;
+Proposer : GotVotes | ProposerSimple | Extend | GotVotes ProposerSimple | GotVotes Extend | ProposerSimple Extend | GotVotes ProposerSimple Extend ; 
+ProposerSimple : PrepareProposal | PrepareProposal ProcessProposal ;
+NonProposer: GotVotes | ProcessProposal | Extend | GotVotes ProcessProposal | GotVotes Extend | ProcessProposal Extend | GotVotes ProcessProposal Extend ; 
+Extend : ExtendVote | GotVotes ExtendVote | ExtendVote GotVotes | GotVotes ExtendVote GotVotes ;
+GotVotes : GotVote | GotVote GotVotes ; 
 
 FinalizeBlock : "finalize_block" ; 
 Commit : "commit" ;
 PrepareProposal : "prepare_proposal" ; 
 ProcessProposal : "process_proposal" ;
+ExtendVote : "extend_vote" ;
+GotVote : "verify_vote_extension" ;
 
 ```
 
@@ -29,14 +34,18 @@ start               = recovery
 recovery            = info consensus-exec
 
 consensus-exec      = (inf)consensus-height
-consensus-height    = *consensus-round decide commit
+consensus-height    = *consensus-round finalize-block commit
 consensus-round     = proposer / non-proposer
 
-proposer            = [prepare-proposal [process-proposal]]
-non-proposer        = [process-proposal] 
+proposer            = *got-vote [prepare-proposal [process-proposal]] [extend]
+extend              = *got-vote extend-vote *got-vote
+non-proposer        = *got-vote [process-proposal] [extend]
 
-decide              = %s"<FinalizeBlock>"
-commit              = %s"<Commit>"
 info                = %s"<Info>"
 prepare-proposal    = %s"<PrepareProposal>"
 process-proposal    = %s"<ProcessProposal>"
+extend-vote         = %s"<ExtendVote>"
+got-vote            = %s"<VerifyVoteExtension>"
+finalize-block      = %s"<FinalizeBlock>"
+commit              = %s"<Commit>"
+

@@ -25,11 +25,16 @@ const(
 	NT_ConsensusHeights 
 	NT_ConsensusRound 
 	NT_ConsensusRounds 
+	NT_Extend 
+	NT_ExtendVote 
 	NT_FinalizeBlock 
+	NT_GotVote 
+	NT_GotVotes 
 	NT_NonProposer 
 	NT_PrepareProposal 
 	NT_ProcessProposal 
 	NT_Proposer 
+	NT_ProposerSimple 
 	NT_Recovery 
 	NT_Start 
 )
@@ -38,9 +43,11 @@ const(
 type T int
 const( 
 	T_0 T = iota // commit 
-	T_1  // finalize_block 
-	T_2  // prepare_proposal 
-	T_3  // process_proposal 
+	T_1  // extend_vote 
+	T_2  // finalize_block 
+	T_3  // prepare_proposal 
+	T_4  // process_proposal 
+	T_5  // verify_vote_extension 
 )
 
 type Symbols []Symbol
@@ -114,20 +121,27 @@ var ntToString = []string {
 	"ConsensusHeights", /* NT_ConsensusHeights */
 	"ConsensusRound", /* NT_ConsensusRound */
 	"ConsensusRounds", /* NT_ConsensusRounds */
+	"Extend", /* NT_Extend */
+	"ExtendVote", /* NT_ExtendVote */
 	"FinalizeBlock", /* NT_FinalizeBlock */
+	"GotVote", /* NT_GotVote */
+	"GotVotes", /* NT_GotVotes */
 	"NonProposer", /* NT_NonProposer */
 	"PrepareProposal", /* NT_PrepareProposal */
 	"ProcessProposal", /* NT_ProcessProposal */
 	"Proposer", /* NT_Proposer */
+	"ProposerSimple", /* NT_ProposerSimple */
 	"Recovery", /* NT_Recovery */
 	"Start", /* NT_Start */ 
 }
 
 var tToString = []string { 
 	"commit", /* T_0 */
-	"finalize_block", /* T_1 */
-	"prepare_proposal", /* T_2 */
-	"process_proposal", /* T_3 */ 
+	"extend_vote", /* T_1 */
+	"finalize_block", /* T_2 */
+	"prepare_proposal", /* T_3 */
+	"process_proposal", /* T_4 */
+	"verify_vote_extension", /* T_5 */ 
 }
 
 var stringNT = map[string]NT{ 
@@ -137,11 +151,16 @@ var stringNT = map[string]NT{
 	"ConsensusHeights":NT_ConsensusHeights,
 	"ConsensusRound":NT_ConsensusRound,
 	"ConsensusRounds":NT_ConsensusRounds,
+	"Extend":NT_Extend,
+	"ExtendVote":NT_ExtendVote,
 	"FinalizeBlock":NT_FinalizeBlock,
+	"GotVote":NT_GotVote,
+	"GotVotes":NT_GotVotes,
 	"NonProposer":NT_NonProposer,
 	"PrepareProposal":NT_PrepareProposal,
 	"ProcessProposal":NT_ProcessProposal,
 	"Proposer":NT_Proposer,
+	"ProposerSimple":NT_ProposerSimple,
 	"Recovery":NT_Recovery,
 	"Start":NT_Start,
 }
