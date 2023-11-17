@@ -58,7 +58,7 @@ message InitChainRequest {
   cometbft.types.v1beta3.ConsensusParams consensus_params = 3;
   repeated v1beta1.ValidatorUpdate validators = 4 [(gogoproto.nullable) = false];
   bytes app_state_bytes = 5;
-  int64 initial_height = 6;
+  int64 ini tial_height = 6;
 }
 
 message QueryRequest {
