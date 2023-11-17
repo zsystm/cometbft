@@ -11,10 +11,10 @@ import (
 
 func Test_genPrivKey(t *testing.T) {
 
-	empty := make([]byte, 32)
+	empty := make([]byte, PrivKeySize)
 	oneB := big.NewInt(1).Bytes()
-	onePadded := make([]byte, 32)
-	copy(onePadded[32-len(oneB):32], oneB)
+	onePadded := make([]byte, PrivKeySize)
+	copy(onePadded[PrivKeySize-len(oneB):PrivKeySize], oneB)
 	t.Logf("one padded: %v, len=%v", onePadded, len(onePadded))
 
 	validOne := append(empty, onePadded...)
