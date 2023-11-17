@@ -1,4 +1,4 @@
-# ADR 108: E2E tests for CometBFT's behaviour in respect to ABCI 1.0.
+# ADR 108: E2E tests for CometBFT's behaviour in respect to ABCI 2.0.
 
 ## Changelog
 - 2023-08-08: Initial version (@nenadmilosevic95)
@@ -59,7 +59,7 @@ func (app *Application) logABCIRequest(req *abci.Request) error {
 ```
 
 `GetABCIRequestString(req)` is a new method that receives a request and returns its string representation. The implementation and tests for this function and the opposite function `GetABCIRequestFromString(req)`
-that returns `abci.Request` from the string are provided in files `test/e2e/app/log.go` and `test/e2e/app/log_test.go`, respectively. To create a string representation of a request, we first marshal the request via `proto.Marshal()` method and then convert received bytes in the string using `base64.StdEncoding.EncodeToString()` method. In addition, we surround the new string with `abci-req` constants so that we can find lines with ABCI 2.0 request more easily. The code of the method is below: 
+that returns `abci.Request` from the string are provided in files `test/e2e/app/log_abci.go` and `test/e2e/app/log_abci_test.go`, respectively. To create a string representation of a request, we first marshal the request via `proto.Marshal()` method and then convert received bytes in the string using `base64.StdEncoding.EncodeToString()` method. In addition, we surround the new string with `abci-req` constants so that we can find lines with ABCI 2.0 request more easily. The code of the method is below: 
 
 ```go
 func GetABCIRequestString(req *abci.Request) (string, error) {
@@ -119,8 +119,11 @@ ConsensusHeight : ConsensusRounds FinalizeBlock Commit | FinalizeBlock Commit ;
 ConsensusRounds : ConsensusRound | ConsensusRound ConsensusRounds ;
 ConsensusRound : Proposer | NonProposer ; 
 
-Proposer : PrepareProposal | PrepareProposal ProcessProposal ; 
-NonProposer: ProcessProposal ;
+Proposer : GotVotes | ProposerSimple | Extend | GotVotes ProposerSimple | GotVotes Extend | ProposerSimple Extend | GotVotes ProposerSimple Extend ; 
+ProposerSimple : PrepareProposal | PrepareProposal ProcessProposal ;
+NonProposer: GotVotes | ProcessProposal | Extend | GotVotes ProcessProposal | GotVotes Extend | ProcessProposal Extend | GotVotes ProcessProposal Extend ; 
+Extend : ExtendVote | GotVotes ExtendVote | ExtendVote GotVotes | GotVotes ExtendVote GotVotes ;
+GotVotes : GotVote | GotVote GotVotes ; 
 
 
 InitChain : "init_chain" ;
@@ -130,6 +133,8 @@ OfferSnapshot : "offer_snapshot" ;
 ApplyChunk : "apply_snapshot_chunk" ; 
 PrepareProposal : "prepare_proposal" ; 
 ProcessProposal : "process_proposal" ;
+ExtendVote : "extend_vote" ;
+GotVote : "verify_vote_extension" ;
  
  ```
 
@@ -149,7 +154,7 @@ This is why we needed to separate the grammar into two different files (`test/e2
 
 Lastly, it is worth noticing that the `(inf)` part of the grammar is replaced with the `*`. This results in the new grammar being finite compared to the original, which represents an infinite (omega) grammar. 
 
-The `gogll` library receives the file with the grammar as input, and it generates the corresponding parser and lexer. The actual commands are integrated into `test/e2e/Makefile` and executed when `make grammar` is invoked. 
+The `gogll` library receives the file with the grammar as input, and it generates the corresponding parser and lexer. The actual commands are integrated into `test/e2e/Makefile` and executed when `make grammar-gen` is invoked. 
 The resulting code is inside the following directories: 
 - `test/e2e/pkg/grammar/clean-start/lexer`,
 - `test/e2e/pkg/grammar/clean-start/parser`,
@@ -167,26 +172,22 @@ testnet was running) respects the ABCI 2.0 grammar. The implementation and tests
 for it are inside `test/e2e/pkg/grammar/checker.go` and 
 `test/e2e/pkg/grammar/checker_test.go`, respectively. 
 
-How the `GrammarChecker` works is demonstrated with the test `TestABCIGrammar`
+How the `GrammarChecker` works is demonstrated with the test `TestCheckABCIGrammar`
 implemented in `test/e2e/tests/abci_test.go` file. 
 
 ```go
-func TestABCIGrammar(t *testing.T) {
+func TestCheckABCIGrammar(t *testing.T) {
 	checker := grammar.NewGrammarChecker(grammar.DefaultConfig())
 	testNode(t, func(t *testing.T, node e2e.Node) {
 		if !node.Testnet.ABCITestsEnabled {
 			return
 		}
 		reqs, err := fetchABCIRequests(t, node.Name)
-		if err != nil {
-			t.Error(fmt.Errorf("collecting of ABCI requests failed: %w", err))
-		}
+		require.NoError(t, err)
 		for i, r := range reqs {
 			isCleanStart := i == 0
 			_, err := checker.Verify(r, isCleanStart)
-			if err != nil {
-				t.Error(fmt.Errorf("ABCI grammar verification failed: %w", err))
-			}
+			require.NoError(t, err)
 		}
 	})
 }
@@ -208,9 +209,9 @@ application side.
 
 The `Verify()` method is shown below. 
 ```go
-func (g *GrammarChecker) Verify(reqs []*abci.Request, isCleanStart bool) (bool, error) {
+func (g *Checker) Verify(reqs []*abci.Request, isCleanStart bool) (bool, error) {
 	if len(reqs) == 0 {
-		return false, fmt.Errorf("execution with no ABCI calls.")
+		return false, fmt.Errorf("execution with no ABCI calls")
 	}
 	r := g.filterRequests(reqs)
 	// Check if the execution is incomplete.
@@ -224,7 +225,7 @@ func (g *GrammarChecker) Verify(reqs []*abci.Request, isCleanStart bool) (bool, 
 	} else {
 		errors = g.verifyRecovery(execution)
 	}
-	if errors == nil {
+	if len(errors) == 0 {
 		return true, nil
 	}
 	return false, fmt.Errorf("%v\nFull execution:\n%v", g.combineErrors(errors, g.cfg.NumberOfErrorsToShow), g.addHeightNumbersToTheExecution(execution))
@@ -249,7 +250,7 @@ appropriate function (`verifyCleanStart()` or `verifyRecovery()`) depending on t
 - Returns true if the execution is valid and an error if that's not the case. An example of an error is below. 
 
 ```
-FAIL: TestABCIGrammar/full02 (8.76s)
+FAIL: TestCheckABCIGrammar/full02 (8.76s)
         abci_test.go:24: ABCI grammar verification failed: The error: "Invalid clean-start execution: parser was expecting one of [init_chain], got [offer_snapshot] instead." has occured at height 0.
             
             Full execution:
@@ -273,12 +274,7 @@ going to the `test/e2e/` directory and running:
 ```bash 
 make grammar-gen
 ``` 
-Notice here that you need to have `gogll` installed 
-on your machine to run the make successfully. If this is not the case, you can install it with the following command: 
 
-```bash 
-go get github.com/goccmack/gogll/v3
-```  
 Make sure you commit any changes to the auto-generated code together with the changes to the grammar.
 
 ### Suporting additional ABCI requests
@@ -296,7 +292,6 @@ Not implemented.
 
 To-do list:
 - adding the CI workflow to check if make grammar is executed. 
-- extend this ADR (and implementation) to support ABCI 2.0 (i.e., ABCI calls related to vote extensions)
 - in the future, we might consider whether the logging (actually, tracing) should be done on the e2e application side, or on CometBFT side, so this infra can be reused for MBT-like activities)
 ## Consequences
 
