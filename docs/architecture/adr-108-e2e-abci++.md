@@ -2,6 +2,7 @@
 
 ## Changelog
 - 2023-08-08: Initial version (@nenadmilosevic95)
+- 2023-20-11: Updated to support vote extensions (@nenadmilosevic95)
 
 
 ## Context
