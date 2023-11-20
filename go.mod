@@ -11,7 +11,7 @@ require (
 	github.com/go-kit/kit v0.13.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-logfmt/logfmt v0.6.0
-	github.com/golang/protobuf v1.5.3
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golangci/golangci-lint v1.55.2
 	github.com/google/orderedcode v0.0.1
 	github.com/gorilla/websocket v1.5.1
