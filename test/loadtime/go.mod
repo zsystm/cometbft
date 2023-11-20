@@ -17,6 +17,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cometbft/cometbft/api v1.0.0 // indirect
 	github.com/cometbft/cometbft/test/e2e/app v0.38.0 // indirect
 	github.com/cosmos/gogoproto v1.4.11 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -70,5 +71,7 @@ require (
 )
 
 replace github.com/cometbft/cometbft => ../..
+
+replace github.com/cometbft/cometbft/api => ../../api
 
 replace github.com/cometbft/cometbft/test/e2e/app => ../e2e/app
