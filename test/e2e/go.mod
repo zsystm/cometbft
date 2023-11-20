@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/cometbft/cometbft v0.38.0
+	github.com/cometbft/cometbft/api v1.0.0
 	github.com/cometbft/cometbft/test/e2e/app v0.38.0
 	github.com/cometbft/cometbft/test/loadtime v0.38.0
 	github.com/go-git/go-git/v5 v5.9.0
@@ -112,3 +113,5 @@ replace github.com/cometbft/cometbft => ../..
 replace github.com/cometbft/cometbft/test/e2e/app => ./app
 
 replace github.com/cometbft/cometbft/test/loadtime => ../loadtime
+
+replace github.com/cometbft/cometbft/api => ../../api
