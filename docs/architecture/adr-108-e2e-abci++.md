@@ -157,14 +157,8 @@ Lastly, it is worth noticing that the `(inf)` part of the grammar is replaced wi
 
 The `gogll` library receives the file with the grammar as input, and it generates the corresponding parser and lexer. The actual commands are integrated into `test/e2e/Makefile` and executed when `make grammar-gen` is invoked. 
 The resulting code is inside the following directories: 
-- `test/e2e/pkg/grammar/clean-start/lexer`,
-- `test/e2e/pkg/grammar/clean-start/parser`,
-- `test/e2e/pkg/grammar/clean-start/sppf`,
-- `test/e2e/pkg/grammar/clean-start/token`,
-- `test/e2e/pkg/grammar/recovery/lexer`,
-- `test/e2e/pkg/grammar/recovery/parser`,
-- `test/e2e/pkg/grammar/recoveryt/sppf`,
-- `test/e2e/pkg/grammar/recovery/token`.
+- `test/e2e/pkg/grammar/clean-start/grammar-auto/`, and
+- `test/e2e/pkg/grammar/recovery/grammar-auto/`.
 
 Apart from this auto-generated code, we implemented `GrammarChecker` abstraction
 which knows how to use the generated parsers and lexers to verify whether a
