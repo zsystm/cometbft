@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/cometbft/cometbft v0.38.0
+	github.com/cometbft/cometbft/api v1.0.0
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/stretchr/testify v1.8.4
 )
@@ -49,3 +50,5 @@ require (
 )
 
 replace github.com/cometbft/cometbft => ../../..
+
+replace github.com/cometbft/cometbft/api => ../../../api
