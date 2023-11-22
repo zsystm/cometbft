@@ -52,6 +52,7 @@ func Start(ctx context.Context, testnet *e2e.Testnet, p infra.Provider) error {
 		return err
 	}
 	for _, node := range nodesAtZero {
+		fmt.Println("Waiting for node in start")
 		if _, err := waitForNode(ctx, node, 0, 15*time.Second); err != nil {
 			return err
 		}
