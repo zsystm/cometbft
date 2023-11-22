@@ -561,6 +561,7 @@ func (n Node) AddressRPC() string {
 
 // Client returns an RPC client for the node.
 func (n Node) Client() (*rpchttp.HTTP, error) {
+	fmt.Println("NNNN ", fmt.Sprintf("http://%s:%v/v1", n.ExternalIP, n.RPCProxyPort))
 	return rpchttp.New(fmt.Sprintf("http://%s:%v/v1", n.ExternalIP, n.RPCProxyPort))
 }
 
