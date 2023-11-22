@@ -115,6 +115,7 @@ func InjectEvidence(ctx context.Context, r *rand.Rand, testnet *e2e.Testnet, amo
 			return err
 		}
 	}
+	logger.Info("Waiting now")
 
 	// wait for the node to reach the height above the forged height so that
 	// it is able to validate the evidence
@@ -195,6 +196,10 @@ func generateLightClientAttackEvidence(
 	ev.ByzantineValidators = ev.GetByzantineValidators(vals, &types.SignedHeader{
 		Header: makeHeaderRandom(chainID, forgedHeight),
 	})
+
+	// for _, idx := range ev.ByzantineValidators[len(ev.ByzantineValidators)*2/3:] {
+	// 	ev.ByzantineValidators[idx] = types.CommitSig{}
+	// }
 	return ev, nil
 }
 

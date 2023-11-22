@@ -1,4 +1,28 @@
+ipv6 = true
+initial_height = 2
+key_type = ""
+abci_protocol = "tcp"
+evidence = 5
+upgrade_version = "cometbft/e2e-node:local-version"
+
 [node.validator01]
+ version = "cometbft/e2e-node:local-version"
 [node.validator02]
+ version = "cometbft/e2e-node:local-version"
 [node.validator03]
+ version = "cometbft/e2e-node:local-version"
+[node.validator06]
+ version = "cometbft/e2e-node:local-version"
+ log_level = "debug"
+ [node.validator05]
+ version = "cometbft/e2e-node:local-version"
 [node.validator04]
+ version = "cometbft/e2e-node:latest"
+[node.validator07]
+ version = "cometbft/e2e-node:latest"
+ [node.validator08]
+ version = "cometbft/e2e-node:latest"
+[node.validator09]
+ version = "cometbft/e2e-node:latest"
+[node.validator10]
+ version = "cometbft/e2e-node:latest"

@@ -146,18 +146,22 @@ func NewCLI() *CLI {
 
 			if cli.testnet.Evidence > 0 {
 				if err := InjectEvidence(ctx, r, cli.testnet, cli.testnet.Evidence); err != nil {
+					logger.Info(err.Error())
 					return err
 				}
 				if err := Wait(cmd.Context(), cli.testnet, 5); err != nil { // ensure chain progress
+					logger.Info(err.Error())
 					return err
 				}
 			}
 
 			loadCancel()
 			if err := <-chLoadResult; err != nil {
+				logger.Info(err.Error())
 				return err
 			}
 			if err := Wait(cmd.Context(), cli.testnet, 5); err != nil { // wait for network to settle before tests
+				logger.Info(err.Error())
 				return err
 			}
 			if err := Test(cli.testnet, cli.infp.GetInfrastructureData()); err != nil {

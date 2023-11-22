@@ -257,6 +257,7 @@ func (l *LightClientAttackEvidence) GetByzantineValidators(commonVals *Validator
 	// First check if the header is invalid. This means that it is a lunatic attack and therefore we take the
 	// validators who are in the commonVals and voted for the lunatic header
 	if l.ConflictingHeaderIsInvalid(trusted.Header) {
+		fmt.Println("This is a lunatic attack")
 		for _, commitSig := range l.ConflictingBlock.Commit.Signatures {
 			if commitSig.BlockIDFlag != BlockIDFlagCommit {
 				continue
@@ -272,6 +273,7 @@ func (l *LightClientAttackEvidence) GetByzantineValidators(commonVals *Validator
 		sort.Sort(ValidatorsByVotingPower(validators))
 		return validators
 	} else if trusted.Commit.Round == l.ConflictingBlock.Commit.Round {
+		fmt.Println("This is an amnesia attack")
 		// This is an equivocation attack as both commits are in the same round. We then find the validators
 		// from the conflicting light block validator set that voted in both headers.
 		// Validator hashes are the same therefore the indexing order of validators are the same and thus we
@@ -293,6 +295,7 @@ func (l *LightClientAttackEvidence) GetByzantineValidators(commonVals *Validator
 		sort.Sort(ValidatorsByVotingPower(validators))
 		return validators
 	}
+	fmt.Println("This is a unknown attack")
 	// if the rounds are different then this is an amnesia attack. Unfortunately, given the nature of the attack,
 	// we aren't able yet to deduce which are malicious validators and which are not hence we return an
 	// empty validator set.

