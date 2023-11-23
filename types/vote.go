@@ -24,6 +24,7 @@ var (
 	ErrVoteInvalidValidatorIndex     = errors.New("invalid validator index")
 	ErrVoteInvalidValidatorAddress   = errors.New("invalid validator address")
 	ErrVoteInvalidSignature          = errors.New("invalid signature")
+	ErrVoteNoSignature               = errors.New("no signature")
 	ErrVoteInvalidBlockHash          = errors.New("invalid block hash")
 	ErrVoteNonDeterministicSignature = errors.New("non-deterministic signature")
 	ErrVoteNil                       = errors.New("nil vote")
@@ -257,6 +258,9 @@ func (vote *Vote) VerifyExtension(chainID string, pubKey crypto.PubKey) error {
 	}
 	v := vote.ToProto()
 	extSignBytes := VoteExtensionSignBytes(chainID, v)
+	if len(vote.ExtensionSignature) == 0 {
+		return ErrVoteInvalidSignature
+	}
 	if !pubKey.VerifySignature(extSignBytes, vote.ExtensionSignature) {
 		return ErrVoteInvalidSignature
 	}
