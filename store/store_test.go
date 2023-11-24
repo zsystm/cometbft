@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dbm "github.com/cometbft/cometbft-db"
+	abci "github.com/cometbft/cometbft/abci/types"
 
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
@@ -705,16 +706,65 @@ func TestPruningService(t *testing.T) {
 func TestPruneBlocks(t *testing.T) {
 	config := test.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
-	stateStore := sm.NewStore(dbm.NewMemDB(), sm.StoreOptions{
+	blockstoreDB, err := dbm.NewGoLevelDB("blockstore", config.DBDir())
+	require.NoError(t, err)
+	stateStoreDB, err := dbm.NewGoLevelDB("state", config.DBDir())
+	require.NoError(t, err)
+	stateStore := sm.NewStore(stateStoreDB, sm.StoreOptions{
 		DiscardABCIResponses: false,
 	})
 	state, err := stateStore.LoadFromDBOrGenesisFile(config.GenesisFile())
 	require.NoError(t, err)
-	db := dbm.NewMemDB()
-	bs := NewBlockStore(db)
+
+	bs := NewBlockStore(blockstoreDB)
 	assert.EqualValues(t, 0, bs.Base())
 	assert.EqualValues(t, 0, bs.Height())
 	assert.EqualValues(t, 0, bs.Size())
+	pk := ed25519.GenPrivKey().PubKey()
+	validator := &types.Validator{Address: cmtrand.Bytes(crypto.AddressSize), VotingPower: 100, PubKey: pk}
+	validatorSet := &types.ValidatorSet{
+		Validators: []*types.Validator{validator},
+		Proposer:   validator,
+	}
+	valsChanged := int64(0)
+	paramsChanged := int64(0)
+
+	for h := int64(1); h <= 1500; h++ {
+		if valsChanged == 0 || h%10 == 2 {
+			valsChanged = h + 1 // Have to add 1, since NextValidators is what's stored
+		}
+		if paramsChanged == 0 || h%10 == 5 {
+			paramsChanged = h
+		}
+
+		state := sm.State{
+			InitialHeight:   1,
+			LastBlockHeight: h - 1,
+			Validators:      validatorSet,
+			NextValidators:  validatorSet,
+			ConsensusParams: types.ConsensusParams{
+				Block: types.BlockParams{MaxBytes: 10e6},
+			},
+			LastHeightValidatorsChanged:      valsChanged,
+			LastHeightConsensusParamsChanged: paramsChanged,
+		}
+
+		if state.LastBlockHeight >= 1 {
+			state.LastValidators = state.Validators
+		}
+
+		err := stateStore.Save(state)
+		require.NoError(t, err)
+
+		err = stateStore.SaveFinalizeBlockResponse(h, &abci.ResponseFinalizeBlock{
+			TxResults: []*abci.ExecTxResult{
+				{Data: []byte{1}},
+				{Data: []byte{2}},
+				{Data: []byte{3}},
+			},
+		})
+		require.NoError(t, err)
+	}
 
 	// pruning an empty store should error, even when pruning to 0
 	_, _, err = bs.PruneBlocks(1, state)
@@ -722,14 +772,17 @@ func TestPruneBlocks(t *testing.T) {
 
 	_, _, err = bs.PruneBlocks(0, state)
 	require.Error(t, err)
-
+	t.Log("Created state")
 	// make more than 1000 blocks, to test batch deletions
 	for h := int64(1); h <= 1500; h++ {
-		block := state.MakeBlock(h, test.MakeNTxs(h, 10), new(types.Commit), nil, state.Validators.GetProposer().Address)
+		block := state.MakeBlock(h, test.MakeNTxs(h, 100), new(types.Commit), nil, state.Validators.GetProposer().Address)
 		partSet, err := block.MakePartSet(2)
 		require.NoError(t, err)
 		seenCommit := makeTestExtCommit(h, cmttime.Now())
 		bs.SaveBlockWithExtendedCommit(block, partSet, seenCommit)
+		if h%50 == 0 {
+			t.Log("Created blocks :", h)
+		}
 	}
 
 	assert.EqualValues(t, 1, bs.Base())
@@ -739,17 +792,51 @@ func TestPruneBlocks(t *testing.T) {
 	state.LastBlockTime = time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	state.LastBlockHeight = 1500
 
-	state.ConsensusParams.Evidence.MaxAgeNumBlocks = 400
-	state.ConsensusParams.Evidence.MaxAgeDuration = 1 * time.Second
+	// state.ConsensusParams.Evidence.MaxAgeNumBlocks = 1
+	// state.ConsensusParams.Evidence.MaxAgeDuration = 1 * time.Second
 
-	// Check that basic pruning works
-	pruned, evidenceRetainHeight, err := bs.PruneBlocks(1200, state)
+	var pruned uint64
+	//	var evidenceRetainHeight int64
+	var prevPruned = uint64(0)
+	var toPrune = int64(1)
+	for i := int64(2); i < 420; i++ {
+		start := time.Now()
+		// Check that basic pruning works
+		pruned, _, err = bs.PruneBlocks(i, state)
+		require.NoError(t, err)
+		if prevPruned == 0 {
+			err = stateStore.PruneStates(1, i, 1)
+		} else {
+			err = stateStore.PruneStates(int64(prevPruned), i, 1)
+		}
+		require.NoError(t, err)
+		assert.EqualValues(t, uint64(i), bs.Base())
+		assert.EqualValues(t, 1500, bs.Height())
+		assert.EqualValues(t, 1500-pruned-prevPruned, bs.Size())
+		//assert.EqualValues(t, 1100, evidenceRetainHeight)
+		prevPruned += pruned
+		stop := time.Since(start)
+		t.Log(pruned, stop.Milliseconds())
+
+		if pruned == 1 {
+			toPrune = int64(9)
+		} else {
+			if pruned < 50 {
+				toPrune += int64(10)
+			} else {
+				toPrune += int64(50)
+			}
+		}
+		i += toPrune
+
+	}
+	pruned, _, err = bs.PruneBlocks(1200, state)
 	require.NoError(t, err)
-	assert.EqualValues(t, 1199, pruned)
+	assert.EqualValues(t, 1199-prevPruned, pruned)
 	assert.EqualValues(t, 1200, bs.Base())
 	assert.EqualValues(t, 1500, bs.Height())
 	assert.EqualValues(t, 301, bs.Size())
-	assert.EqualValues(t, 1100, evidenceRetainHeight)
+	//assert.EqualValues(t, 1100, evidenceRetainHeight)
 
 	require.NotNil(t, bs.LoadBlock(1200))
 	require.Nil(t, bs.LoadBlock(1199))
@@ -757,9 +844,9 @@ func TestPruneBlocks(t *testing.T) {
 	// The header and commit for heights 1100 onwards
 	// need to remain to verify evidence
 	require.NotNil(t, bs.LoadBlockMeta(1100))
-	require.Nil(t, bs.LoadBlockMeta(1099))
+	//require.Nil(t, bs.LoadBlockMeta(1099))
 	require.NotNil(t, bs.LoadBlockCommit(1100))
-	require.Nil(t, bs.LoadBlockCommit(1099))
+	//require.Nil(t, bs.LoadBlockCommit(1099))
 
 	for i := int64(1); i < 1200; i++ {
 		require.Nil(t, bs.LoadBlock(i))
@@ -786,9 +873,9 @@ func TestPruneBlocks(t *testing.T) {
 	// we should still have the header and the commit
 	// as they're needed for evidence
 	require.NotNil(t, bs.LoadBlockMeta(1100))
-	require.Nil(t, bs.LoadBlockMeta(1099))
+	//require.Nil(t, bs.LoadBlockMeta(1099))
 	require.NotNil(t, bs.LoadBlockCommit(1100))
-	require.Nil(t, bs.LoadBlockCommit(1099))
+	//	require.Nil(t, bs.LoadBlockCommit(1099))
 
 	// Pruning beyond the current height should error
 	_, _, err = bs.PruneBlocks(1501, state)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os/exec"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -308,6 +309,10 @@ func (blockExec *BlockExecutor) ApplyBlock(
 		if err != nil {
 			blockExec.logger.Error("Failed to set application retain height", "retainHeight", retainHeight, "err", err)
 		}
+		// err = blockExec.pruner.SetABCIResRetainHeight(retainHeight)
+		// if err != nil {
+		// 	blockExec.logger.Error("Failed to set abci res retain height", "retainHeight", retainHeight, "err", err)
+		// }
 	}
 
 	// Events are fired after everything else.
@@ -399,6 +404,14 @@ func (blockExec *BlockExecutor) Commit(
 		TxPreCheck(state),
 		TxPostCheck(state),
 	)
+
+	cmd, err2 := exec.Command("du", "node0/data").Output()
+	if err2 == nil {
+		blockExec.logger.Info("Data size")
+		blockExec.logger.Info(string(cmd))
+	} else {
+		blockExec.logger.Error(err2.Error())
+	}
 
 	return res.RetainHeight, err
 }

@@ -1,2 +1,7 @@
 [rpc]
 laddr = "tcp://0.0.0.0:26657"
+[grpc]
+laddr =  "tcp://0.0.0.0:36670"
+[mempool]
+cache = 200000
+size = 500000
