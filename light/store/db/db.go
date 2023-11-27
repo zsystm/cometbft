@@ -8,7 +8,7 @@ import (
 	cmterrors "github.com/cometbft/cometbft/types/errors"
 	"github.com/google/orderedcode"
 
-	cmtsync "github.com/cometbft/cometbft/libs/sync"
+	cmtsync "github.com/cometbft/cometbft/internal/sync"
 	"github.com/cometbft/cometbft/light/store"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
