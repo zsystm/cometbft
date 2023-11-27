@@ -153,7 +153,7 @@ func (bs *BlockStore) LoadBlock(height int64) (*types.Block, *types.BlockMeta) {
 // Panics if it fails to parse height associated with the given hash.
 func (bs *BlockStore) LoadBlockByHash(hash []byte) (*types.Block, *types.BlockMeta) {
 	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_by_hash"))()
-	bz, err := bs.db.Get(calcBlockHashKey(hash))
+	bz, err := bs.db.Get(blockHashKey(hash))
 	if err != nil {
 		panic(err)
 	}
