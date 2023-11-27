@@ -13,7 +13,7 @@ import (
 func TestBlock_Header(t *testing.T) {
 	blocks := fetchBlockChain(t)
 	testNode(t, func(t *testing.T, node e2e.Node) {
-		if node.Mode == e2e.ModeSeed {
+		if node.Mode == e2e.ModeSeed || node.EnableCompanionPruning {
 			return
 		}
 
@@ -50,7 +50,9 @@ func TestBlock_Header(t *testing.T) {
 // Tests that the node contains the expected block range.
 func TestBlock_Range(t *testing.T) {
 	testNode(t, func(t *testing.T, node e2e.Node) {
-		if node.Mode == e2e.ModeSeed {
+		// We do not run this test on seed nodes or nodes with data
+		// companion-related pruning enabled.
+		if node.Mode == e2e.ModeSeed || node.EnableCompanionPruning {
 			return
 		}
 

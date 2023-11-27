@@ -6,17 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/cometbft/cometbft/rpc/grpc/client/privileged"
 	e2e "github.com/cometbft/cometbft/test/e2e/pkg"
 	"github.com/cometbft/cometbft/version"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGRPC_Version(t *testing.T) {
-	testNode(t, func(t *testing.T, node e2e.Node) {
-		if node.Mode != e2e.ModeFull && node.Mode != e2e.ModeValidator {
-			return
-		}
-
+	testFullNodesOrValidators(t, 0, func(t *testing.T, node e2e.Node) {
 		ctx, ctxCancel := context.WithTimeout(context.Background(), time.Minute)
 		defer ctxCancel()
 		client, err := node.GRPCClient(ctx)
@@ -26,7 +25,7 @@ func TestGRPC_Version(t *testing.T) {
 		res, err := client.GetVersion(ctx)
 		require.NoError(t, err)
 
-		require.Equal(t, version.TMCoreSemVer, res.Node)
+		require.Equal(t, version.CMTSemVer, res.Node)
 		require.Equal(t, version.ABCIVersion, res.ABCI)
 		require.Equal(t, version.P2PProtocol, res.P2P)
 		require.Equal(t, version.BlockProtocol, res.Block)
@@ -34,23 +33,19 @@ func TestGRPC_Version(t *testing.T) {
 }
 
 func TestGRPC_Block_GetByHeight(t *testing.T) {
-	testNode(t, func(t *testing.T, node e2e.Node) {
-		if node.Mode != e2e.ModeFull && node.Mode != e2e.ModeValidator {
-			return
-		}
-
-		blocks := fetchBlockChain(t)
+	testFullNodesOrValidators(t, 0, func(t *testing.T, node e2e.Node) {
 
 		client, err := node.Client()
 		require.NoError(t, err)
 		status, err := client.Status(ctx)
 		require.NoError(t, err)
 
-		first := status.SyncInfo.EarliestBlockHeight
+		// We are not testing getting the first block in these
+		// tests to prevent race conditions with the pruning mechanism
+		// that might make the tests fail. Just testing the last block
+		// is enough to validate the fact that we can fetch a block using
+		// the gRPC endpoint
 		last := status.SyncInfo.LatestBlockHeight
-		if node.RetainBlocks > 0 {
-			first++ // avoid race conditions with block pruning
-		}
 
 		ctx, ctxCancel := context.WithTimeout(context.Background(), time.Minute)
 		defer ctxCancel()
@@ -58,30 +53,14 @@ func TestGRPC_Block_GetByHeight(t *testing.T) {
 		require.NoError(t, err)
 		defer gRPCClient.Close()
 
-		for _, block := range blocks {
-			if block.Header.Height < first {
-				continue
-			}
-			if block.Header.Height > last {
-				break
-			}
+		// Get last block and fetch it using the gRPC endpoint
+		lastBlock, err := gRPCClient.GetBlockByHeight(ctx, last)
 
-			// Get first block
-			firstBlock, err := gRPCClient.GetBlockByHeight(ctx, first)
+		// Last block tests
+		require.NoError(t, err)
+		require.NotNil(t, lastBlock.BlockID)
+		require.Equal(t, lastBlock.Block.Height, last)
 
-			// First block tests
-			require.NoError(t, err)
-			require.NotNil(t, firstBlock.BlockID)
-			require.Equal(t, firstBlock.Block.Height, first)
-
-			// Get last block
-			lastBlock, err := gRPCClient.GetBlockByHeight(ctx, last)
-
-			// Last block tests
-			require.NoError(t, err)
-			require.NotNil(t, lastBlock.BlockID)
-			require.Equal(t, lastBlock.Block.Height, last)
-		}
 	})
 }
 
@@ -143,11 +122,7 @@ func TestGRPC_Block_GetLatestHeight(t *testing.T) {
 }
 
 func TestGRPC_GetBlockResults(t *testing.T) {
-	testNode(t, func(t *testing.T, node e2e.Node) {
-		if node.Mode != e2e.ModeFull && node.Mode != e2e.ModeValidator {
-			return
-		}
-
+	testFullNodesOrValidators(t, 0, func(t *testing.T, node e2e.Node) {
 		client, err := node.Client()
 		require.NoError(t, err)
 		status, err := client.Status(ctx)
@@ -200,58 +175,93 @@ func TestGRPC_GetBlockResults(t *testing.T) {
 }
 
 func TestGRPC_BlockRetainHeight(t *testing.T) {
-	testNode(t, func(t *testing.T, node e2e.Node) {
-		if node.Mode != e2e.ModeFull && node.Mode != e2e.ModeValidator {
+	testFullNodesOrValidators(t, 0, func(t *testing.T, node e2e.Node) {
+		if !node.EnableCompanionPruning {
 			return
 		}
 
-		ctx, ctxCancel := context.WithTimeout(context.Background(), time.Minute)
-		defer ctxCancel()
-		grpcClient, err := node.GRPCPrivilegedClient(ctx)
-		require.NoError(t, err)
-		defer grpcClient.Close()
+		grpcClient, status, cleanup := getGRPCPrivilegedClientForTesting(t, node)
+		defer cleanup()
 
-		client, err := node.Client()
+		err := grpcClient.SetBlockRetainHeight(ctx, uint64(status.SyncInfo.LatestBlockHeight-1))
 		require.NoError(t, err)
-		status, err := client.Status(ctx)
-		require.NoError(t, err)
-
-		err = grpcClient.SetBlockRetainHeight(ctx, uint64(status.SyncInfo.LatestBlockHeight-1))
-		t.Log(err)
-		require.NoError(t, err, "Unexpected error for SetBlockRetainHeight")
 
 		res, err := grpcClient.GetBlockRetainHeight(ctx)
-
-		require.NoError(t, err, "Unexpected error for GetBlockRetainHeight")
+		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.Equal(t, res.PruningService, uint64(status.SyncInfo.LatestBlockHeight-1))
 	})
 }
 
 func TestGRPC_BlockResultsRetainHeight(t *testing.T) {
-	testNode(t, func(t *testing.T, node e2e.Node) {
-		if node.Mode != e2e.ModeFull && node.Mode != e2e.ModeValidator {
+	testFullNodesOrValidators(t, 0, func(t *testing.T, node e2e.Node) {
+		if !node.EnableCompanionPruning {
 			return
 		}
 
-		ctx, ctxCancel := context.WithTimeout(context.Background(), time.Minute)
-		defer ctxCancel()
+		grpcClient, status, cleanup := getGRPCPrivilegedClientForTesting(t, node)
+		defer cleanup()
 
-		grpcClient, err := node.GRPCPrivilegedClient(ctx)
-		require.NoError(t, err)
-		defer grpcClient.Close()
-
-		client, err := node.Client()
-		require.NoError(t, err)
-
-		status, err := client.Status(ctx)
-		require.NoError(t, err)
-
-		err = grpcClient.SetBlockResultsRetainHeight(ctx, uint64(status.SyncInfo.LatestBlockHeight)-1)
+		err := grpcClient.SetBlockResultsRetainHeight(ctx, uint64(status.SyncInfo.LatestBlockHeight)-1)
 		require.NoError(t, err, "Unexpected error for SetBlockResultsRetainHeight")
 
 		height, err := grpcClient.GetBlockResultsRetainHeight(ctx)
 		require.NoError(t, err, "Unexpected error for GetBlockRetainHeight")
 		require.Equal(t, height, uint64(status.SyncInfo.LatestBlockHeight)-1)
 	})
+}
+
+func TestGRPC_TxIndexerRetainHeight(t *testing.T) {
+	testFullNodesOrValidators(t, 0, func(t *testing.T, node e2e.Node) {
+		if !node.EnableCompanionPruning {
+			return
+		}
+
+		grpcClient, status, cleanup := getGRPCPrivilegedClientForTesting(t, node)
+		defer cleanup()
+
+		err := grpcClient.SetTxIndexerRetainHeight(ctx, uint64(status.SyncInfo.LatestBlockHeight)-1)
+		require.NoError(t, err, "Unexpected error for SetTxIndexerRetainHeight")
+
+		height, err := grpcClient.GetTxIndexerRetainHeight(ctx)
+		require.NoError(t, err, "Unexpected error for GetTxIndexerRetainHeight")
+		require.Equal(t, height, uint64(status.SyncInfo.LatestBlockHeight)-1)
+	})
+}
+
+func TestGRPC_BlockIndexerRetainHeight(t *testing.T) {
+	testFullNodesOrValidators(t, 0, func(t *testing.T, node e2e.Node) {
+		if !node.EnableCompanionPruning {
+			return
+		}
+
+		grpcClient, status, cleanup := getGRPCPrivilegedClientForTesting(t, node)
+		defer cleanup()
+
+		err := grpcClient.SetBlockIndexerRetainHeight(ctx, uint64(status.SyncInfo.LatestBlockHeight)-1)
+		require.NoError(t, err, "Unexpected error for SetTxIndexerRetainHeight")
+
+		height, err := grpcClient.GetBlockIndexerRetainHeight(ctx)
+		require.NoError(t, err, "Unexpected error for GetTxIndexerRetainHeight")
+		require.Equal(t, height, uint64(status.SyncInfo.LatestBlockHeight)-1)
+	})
+}
+
+func getGRPCPrivilegedClientForTesting(t *testing.T, node e2e.Node) (privileged.Client, *coretypes.ResultStatus, func()) {
+	ctx, ctxCancel := context.WithTimeout(context.Background(), time.Minute)
+
+	grpcClient, err := node.GRPCPrivilegedClient(ctx)
+	require.NoError(t, err)
+
+	client, err := node.Client()
+	require.NoError(t, err)
+
+	status, err := client.Status(ctx)
+	require.NoError(t, err)
+
+	return grpcClient, status, func() {
+		ctxCancel()
+		err := grpcClient.Close()
+		require.NoError(t, err)
+	}
 }
