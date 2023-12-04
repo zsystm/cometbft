@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"math"
 
 	"google.golang.org/protobuf/proto"
@@ -46,9 +47,9 @@ func NewBytes(p *Payload) ([]byte, error) {
 	}
 	h := []byte(hex.EncodeToString(b))
 
-	// prepend a single key so that the kv store only ever stores a single
-	// transaction instead of storing all tx and ballooning in size.
-	return append([]byte(keyPrefix), h...), nil
+	// generate random keys for db footprint testing
+	key := cmtrand.Str(16)
+	return append([]byte(key), h...), nil
 }
 
 // FromBytes extracts a paylod from the byte representation of the payload.
