@@ -48,7 +48,7 @@ func NewBytes(p *Payload) ([]byte, error) {
 	h := []byte(hex.EncodeToString(b))
 
 	// generate random keys for db footprint testing
-	key := cmtrand.Str(16)
+	key := cmtrand.Str(6)
 	return append([]byte(key), h...), nil
 }
 
