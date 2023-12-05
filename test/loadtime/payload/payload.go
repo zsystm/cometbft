@@ -1,12 +1,12 @@
 package payload
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"math"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -48,7 +48,7 @@ func NewBytes(p *Payload) ([]byte, error) {
 	h := []byte(hex.EncodeToString(b))
 
 	// generate random keys for db footprint testing
-	key := cmtrand.Str(6)
+	key := cmtrand.Str(6) + "="
 	return append([]byte(key), h...), nil
 }
 
@@ -56,11 +56,13 @@ func NewBytes(p *Payload) ([]byte, error) {
 // FromBytes leaves the padding untouched, returning it to the caller to handle
 // or discard per their preference.
 func FromBytes(b []byte) (*Payload, error) {
-	trH := bytes.TrimPrefix(b, []byte(keyPrefix))
+	value := strings.Split(string(b), "=")
+	//trH := bytes.TrimPrefix(b, []byte(keyPrefix))
 	//if bytes.Equal(b, trH) {
 	//	return nil, fmt.Errorf("payload bytes missing key prefix '%s'", keyPrefix)
 	//}
-	trB, err := hex.DecodeString(string(trH))
+	// decoded value
+	trB, err := hex.DecodeString(value[1])
 	if err != nil {
 		return nil, err
 	}
