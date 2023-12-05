@@ -57,9 +57,9 @@ func NewBytes(p *Payload) ([]byte, error) {
 // or discard per their preference.
 func FromBytes(b []byte) (*Payload, error) {
 	trH := bytes.TrimPrefix(b, []byte(keyPrefix))
-	if bytes.Equal(b, trH) {
-		return nil, fmt.Errorf("payload bytes missing key prefix '%s'", keyPrefix)
-	}
+	//if bytes.Equal(b, trH) {
+	//	return nil, fmt.Errorf("payload bytes missing key prefix '%s'", keyPrefix)
+	//}
 	trB, err := hex.DecodeString(string(trH))
 	if err != nil {
 		return nil, err
