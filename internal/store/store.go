@@ -7,6 +7,7 @@ import (
 
 	"github.com/cosmos/gogoproto/proto"
 
+	db "github.com/cometbft/cometbft-db"
 	cmterrors "github.com/cometbft/cometbft/types/errors"
 
 	dbm "github.com/cometbft/cometbft-db"
@@ -409,8 +410,8 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	if block == nil {
 		panic("BlockStore can only save a non-nil block")
 	}
-
-	batch := bs.db.NewBatch()
+	var err error
+	var batch db.Batch
 	defer func(batch dbm.Batch) {
 		err := batch.Close()
 		if err != nil {
@@ -418,16 +419,14 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 		}
 	}(batch)
 
-	saveBlockPartsToBatch := blockParts.Count() > maxBlockPartsToBatch
-
-	if err := bs.saveBlockToBatch(block, blockParts, seenCommit, batch, saveBlockPartsToBatch); err != nil {
+	if batch, err = bs.saveBlockToBatch(block, blockParts, seenCommit); err != nil {
 		panic(err)
 	}
 
 	// Save new BlockStoreState descriptor. This also flushes the database.
 	bs.saveState(batch)
 
-	err := batch.WriteSync()
+	err = batch.WriteSync()
 	if err != nil {
 		panic(err)
 	}
@@ -446,7 +445,8 @@ func (bs *BlockStore) SaveBlockWithExtendedCommit(block *types.Block, blockParts
 		panic(fmt.Errorf("problems saving block with extensions: %w", err))
 	}
 
-	batch := bs.db.NewBatch()
+	var err error
+	var batch db.Batch
 	defer func(batch dbm.Batch) {
 		err := batch.Close()
 		if err != nil {
@@ -454,9 +454,7 @@ func (bs *BlockStore) SaveBlockWithExtendedCommit(block *types.Block, blockParts
 		}
 	}(batch)
 
-	saveBlockPartsToBatch := blockParts.Count() > maxBlockPartsToBatch
-
-	if err := bs.saveBlockToBatch(block, blockParts, seenExtendedCommit.ToCommit(), batch, saveBlockPartsToBatch); err != nil {
+	if batch, err = bs.saveBlockToBatch(block, blockParts, seenExtendedCommit.ToCommit()); err != nil {
 		panic(err)
 	}
 	height := block.Height
@@ -470,7 +468,7 @@ func (bs *BlockStore) SaveBlockWithExtendedCommit(block *types.Block, blockParts
 	// Save new BlockStoreState descriptor. This also flushes the database.
 	bs.saveState(batch)
 
-	err := batch.WriteSync()
+	err = batch.WriteSync()
 	if err != nil {
 		panic(err)
 	}
@@ -480,8 +478,10 @@ func (bs *BlockStore) saveBlockToBatch(
 	block *types.Block,
 	blockParts *types.PartSet,
 	seenCommit *types.Commit,
-	batch dbm.Batch,
-	saveBlockPartsToBatch bool) error {
+) (dbm.Batch, error) {
+
+	batch := bs.db.NewBatch()
+	saveBlockPartsToBatch := blockParts.Count() > maxBlockPartsToBatch
 
 	if block == nil {
 		panic("BlockStore can only save a non-nil block")
@@ -491,13 +491,13 @@ func (bs *BlockStore) saveBlockToBatch(
 	hash := block.Hash()
 
 	if g, w := height, bs.Height()+1; bs.Base() > 0 && g != w {
-		return fmt.Errorf("BlockStore can only save contiguous blocks. Wanted %v, got %v", w, g)
+		return batch, fmt.Errorf("BlockStore can only save contiguous blocks. Wanted %v, got %v", w, g)
 	}
 	if !blockParts.IsComplete() {
-		return errors.New("BlockStore can only save complete block part sets")
+		return batch, errors.New("BlockStore can only save complete block part sets")
 	}
 	if height != seenCommit.Height {
-		return fmt.Errorf("BlockStore cannot save seen commit of a different height (block: %d, commit: %d)", height, seenCommit.Height)
+		return batch, fmt.Errorf("BlockStore cannot save seen commit of a different height (block: %d, commit: %d)", height, seenCommit.Height)
 	}
 
 	// Save block parts. This must be done before the block meta, since callers
@@ -513,21 +513,21 @@ func (bs *BlockStore) saveBlockToBatch(
 	blockMeta := types.NewBlockMeta(block, blockParts)
 	pbm := blockMeta.ToProto()
 	if pbm == nil {
-		return errors.New("nil blockmeta")
+		return batch, errors.New("nil blockmeta")
 	}
 	metaBytes := mustEncode(pbm)
 	if err := batch.Set(calcBlockMetaKey(height), metaBytes); err != nil {
-		return err
+		return batch, err
 	}
 	if err := batch.Set(calcBlockHashKey(hash), []byte(fmt.Sprintf("%d", height))); err != nil {
-		return err
+		return batch, err
 	}
 
 	// Save block commit (duplicate and separate from the Block)
 	pbc := block.LastCommit.ToProto()
 	blockCommitBytes := mustEncode(pbc)
 	if err := batch.Set(calcBlockCommitKey(height-1), blockCommitBytes); err != nil {
-		return err
+		return batch, err
 	}
 
 	// Save seen commit (seen +2/3 precommits for block)
@@ -535,7 +535,7 @@ func (bs *BlockStore) saveBlockToBatch(
 	pbsc := seenCommit.ToProto()
 	seenCommitBytes := mustEncode(pbsc)
 	if err := batch.Set(calcSeenCommitKey(height), seenCommitBytes); err != nil {
-		return err
+		return batch, err
 	}
 
 	// Done!
@@ -546,7 +546,7 @@ func (bs *BlockStore) saveBlockToBatch(
 	}
 	bs.mtx.Unlock()
 
-	return nil
+	return batch, nil
 }
 
 func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part, batch dbm.Batch, saveBlockPartsToBatch bool) {
