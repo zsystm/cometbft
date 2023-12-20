@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	mr "math/rand"
 
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -13,6 +14,7 @@ import (
 
 const (
 	keyPrefix      = "a="
+	valKeyPrefix   = "valChange"
 	maxPayloadSize = 4 * 1024 * 1024
 )
 
@@ -20,37 +22,43 @@ const (
 // the payload as a slice of bytes. NewBytes uses the fields on the Options
 // to create the payload.
 func NewBytes(p *Payload) ([]byte, error) {
-	p.Padding = make([]byte, 1)
-	if p.GetTime() == nil {
-		p.Time = timestamppb.Now()
-	}
-	us, err := CalculateUnpaddedSize(p)
-	if err != nil {
-		return nil, err
-	}
-	if p.GetSize() > maxPayloadSize {
-		return nil, fmt.Errorf("configured size %d is too large (>%d)", p.GetSize(), maxPayloadSize)
-	}
-	pSize := int(p.GetSize()) // #nosec -- The "if" above makes this cast safe
-	if pSize < us {
-		return nil, fmt.Errorf("configured size %d not large enough to fit unpadded transaction of size %d", pSize, us)
+	updateValSet := mr.Intn(2) == 1
+	if updateValSet {
+		return append([]byte(valKeyPrefix+"="), []byte("0")...), nil
+	} else {
+		p.Padding = make([]byte, 1)
+		if p.GetTime() == nil {
+			p.Time = timestamppb.Now()
+		}
+		us, err := CalculateUnpaddedSize(p)
+		if err != nil {
+			return nil, err
+		}
+		if p.GetSize() > maxPayloadSize {
+			return nil, fmt.Errorf("configured size %d is too large (>%d)", p.GetSize(), maxPayloadSize)
+		}
+		pSize := int(p.GetSize()) // #nosec -- The "if" above makes this cast safe
+		if pSize < us {
+			return nil, fmt.Errorf("configured size %d not large enough to fit unpadded transaction of size %d", pSize, us)
+		}
+
+		// We halve the padding size because we transform the TX to hex
+		p.Padding = make([]byte, (pSize-us)/2)
+		_, err = rand.Read(p.GetPadding())
+		if err != nil {
+			return nil, err
+		}
+		b, err := proto.Marshal(p)
+		if err != nil {
+			return nil, err
+		}
+		h := []byte(hex.EncodeToString(b))
+
+		// prepend a single key so that the kv store only ever stores a single
+		// transaction instead of storing all tx and ballooning in size.
+		return append([]byte(keyPrefix), h...), nil
 	}
 
-	// We halve the padding size because we transform the TX to hex
-	p.Padding = make([]byte, (pSize-us)/2)
-	_, err = rand.Read(p.GetPadding())
-	if err != nil {
-		return nil, err
-	}
-	b, err := proto.Marshal(p)
-	if err != nil {
-		return nil, err
-	}
-	h := []byte(hex.EncodeToString(b))
-
-	// prepend a single key so that the kv store only ever stores a single
-	// transaction instead of storing all tx and ballooning in size.
-	return append([]byte(keyPrefix), h...), nil
 }
 
 // FromBytes extracts a paylod from the byte representation of the payload.
