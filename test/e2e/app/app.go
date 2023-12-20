@@ -192,7 +192,7 @@ func (app *Application) InitChain(_ context.Context, req *abci.RequestInitChain)
 			}
 			// If power is 0, will delete from val set
 			app.logger.Info(fmt.Sprintf("setting validator set :: pubkey:%s :: power:%d", string(pk), val.Power))
-			app.state.SetVal(string(pk), uint64(val.Power))
+			app.state.SetVal(hex.EncodeToString(pk), uint64(val.Power))
 		}
 	}
 	resp := &abci.ResponseInitChain{
@@ -253,22 +253,27 @@ func (app *Application) FinalizeBlock(_ context.Context, req *abci.RequestFinali
 		if key == "valChange" {
 			// Retrieve first or second validator address (assumes min 2 validator network)
 			var valKey string
+
 			first := mr.Intn(2) == 1
 			if first {
 				valKey = valKeys[0]
 			} else {
 				valKey = valKeys[1]
 			}
-			app.logger.Info(fmt.Sprintf("current validator power :: pubkey:%s :: power:%d", valKey, app.state.GetVal(valKey)))
+			pubkey, err := base64.StdEncoding.DecodeString(valKey)
+			if err != nil {
+				panic(fmt.Errorf("pubkey (%s) is invalid base64", pubkey))
+			}
 
 			// Randomly increase or decrease validator power
-			newPower := valSet[valKey] + 1
+			app.logger.Info(fmt.Sprintf("current validator power :: pubkey:%s :: power:%d", pubkey, app.state.GetVal(valKey)))
+			newPower := app.state.GetVal(valKey) + 1
 
 			// Ensure app and comet val set are synchronized
-			valUpdate := abci.UpdateValidator([]byte(valKey), int64(newPower), ed25519.KeyType)
+			valUpdate := abci.UpdateValidator(pubkey, int64(newPower), ed25519.KeyType)
 			txValUpdates = append(txValUpdates, valUpdate)
 
-			app.logger.Info(fmt.Sprintf("updating validator set :: pubkey:%s :: power:%d", valKey, newPower))
+			app.logger.Info(fmt.Sprintf("updating validator set :: pubkey:%s :: power:%d", pubkey, newPower))
 
 		}
 		app.state.Set(key, value)
