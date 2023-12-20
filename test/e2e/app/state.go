@@ -31,6 +31,7 @@ type State struct {
 	height uint64
 	values map[string]string
 	hash   []byte
+	valset map[string]uint64
 
 	currentFile string
 	// app saves current and previous state for rollback functionality
@@ -43,6 +44,7 @@ type State struct {
 func NewState(dir string, persistInterval uint64) (*State, error) {
 	state := &State{
 		values:          make(map[string]string),
+		valset:          make(map[string]uint64),
 		currentFile:     filepath.Join(dir, stateFileName),
 		previousFile:    filepath.Join(dir, prevStateFileName),
 		persistInterval: persistInterval,
@@ -261,4 +263,27 @@ func hashItems(items map[string]string, height uint64) []byte {
 		_, _ = hasher.Write([]byte{0})
 	}
 	return hasher.Sum(nil)
+}
+
+func (s *State) GetVal(key string) uint64 {
+	s.RLock()
+	defer s.RUnlock()
+	return s.valset[key]
+}
+
+// Delete validator if power is 0
+func (s *State) SetVal(valAddress string, power uint64) {
+	s.Lock()
+	defer s.Unlock()
+	if power == 0 {
+		delete(s.valset, valAddress)
+	} else {
+		s.valset[valAddress] = power
+	}
+}
+
+func (s *State) GetValSet() map[string]uint64 {
+	s.RLock()
+	defer s.RUnlock()
+	return s.valset
 }

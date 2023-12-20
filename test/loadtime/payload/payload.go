@@ -6,6 +6,7 @@ import (
 	"fmt"
 	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"math"
+	mr "math/rand"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -14,42 +15,48 @@ import (
 
 const keyPrefix = "a="
 const maxPayloadSize = 4 * 1024 * 1024
+const valKeyPrefix = "valChange"
 
 // NewBytes generates a new payload and returns the encoded representation of
 // the payload as a slice of bytes. NewBytes uses the fields on the Options
 // to create the payload.
 func NewBytes(p *Payload) ([]byte, error) {
-	p.Padding = make([]byte, 1)
-	if p.Time == nil {
-		p.Time = timestamppb.Now()
-	}
-	us, err := CalculateUnpaddedSize(p)
-	if err != nil {
-		return nil, err
-	}
-	if p.Size > maxPayloadSize {
-		return nil, fmt.Errorf("configured size %d is too large (>%d)", p.Size, maxPayloadSize)
-	}
-	pSize := int(p.Size) // #nosec -- The "if" above makes this cast safe
-	if pSize < us {
-		return nil, fmt.Errorf("configured size %d not large enough to fit unpadded transaction of size %d", pSize, us)
-	}
+	updateValSet := mr.Intn(2) == 1
+	if updateValSet {
+		return append([]byte(valKeyPrefix+"="), []byte("0")...), nil
+	} else {
+		p.Padding = make([]byte, 1)
+		if p.Time == nil {
+			p.Time = timestamppb.Now()
+		}
+		us, err := CalculateUnpaddedSize(p)
+		if err != nil {
+			return nil, err
+		}
+		if p.Size > maxPayloadSize {
+			return nil, fmt.Errorf("configured size %d is too large (>%d)", p.Size, maxPayloadSize)
+		}
+		pSize := int(p.Size) // #nosec -- The "if" above makes this cast safe
+		if pSize < us {
+			return nil, fmt.Errorf("configured size %d not large enough to fit unpadded transaction of size %d", pSize, us)
+		}
 
-	// We halve the padding size because we transform the TX to hex
-	p.Padding = make([]byte, (pSize-us)/2)
-	_, err = rand.Read(p.Padding)
-	if err != nil {
-		return nil, err
-	}
-	b, err := proto.Marshal(p)
-	if err != nil {
-		return nil, err
-	}
-	h := []byte(hex.EncodeToString(b))
+		// We halve the padding size because we transform the TX to hex
+		p.Padding = make([]byte, (pSize-us)/2)
+		_, err = rand.Read(p.Padding)
+		if err != nil {
+			return nil, err
+		}
+		b, err := proto.Marshal(p)
+		if err != nil {
+			return nil, err
+		}
+		h := []byte(hex.EncodeToString(b))
 
-	// generate random keys for db footprint testing
-	key := cmtrand.Str(6) + "="
-	return append([]byte(key), h...), nil
+		// generate random keys for db footprint testing
+		key := cmtrand.Str(6) + "="
+		return append([]byte(key), h...), nil
+	}
 }
 
 // FromBytes extracts a paylod from the byte representation of the payload.

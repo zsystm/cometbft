@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"math/big"
+	mr "math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -36,6 +38,7 @@ const (
 	suffixChainID       string = "ChainID"
 	suffixVoteExtHeight string = "VoteExtensionsHeight"
 	suffixInitialHeight string = "InitialHeight"
+	suffixValSet        string = "ValSetKeys"
 )
 
 // Application is an ABCI application for use by end-to-end tests. It is a
@@ -183,6 +186,13 @@ func (app *Application) InitChain(_ context.Context, req *abci.RequestInitChain)
 			if err := app.storeValidator(&val); err != nil {
 				return nil, err
 			}
+			pk, err := val.PubKey.Marshal()
+			if err != nil {
+				return nil, err
+			}
+			// If power is 0, will delete from val set
+			app.logger.Info(fmt.Sprintf("setting validator set :: pubkey:%s :: power:%d", string(pk), val.Power))
+			app.state.SetVal(string(pk), uint64(val.Power))
 		}
 	}
 	resp := &abci.ResponseInitChain{
@@ -228,6 +238,9 @@ func (app *Application) FinalizeBlock(_ context.Context, req *abci.RequestFinali
 	}
 
 	txs := make([]*abci.ExecTxResult, len(req.Txs))
+	var txValUpdates []abci.ValidatorUpdate
+	valSet := app.state.GetValSet()
+	valKeys := getValSetKeys(valSet)
 
 	for i, tx := range req.Txs {
 		key, value, err := parseTx(tx)
@@ -236,6 +249,27 @@ func (app *Application) FinalizeBlock(_ context.Context, req *abci.RequestFinali
 		}
 		if key == prefixReservedKey {
 			panic(fmt.Errorf("detected a transaction with key %q; this key is reserved and should have been filtered out", prefixReservedKey))
+		}
+		if key == "valChange" {
+			// Retrieve first validator address
+			valKey := valKeys[0]
+			app.logger.Info(fmt.Sprintf("current validator power :: pubkey:%s :: power:%d", valKey, app.state.GetVal(valKey)))
+
+			// Randomly increase or decrease validator power
+			var newPower uint64
+			increment := mr.Intn(2) == 1
+			if increment {
+				newPower = valSet[valKey] + 1
+			} else {
+				newPower = valSet[valKey] - 1
+			}
+
+			// Ensure app and comet val set are synchronized
+			valUpdate := abci.UpdateValidator([]byte(valKey), int64(newPower), ed25519.KeyType)
+			txValUpdates = append(txValUpdates, valUpdate)
+
+			app.logger.Info(fmt.Sprintf("updating validator set :: pubkey:%s :: power:%d", valKey, newPower))
+
 		}
 		app.state.Set(key, value)
 
@@ -246,6 +280,7 @@ func (app *Application) FinalizeBlock(_ context.Context, req *abci.RequestFinali
 	if err != nil {
 		panic(err)
 	}
+	valUpdates = append(txValUpdates, valUpdates...)
 
 	if app.cfg.FinalizeBlockDelay != 0 {
 		time.Sleep(app.cfg.FinalizeBlockDelay)
@@ -657,6 +692,8 @@ func (app *Application) storeValidator(valUpdate *abci.ValidatorUpdate) error {
 		}
 		app.logger.Info("setting validator in app_state", "addr", addr)
 		app.state.Set(prefixReservedKey+addr, hex.EncodeToString(pubKeyBytes))
+		// Update state valSet
+		app.state.SetVal(string(pubKeyBytes), uint64(valUpdate.Power))
 	}
 	return nil
 }
@@ -875,4 +912,12 @@ func parseVoteExtension(cfg *Config, ext []byte) (int64, error) {
 		return num, nil
 	}
 	return int64(len(ext)), nil
+}
+
+func getValSetKeys(valSet map[string]uint64) []string {
+	keys := make([]string, len(valSet))
+	for k := range valSet {
+		keys = append(keys, k)
+	}
+	return keys
 }
