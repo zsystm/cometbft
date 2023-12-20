@@ -251,18 +251,18 @@ func (app *Application) FinalizeBlock(_ context.Context, req *abci.RequestFinali
 			panic(fmt.Errorf("detected a transaction with key %q; this key is reserved and should have been filtered out", prefixReservedKey))
 		}
 		if key == "valChange" {
-			// Retrieve first validator address
-			valKey := valKeys[0]
+			// Retrieve first or second validator address (assumes min 2 validator network)
+			var valKey string
+			first := mr.Intn(2) == 1
+			if first {
+				valKey = valKeys[0]
+			} else {
+				valKey = valKeys[1]
+			}
 			app.logger.Info(fmt.Sprintf("current validator power :: pubkey:%s :: power:%d", valKey, app.state.GetVal(valKey)))
 
 			// Randomly increase or decrease validator power
-			var newPower uint64
-			increment := mr.Intn(2) == 1
-			if increment {
-				newPower = valSet[valKey] + 1
-			} else {
-				newPower = valSet[valKey] - 1
-			}
+			newPower := valSet[valKey] + 1
 
 			// Ensure app and comet val set are synchronized
 			valUpdate := abci.UpdateValidator([]byte(valKey), int64(newPower), ed25519.KeyType)
