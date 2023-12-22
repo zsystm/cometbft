@@ -223,11 +223,12 @@ func (store dbStore) loadState(key []byte) (state State, err error) {
 // Save persists the State, the ValidatorsInfo, and the ConsensusParamsInfo to the database.
 // This flushes the writes (e.g. calls SetSync).
 func (store dbStore) Save(state State) error {
-	defer addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "save"), time.Now())()
 	return store.save(state, stateKey)
 }
 
 func (store dbStore) save(state State, key []byte) error {
+	start := time.Now()
+
 	batch := store.db.NewBatch()
 	defer func(batch dbm.Batch) {
 		err := batch.Close()
@@ -254,12 +255,17 @@ func (store dbStore) save(state State, key []byte) error {
 		state.LastHeightConsensusParamsChanged, state.ConsensusParams, batch); err != nil {
 		return err
 	}
-	if err := batch.Set(key, state.Bytes()); err != nil {
+	stateMarshallTime := time.Now()
+	stateBytes := state.Bytes()
+	stateMarshallDiff := time.Since(stateMarshallTime).Seconds()
+
+	if err := batch.Set(key, stateBytes); err != nil {
 		return err
 	}
 	if err := batch.WriteSync(); err != nil {
 		panic(err)
 	}
+	store.metrics.StoreAccessDurationSeconds.With("method", "save").Observe(time.Since(start).Seconds() - stateMarshallDiff)
 	return nil
 }
 
