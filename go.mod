@@ -32,7 +32,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/crypto v0.17.0
 	golang.org/x/net v0.19.0
-	google.golang.org/grpc v1.60.0
+	google.golang.org/grpc v1.60.1
 )
 
 require (
@@ -44,7 +44,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/btcsuite/btcd/btcutil v1.1.3
-	github.com/cometbft/cometbft-db v0.8.1-0.20231130153829-e15cd32378cf
+	github.com/cometbft/cometbft-db v0.9.2-0.20240103153512-76fcb29709af
 	github.com/cometbft/cometbft/api v0.0.0
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/go-git/go-git/v5 v5.11.0
@@ -206,7 +206,7 @@ require (
 	github.com/ldez/gomoddirectives v0.2.3 // indirect
 	github.com/ldez/tagliatelle v0.5.0 // indirect
 	github.com/leonklingele/grouper v1.1.1 // indirect
-	github.com/linxGnu/grocksdb v1.8.6 // indirect
+	github.com/linxGnu/grocksdb v1.8.10 // indirect
 	github.com/lufeee/execinquery v1.2.1 // indirect
 	github.com/macabu/inamedparam v0.1.2 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
