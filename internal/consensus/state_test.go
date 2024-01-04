@@ -350,6 +350,20 @@ func TestStateOversizedBlock(t *testing.T) {
 
 func TestStateOversizedHugeBlock(t *testing.T) {
 	const maxBytes = types.MaxBlockSizeBytes
+	const partSize = types.BlockPartSizeBytes
+
+	blockParts := maxBytes / partSize
+	if maxBytes > blockParts*partSize {
+		blockParts++
+	}
+	t.Log("Target block size:", maxBytes, "number of block parts:", blockParts)
+
+	expectedMessages := int(blockParts) + 5 // Proposal, Prevote, Precommit
+	// msgQueueSize is the size of State's peerMsgQueue, internalMsgQueue,
+	// and statsMsgQueue. If any of these becomes full, the test halts.
+	if msgQueueSize < expectedMessages {
+		msgQueueSize = expectedMessages
+	}
 
 	for _, testCase := range []struct {
 		name      string
@@ -369,8 +383,6 @@ func TestStateOversizedHugeBlock(t *testing.T) {
 			cs1.state.ConsensusParams.Block.MaxBytes = maxBytes
 			height, round := cs1.Height, cs1.Round
 			vs2 := vss[1]
-
-			partSize := types.BlockPartSizeBytes
 
 			propBlock, propBlockParts := findBlockSizeLimit(t, height, maxBytes, cs1, partSize, testCase.oversized)
 
