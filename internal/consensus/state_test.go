@@ -411,6 +411,11 @@ func TestStateOversizedHugeBlock(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			// The default TimeoutPropose is short for receiving 1000+ block parts
+			if !testCase.oversized {
+				cs1.config.TimeoutPropose = time.Second
+			}
+
 			// start the machine
 			startTestRound(cs1, height, round)
 

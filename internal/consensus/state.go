@@ -1341,6 +1341,11 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 	// We did not receive a proposal within this round. (and thus executing this from a timeout)
 	if cs.ProposalBlock == nil {
 		logger.Debug("prevote step: ProposalBlock is nil; prevoting nil")
+		if cs.ProposalBlockParts != nil {
+			logger.Debug("missing block parts",
+				"expected", cs.ProposalBlockParts.Total(),
+				"received", cs.ProposalBlockParts.Count())
+		}
 		cs.signAddVote(types.PrevoteType, nil, types.PartSetHeader{}, nil)
 		return
 	}
