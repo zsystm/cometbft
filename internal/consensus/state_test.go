@@ -3205,11 +3205,11 @@ func signAddPrecommitWithExtension(
 func findBlockSizeLimit(t *testing.T, height, maxBytes int64, cs *State, partSize uint32, oversized bool) (*types.Block, *types.PartSet) {
 	var offset int64
 	if !oversized {
-		offset = -2
+		offset = -1
 	}
 	softMaxDataBytes := int(types.MaxDataBytes(maxBytes, 0, 0))
-	// This loop takes a lifetime for big blocks
 	start := time.Now()
+	var iteractions int
 	for i := softMaxDataBytes; i < softMaxDataBytes*2; i++ {
 		propBlock := cs.state.MakeBlock(
 			height,
@@ -3221,16 +3221,23 @@ func findBlockSizeLimit(t *testing.T, height, maxBytes int64, cs *State, partSiz
 
 		propBlockParts, err := propBlock.MakePartSet(partSize)
 		require.NoError(t, err)
-		if propBlockParts.ByteSize() > maxBytes+offset {
+
+		blockSize := propBlockParts.ByteSize()
+		if blockSize > maxBytes+offset {
 			s := "real max"
 			if oversized {
 				s = "off-by-1"
 			}
 			duration := time.Now().Sub(start)
-			t.Log("Detected "+s+" data size for block;", "size", i, "softMaxDataBytes", softMaxDataBytes,
-				"iteractions", (i - softMaxDataBytes), "duration", duration)
+			t.Log("Detected "+s+" data size for block;", "data size", i, "softMaxDataBytes", softMaxDataBytes,
+				"iteractions", iteractions, "duration", duration)
 			return propBlock, propBlockParts
+		} else if (maxBytes+offset)-blockSize > 5 {
+			// If the difference is still big, accelerate the
+			// process by rapidly increasing the data size.
+			i += int((maxBytes+offset)-blockSize) - 5
 		}
+		iteractions += 1
 	}
 	require.Fail(t, "We shouldn't hit the end of the loop")
 	return nil, nil
