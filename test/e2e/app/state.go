@@ -37,6 +37,7 @@ type State struct {
 	previousFile    string
 	persistInterval uint64
 	initialHeight   uint64
+	savedOnce       bool
 }
 
 // NewState creates a new state.
@@ -82,6 +83,10 @@ func (s *State) load() error {
 // save saves the state to disk. It does not take out a lock since it is called
 // internally by Commit which does lock.
 func (s *State) save() error {
+	if s.savedOnce {
+		return nil
+	}
+	s.savedOnce = true
 	bz, err := json.Marshal(s)
 	if err != nil {
 		return fmt.Errorf("failed to marshal state: %w", err)
