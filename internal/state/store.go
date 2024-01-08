@@ -16,6 +16,7 @@ import (
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/gogoproto/proto"
+	"github.com/google/orderedcode"
 )
 
 const (
@@ -24,6 +25,11 @@ const (
 	// https://github.com/tendermint/tendermint/pull/3438
 	// 100000 results in ~ 100ms to get 100 validators (see BenchmarkLoadValidators).
 	valSetCheckpointInterval = 100000
+
+	// prefixes must be unique across all db's
+	prefixValidators      = int64(6)
+	prefixConsensusParams = int64(7)
+	prefixABCIResponses   = int64(8)
 )
 
 var (
@@ -33,19 +39,27 @@ var (
 
 //------------------------------------------------------------------------
 
-func calcValidatorsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("validatorsKey:%v", height))
+func encodeKey(prefix, height int64) []byte {
+	res, err := orderedcode.Append(nil, prefix, height)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
-func calcConsensusParamsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
+func validatorsKey(height int64) []byte {
+	return encodeKey(prefixValidators, height)
 }
 
-func calcABCIResponsesKey(height int64) []byte {
-	return []byte(fmt.Sprintf("abciResponsesKey:%v", height))
+func consensusParamsKey(height int64) []byte {
+	return encodeKey(prefixConsensusParams, height)
 }
 
-//----------------------
+func abciResponsesKey(height int64) []byte {
+	return encodeKey(prefixABCIResponses, height)
+}
+
+//------------------------------------------------------------------------
 
 var (
 	lastABCIResponseKey              = []byte("lastABCIResponseKey")
@@ -380,13 +394,13 @@ func (store dbStore) PruneStates(from int64, to int64, evidenceThresholdHeight i
 				if err != nil {
 					return err
 				}
-				err = batch.Set(calcValidatorsKey(h), bz)
+				err = batch.Set(validatorsKey(h), bz)
 				if err != nil {
 					return err
 				}
 			}
 		} else if h < evidenceThresholdHeight {
-			err = batch.Delete(calcValidatorsKey(h))
+			err = batch.Delete(validatorsKey(h))
 			if err != nil {
 				return err
 			}
@@ -413,19 +427,19 @@ func (store dbStore) PruneStates(from int64, to int64, evidenceThresholdHeight i
 					return err
 				}
 
-				err = batch.Set(calcConsensusParamsKey(h), bz)
+				err = batch.Set(consensusParamsKey(h), bz)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
-			err = batch.Delete(calcConsensusParamsKey(h))
+			err = batch.Delete(consensusParamsKey(h))
 			if err != nil {
 				return err
 			}
 		}
 
-		err = batch.Delete(calcABCIResponsesKey(h))
+		err = batch.Delete(abciResponsesKey(h))
 		if err != nil {
 			return err
 		}
@@ -474,7 +488,7 @@ func (store dbStore) PruneABCIResponses(targetRetainHeight int64) (int64, int64,
 	batchPruned := int64(0)
 
 	for h := lastRetainHeight; h < targetRetainHeight; h++ {
-		if err := batch.Delete(calcABCIResponsesKey(h)); err != nil {
+		if err := batch.Delete(abciResponsesKey(h)); err != nil {
 			return pruned, lastRetainHeight + pruned, fmt.Errorf("failed to delete ABCI responses at height %d: %w", h, err)
 		}
 		batchPruned++
@@ -514,9 +528,8 @@ func (store dbStore) LoadFinalizeBlockResponse(height int64) (*abci.FinalizeBloc
 	if store.DiscardABCIResponses {
 		return nil, ErrFinalizeBlockResponsesNotPersisted
 	}
-
 	start := time.Now()
-	buf, err := store.db.Get(calcABCIResponsesKey(height))
+	buf, err := store.db.Get(abciResponsesKey(height))
 	if err != nil {
 		return nil, err
 	}
@@ -616,7 +629,7 @@ func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.Finalize
 			return err
 		}
 		start := time.Now()
-		if err := store.db.Set(calcABCIResponsesKey(height), bz); err != nil {
+		if err := store.db.Set(abciResponsesKey(height), bz); err != nil {
 			return err
 		}
 		addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "save_abci_responses"), start)()
@@ -775,7 +788,7 @@ func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
 func loadValidatorsInfo(db dbm.DB, height int64) (*cmtstate.ValidatorsInfo, error) {
-	buf, err := db.Get(calcValidatorsKey(height))
+	buf, err := db.Get(validatorsKey(height))
 	if err != nil {
 		return nil, err
 	}
@@ -823,7 +836,7 @@ func (store dbStore) saveValidatorsInfo(height, lastHeightChanged int64, valSet 
 		return err
 	}
 	start := time.Now()
-	err = batch.Set(calcValidatorsKey(height), bz)
+	err = batch.Set(validatorsKey(height), bz)
 	if err != nil {
 		return err
 	}
@@ -866,7 +879,8 @@ func (store dbStore) LoadConsensusParams(height int64) (types.ConsensusParams, e
 
 func (store dbStore) loadConsensusParamsInfo(height int64) (*cmtstate.ConsensusParamsInfo, error) {
 	start := time.Now()
-	buf, err := store.db.Get(calcConsensusParamsKey(height))
+
+	buf, err := store.db.Get(consensusParamsKey(height))
 	if err != nil {
 		return nil, err
 	}
@@ -903,7 +917,7 @@ func (store dbStore) saveConsensusParamsInfo(nextHeight, changeHeight int64, par
 		return err
 	}
 
-	err = batch.Set(calcConsensusParamsKey(nextHeight), bz)
+	err = batch.Set(consensusParamsKey(nextHeight), bz)
 	if err != nil {
 		return err
 	}
