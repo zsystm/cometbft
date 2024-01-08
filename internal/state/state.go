@@ -15,11 +15,6 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 )
 
-// database keys.
-var (
-	stateKey = []byte("stateKey")
-)
-
 //-----------------------------------------------------------------------------
 
 // InitStateVersion sets the Consensus.Block and Software versions,
