@@ -235,8 +235,8 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 // LoadBlockMetaByHash returns the blockmeta who's header corresponds to the given
 // hash. If none is found, returns nil.
 func (bs *BlockStore) LoadBlockMetaByHash(hash []byte) *types.BlockMeta {
-// WARN Same as for block by hash, this includes the time to get the block metadata and unmarshall it
-defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_meta_by_hash"), time.Now())()
+	// WARN Same as for block by hash, this includes the time to get the block metadata and unmarshall it
+	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_meta_by_hash"), time.Now())()
 
 	bz, err := bs.db.Get(blockHashKey(hash))
 	if err != nil {
@@ -260,7 +260,7 @@ defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "l
 // If no commit is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 	pbc := new(cmtproto.Commit)
-	
+
 	start := time.Now()
 
 	bz, err := bs.db.Get(blockCommitKey(height))
@@ -486,7 +486,6 @@ func (bs *BlockStore) SaveBlockWithExtendedCommit(block *types.Block, blockParts
 	}
 	height := block.Height
 
-	marshallingTime := time.Now()
 	pbec := seenExtendedCommit.ToProto()
 	extCommitBytes := mustEncode(pbec)
 	if err := batch.Set(extCommitKey(height), extCommitBytes); err != nil {
