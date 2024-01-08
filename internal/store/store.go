@@ -164,7 +164,7 @@ func (bs *BlockStore) LoadBlockByHash(hash []byte) (*types.Block, *types.BlockMe
 	// WARN this function includes the time for LoadBlock and will count the time it takes to load the entire block, block parts
 	// AND unmarshall
 	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_by_hash"), time.Now())()
-	
+
 	bz, err := bs.db.Get(blockHashKey(hash))
 	if err != nil {
 		panic(err)
@@ -185,7 +185,6 @@ func (bs *BlockStore) LoadBlockByHash(hash []byte) (*types.Block, *types.BlockMe
 // from the block at the given height.
 // If no part is found for the given height and index, it returns nil.
 func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
-
 
 	pbpart := new(cmtproto.Part)
 	start := time.Now()
@@ -488,7 +487,6 @@ func (bs *BlockStore) SaveBlockWithExtendedCommit(block *types.Block, blockParts
 	}
 	height := block.Height
 
-	marshallingTime := time.Now()
 	pbec := seenExtendedCommit.ToProto()
 	extCommitBytes := mustEncode(pbec)
 	if err := batch.Set(extCommitKey(height), extCommitBytes); err != nil {
