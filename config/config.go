@@ -67,8 +67,8 @@ var (
 	defaultNodeKeyPath  = filepath.Join(DefaultConfigDir, DefaultNodeKeyName)
 	defaultAddrBookPath = filepath.Join(DefaultConfigDir, DefaultAddrBookName)
 
-	minSubscriptionBufferSize     = 100
-	defaultSubscriptionBufferSize = 200
+	minSubscriptionBufferSize     = 1000
+	defaultSubscriptionBufferSize = 2000
 
 	// taken from https://semver.org/
 	semverRegexp = regexp.MustCompile(`^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
@@ -442,7 +442,7 @@ func DefaultRPCConfig() *RPCConfig {
 		TimeoutBroadcastTxCommit:  10 * time.Second,
 		WebSocketWriteBufferSize:  defaultSubscriptionBufferSize,
 
-		MaxBodyBytes:   int64(1000000), // 1MB
+		MaxBodyBytes:   int64(2000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
 
 		TLSCertFile: "",
@@ -916,7 +916,7 @@ func DefaultMempoolConfig() *MempoolConfig {
 		// ABCI Recheck
 		Size:        5000,
 		MaxTxsBytes: 1024 * 1024 * 1024, // 1GB
-		CacheSize:   10000,
+		CacheSize:   200000,
 		MaxTxBytes:  1024 * 1024, // 1MB
 		ExperimentalMaxGossipConnectionsToNonPersistentPeers: 0,
 		ExperimentalMaxGossipConnectionsToPersistentPeers:    0,
@@ -1338,7 +1338,7 @@ type TxIndexConfig struct {
 // DefaultTxIndexConfig returns a default configuration for the transaction indexer.
 func DefaultTxIndexConfig() *TxIndexConfig {
 	return &TxIndexConfig{
-		Indexer: "kv",
+		Indexer: "null",
 	}
 }
 
@@ -1374,7 +1374,7 @@ type InstrumentationConfig struct {
 // reporting.
 func DefaultInstrumentationConfig() *InstrumentationConfig {
 	return &InstrumentationConfig{
-		Prometheus:           false,
+		Prometheus:           true,
 		PrometheusListenAddr: ":26660",
 		MaxOpenConnections:   3,
 		Namespace:            "cometbft",
