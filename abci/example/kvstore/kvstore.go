@@ -337,15 +337,15 @@ func (app *Application) Commit(context.Context, *types.CommitRequest) (*types.Co
 		if len(parts) != 2 {
 			panic(fmt.Sprintf("unexpected tx format. Expected 2 got %d: %s", len(parts), parts))
 		}
-		key, value := string(parts[0]), string(parts[1])
-		err := app.state.db.Set(prefixKey([]byte(key)), []byte(value))
-		if err != nil {
-			panic(err)
-		}
+		// key, value := string(parts[0]), string(parts[1])
+		// err := app.state.db.Set(prefixKey([]byte(key)), []byte(value))
+		// if err != nil {
+		// 	panic(err)
+		// }
 	}
 
 	// persist the state (i.e. size and height)
-	saveState(app.state)
+	// saveState(app.state)
 
 	resp := &types.CommitResponse{}
 	if app.RetainBlocks > 0 && app.state.Height >= app.RetainBlocks {
