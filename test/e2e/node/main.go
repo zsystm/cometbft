@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cometbft/cometbft/abci/server"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto/ed25519"
@@ -26,7 +27,7 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	rpcserver "github.com/cometbft/cometbft/rpc/jsonrpc/server"
-	"github.com/cometbft/cometbft/test/e2e/app"
+	app "github.com/cometbft/cometbft/test/e2e/app/kvstore"
 	e2e "github.com/cometbft/cometbft/test/e2e/pkg"
 	"github.com/spf13/viper"
 )
@@ -92,10 +93,10 @@ func run(configFile string) error {
 
 // startApp starts the application server, listening for connections from CometBFT.
 func startApp(cfg *Config) error {
-	app, err := app.NewApplication(cfg.App())
-	if err != nil {
-		return err
-	}
+	app := app.NewApplication(dbm.NewMemDB())
+	// if err != nil {
+	// 	return err
+	// }
 	server, err := server.NewServer(cfg.Listen, cfg.Protocol, app)
 	if err != nil {
 		return err
@@ -113,10 +114,7 @@ func startApp(cfg *Config) error {
 //
 // FIXME There is no way to simply load the configuration from a file, so we need to pull in Viper.
 func startNode(cfg *Config) error {
-	app, err := app.NewApplication(cfg.App())
-	if err != nil {
-		return err
-	}
+	app := app.NewApplication(dbm.NewMemDB())
 
 	cmtcfg, nodeLogger, nodeKey, err := setupNode()
 	if err != nil {

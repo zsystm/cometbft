@@ -131,7 +131,6 @@ func (app *Application) InitChain(_ context.Context, req *types.InitChainRequest
 func (app *Application) CheckTx(_ context.Context, req *types.CheckTxRequest) (*types.CheckTxResponse, error) {
 	// If it is a validator update transaction, check that it is correctly formatted
 
-	fmt.Println(" CHECK TX KV STORE")
 	if isValidatorTx(req.Tx) {
 		if _, _, _, err := parseValidatorTx(req.Tx); err != nil {
 			//nolint:nilerr
