@@ -447,6 +447,8 @@ func DefaultRPCConfig() *RPCConfig {
 
 		TLSCertFile: "",
 		TLSKeyFile:  "",
+
+		PprofListenAddress: ":6060",
 	}
 }
 
