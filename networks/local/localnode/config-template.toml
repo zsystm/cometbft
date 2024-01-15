@@ -1,2 +1,6 @@
 [rpc]
 laddr = "tcp://0.0.0.0:26657"
+max_body_bytes = 2097152
+max_header_bytes = 2097152
+[instrumentation]
+prometheus = true
