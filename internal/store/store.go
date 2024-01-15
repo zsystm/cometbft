@@ -55,9 +55,10 @@ type BlockStore struct {
 	// The only reason for keeping these fields in the struct is that the data
 	// can't efficiently be queried from the database since the key encoding we use is not
 	// lexicographically ordered (see https://github.com/tendermint/tendermint/issues/4567).
-	mtx    cmtsync.RWMutex
-	base   int64
-	height int64
+	mtx          cmtsync.RWMutex
+	base         int64
+	height       int64
+	blocksPruned int64
 }
 
 type BlockStoreOptions struct {
@@ -418,6 +419,11 @@ func (bs *BlockStore) PruneBlocks(height int64, state sm.State) (uint64, int64, 
 	err := flush(batch, height)
 	if err != nil {
 		return 0, -1, err
+	}
+	bs.blocksPruned += int64(pruned)
+	if bs.blocksPruned >= 1000 {
+		bs.db.Compact(nil, nil)
+		bs.blocksPruned = 0
 	}
 	return pruned, evidencePoint, nil
 }

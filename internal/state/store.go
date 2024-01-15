@@ -112,6 +112,8 @@ type dbStore struct {
 
 	metrics *Metrics
 
+	HeightsPruned int64
+
 	StoreOptions
 }
 
@@ -144,9 +146,10 @@ func NewStore(db dbm.DB, options StoreOptions) Store {
 		m = options.Metrics
 	}
 	return dbStore{
-		db:           db,
-		metrics:      m,
-		StoreOptions: options,
+		db:            db,
+		metrics:       m,
+		StoreOptions:  options,
+		HeightsPruned: 0,
 	}
 }
 
@@ -446,6 +449,12 @@ func (store dbStore) PruneStates(from int64, to int64, evidenceThresholdHeight i
 	err = batch.WriteSync()
 	if err != nil {
 		return err
+	}
+
+	store.HeightsPruned += int64(pruned)
+	if store.HeightsPruned >= int64(1000) {
+		store.HeightsPruned = 0
+		store.db.Compact(nil, nil)
 	}
 
 	return nil
