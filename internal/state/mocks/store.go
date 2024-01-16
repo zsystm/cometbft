@@ -52,6 +52,24 @@ func (_m *Store) Close() error {
 	return r0
 }
 
+// Compact provides a mock function with given fields: height
+func (_m *Store) Compact(height int64) error {
+	ret := _m.Called(height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Compact")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(int64) error); ok {
+		r0 = rf(height)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetABCIResRetainHeight provides a mock function with given fields:
 func (_m *Store) GetABCIResRetainHeight() (int64, error) {
 	ret := _m.Called()
