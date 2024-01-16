@@ -118,6 +118,8 @@ type Store interface {
 	GetOfflineStateSyncHeight() (int64, error)
 	// Close closes the connection with the database
 	Close() error
+
+	Compact(height int64) error
 }
 
 // dbStore wraps a db (github.com/cometbft/cometbft-db).
@@ -164,6 +166,10 @@ func NewStore(db dbm.DB, options StoreOptions) Store {
 		metrics:      m,
 		StoreOptions: options,
 	}
+}
+
+func (store dbStore) Compact(height int64) error {
+	return store.db.Compact(nil, calcValidatorsKey(height))
 }
 
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,

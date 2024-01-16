@@ -40,6 +40,8 @@ type BlockStore interface {
 	DeleteLatestBlock() error
 
 	Close() error
+
+	Compact(height int64) error
 }
 
 //-----------------------------------------------------------------------------

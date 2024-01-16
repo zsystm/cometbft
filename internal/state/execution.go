@@ -166,6 +166,14 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	return state.MakeBlock(height, txl, commit, evidence, proposerAddr), nil
 }
 
+func (blockExec *BlockExecutor) CompactBlockStore(height int64) error {
+	return blockExec.blockStore.Compact(height)
+}
+
+func (blockExec *BlockExecutor) CompactStateStore(height int64) error {
+	return blockExec.store.Compact(height)
+}
+
 func (blockExec *BlockExecutor) ProcessProposal(
 	block *types.Block,
 	state State,
@@ -308,6 +316,16 @@ func (blockExec *BlockExecutor) ApplyBlock(
 		}
 	}
 
+	if state.LastBlockHeight%1000 == 0 {
+		err = blockExec.CompactBlockStore(state.LastBlockHeight)
+		if err != nil {
+			blockExec.logger.Error("COMPACT_ERROR: Failed to compact block store", err)
+		}
+		err = blockExec.CompactStateStore(state.LastBlockHeight)
+		if err != nil {
+			blockExec.logger.Error("COMPACT_ERROR: Failed to compact state store", err)
+		}
+	}
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events won't be fired during replay
 	fireEvents(blockExec.logger, blockExec.eventBus, block, blockID, abciResponse, validatorUpdates)

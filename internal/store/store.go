@@ -66,6 +66,10 @@ type BlockStoreOptions struct {
 	Metrics *Metrics
 }
 
+func (bs *BlockStore) Compact(height int64) error {
+	return bs.db.Compact(nil, []byte(calcBlockCommitKey(height)))
+}
+
 // NewBlockStore returns a new BlockStore with the given DB,
 // initialized to the last height that was committed to the DB.
 func NewBlockStore(db dbm.DB, o BlockStoreOptions) *BlockStore {
