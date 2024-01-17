@@ -44,4 +44,7 @@ type Metrics struct {
 	// Number of connections being actively used for gossiping transactions
 	// (experimental feature).
 	ActiveOutboundConnections metrics.Gauge
+
+	// Age of transactions in the mempool.
+	TxsAge metrics.Histogram `metrics_bucketsizes:"100, 6400, 7" metrics_buckettype:"exprange"`
 }

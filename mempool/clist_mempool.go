@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -421,6 +422,7 @@ func (mem *CListMempool) resCbFirstTime(
 				height:    mem.height.Load(),
 				gasWanted: r.CheckTx.GasWanted,
 				tx:        tx,
+				timestamp: time.Now().UTC(),
 			})
 			mem.logger.Debug(
 				"added valid transaction",
@@ -654,6 +656,7 @@ func (mem *CListMempool) Update(
 	// Update metrics
 	mem.metrics.Size.Set(float64(mem.Size()))
 	mem.metrics.SizeBytes.Set(float64(mem.SizeBytes()))
+	mem.observeTxsAgeMetric()
 
 	return nil
 }
@@ -683,4 +686,13 @@ func (mem *CListMempool) recheckTxs() {
 	// In <v0.37 we would call FlushAsync at the end of recheckTx forcing the buffer to flush
 	// all pending messages to the app. There doesn't seem to be any need here as the buffer
 	// will get flushed regularly or when filled.
+}
+
+func (mem *CListMempool) observeTxsAgeMetric() {
+	now := time.Now()
+	for e := mem.txs.Front(); e != nil; e = e.Next() {
+		memTx := e.Value.(*mempoolTx)
+		age := now.Sub(memTx.timestamp)
+		mem.metrics.TxsAge.Observe(float64(age.Milliseconds()))
+	}
 }

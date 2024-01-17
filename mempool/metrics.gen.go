@@ -64,6 +64,13 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "active_outbound_connections",
 			Help:      "Number of connections being actively used for gossiping transactions (experimental feature).",
 		}, labels).With(labelsAndValues...),
+		TxsAge: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "txs_age",
+			Help:      "Age of transactions in the mempool.",
+			Buckets: stdprometheus.ExponentialBucketsRange(100, 6400, 7),
+		}, labels).With(labelsAndValues...),
 	}
 }
 
@@ -77,5 +84,6 @@ func NopMetrics() *Metrics {
 		RecheckTimes:              discard.NewCounter(),
 		AlreadyReceivedTxs:        discard.NewCounter(),
 		ActiveOutboundConnections: discard.NewGauge(),
+		TxsAge:                    discard.NewHistogram(),
 	}
 }
