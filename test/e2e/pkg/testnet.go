@@ -101,6 +101,8 @@ type Testnet struct {
 	ExperimentalMaxGossipConnectionsToNonPersistentPeers uint
 	ABCITestsEnabled                                     bool
 	DefaultZone                                          string
+	RPCMaxBodyBytes                                      uint64
+	RPCMaxHeaderBytes                                    uint64
 }
 
 // Node represents a CometBFT node in a testnet.
@@ -113,6 +115,8 @@ type Node struct {
 	NodeKey                 crypto.PrivKey
 	InternalIP              net.IP
 	ExternalIP              net.IP
+	RPCMaxBodyBytes         uint64
+	RPCMaxHeaderBytes       uint64
 	RPCProxyPort            uint32
 	GRPCProxyPort           uint32
 	GRPCPrivilegedProxyPort uint32
@@ -187,8 +191,10 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 		PeerGossipIntraloopSleepDuration: manifest.PeerGossipIntraloopSleepDuration,
 		ExperimentalMaxGossipConnectionsToPersistentPeers:    manifest.ExperimentalMaxGossipConnectionsToPersistentPeers,
 		ExperimentalMaxGossipConnectionsToNonPersistentPeers: manifest.ExperimentalMaxGossipConnectionsToNonPersistentPeers,
-		ABCITestsEnabled: manifest.ABCITestsEnabled,
-		DefaultZone:      manifest.DefaultZone,
+		ABCITestsEnabled:  manifest.ABCITestsEnabled,
+		DefaultZone:       manifest.DefaultZone,
+		RPCMaxBodyBytes:   manifest.RPCMaxBodyBytes,
+		RPCMaxHeaderBytes: manifest.RPCMaxHeaderBytes,
 	}
 	if len(manifest.KeyType) != 0 {
 		testnet.KeyType = manifest.KeyType
@@ -285,6 +291,12 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 			node.Zone = ZoneID(nodeManifest.Zone)
 		} else if testnet.DefaultZone != "" {
 			node.Zone = ZoneID(testnet.DefaultZone)
+		}
+		if testnet.RPCMaxBodyBytes > 0 {
+			node.RPCMaxBodyBytes = testnet.RPCMaxBodyBytes
+		}
+		if testnet.RPCMaxHeaderBytes > 0 {
+			node.RPCMaxHeaderBytes = testnet.RPCMaxHeaderBytes
 		}
 
 		testnet.Nodes = append(testnet.Nodes, node)
