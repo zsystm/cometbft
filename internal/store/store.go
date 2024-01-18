@@ -55,10 +55,10 @@ type BlockStore struct {
 	// The only reason for keeping these fields in the struct is that the data
 	// can't efficiently be queried from the database since the key encoding we use is not
 	// lexicographically ordered (see https://github.com/tendermint/tendermint/issues/4567).
-	mtx          cmtsync.RWMutex
-	base         int64
-	height       int64
-	blocksPruned int64
+	mtx           cmtsync.RWMutex
+	base          int64
+	height        int64
+	blocksDeleted int64
 }
 
 type BlockStoreOptions struct {

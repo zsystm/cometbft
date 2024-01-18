@@ -5,11 +5,15 @@ set -euo pipefail
 # A basic invocation of the loadtime tool.
 
 ./build/load \
-    -c 1 -T 9000 -r 1000 -s 8096 \
+    -c 1 -T 3600 -r 1000 -s 8096 \
     --broadcast-tx-method sync \
     --endpoints ws://localhost:26657/v1/websocket
 
-#sleep 10
+sleep 30
+
+kill -9 72896
+
+kill -9 78820
 
 #./build/load \
 #    -c 1 -T 3600 -r 1000 -s 8096 \

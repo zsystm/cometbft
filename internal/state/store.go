@@ -156,7 +156,7 @@ func NewStore(db dbm.DB, options StoreOptions) Store {
 }
 
 func (store dbStore) Compact(height int64) error {
-	return store.db.Compact(validatorsKey(height-2000), validatorsKey(height))
+	return store.db.Compact(nil, nil)
 }
 
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,
