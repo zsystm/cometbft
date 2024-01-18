@@ -39,6 +39,15 @@ func (tx Tx) String() string {
 	return fmt.Sprintf("Tx{%X}", []byte(tx))
 }
 
+func (tx Tx) CompactString() string {
+	if len(tx) < 50 {
+		return tx.String()
+	} else {
+		key := tx.Key()
+		return fmt.Sprintf("key=%X...;len=%d", key[:8], len(tx))
+	}
+}
+
 // Txs is a slice of Tx.
 type Txs []Tx
 
