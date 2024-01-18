@@ -9,9 +9,26 @@ set -euo pipefail
     --broadcast-tx-method sync \
     --endpoints ws://localhost:26657/v1/websocket
 
+#sleep 10
 
-sleep 100 
+#./build/load \
+#    -c 1 -T 3600 -r 1000 -s 8096 \
+#    --broadcast-tx-method sync \
+#    --endpoints ws://localhost:26657/v1/websocket
 
-kill -9 83719
+#sleep 10
 
-kill -9 83796
+#./build/load \
+#    -c 1 -T 3600 -r 1000 -s 8096 \
+#    --broadcast-tx-method sync \
+#    --endpoints ws://localhost:26657/v1/websocket
+#
+#sleep 30 
+
+
+#kill -9 85110
+
+#kill -9 85214 
+
+
+
