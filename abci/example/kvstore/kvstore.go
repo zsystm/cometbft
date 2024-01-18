@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cometbft/cometbft/abci/types"
 	cryptoproto "github.com/cometbft/cometbft/api/cometbft/crypto/v1"
+	v1 "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cryptoencoding "github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/version"
@@ -56,7 +58,7 @@ func NewApplication(db dbm.DB) *Application {
 		logger:             log.NewNopLogger(),
 		state:              loadState(db),
 		valAddrToPubKeyMap: make(map[string]cryptoproto.PublicKey),
-		// RetainBlocks:       100,
+		RetainBlocks:       100,
 	}
 }
 
@@ -264,7 +266,8 @@ func (app *Application) FinalizeBlock(_ context.Context, req *types.FinalizeBloc
 
 	app.state.Height = req.Height
 
-	response := &types.FinalizeBlockResponse{TxResults: respTxs, ValidatorUpdates: app.valUpdates, AppHash: app.state.Hash()}
+	response := &types.FinalizeBlockResponse{TxResults: respTxs, ValidatorUpdates: app.valUpdates, AppHash: app.state.Hash(), ConsensusParamUpdates: &v1.ConsensusParams{Evidence: &v1.EvidenceParams{MaxAgeNumBlocks: 100, MaxAgeDuration: 1 * time.Second}}}
+
 	if !app.genBlockEvents {
 		return response, nil
 	}

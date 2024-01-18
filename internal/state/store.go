@@ -169,7 +169,7 @@ func NewStore(db dbm.DB, options StoreOptions) Store {
 }
 
 func (store dbStore) Compact(height int64) error {
-	return store.db.Compact(nil, calcValidatorsKey(height))
+	return store.db.Compact(validatorsKey(height-2000), validatorsKey(height))
 }
 
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,
@@ -470,11 +470,12 @@ func (store dbStore) PruneStates(from int64, to int64, evidenceThresholdHeight i
 		return err
 	}
 
-	store.heightsPruned += int64(pruned)
-	if store.heightsPruned >= 1000 {
-		store.db.Compact(nil, nil)
-		store.heightsPruned = 0
-	}
+	// if to%1000 == 0 || pruned > 1000 {
+	// 	err := store.db.Compact(nil, nil)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 	return nil
 }
 

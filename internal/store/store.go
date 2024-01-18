@@ -67,7 +67,7 @@ type BlockStoreOptions struct {
 }
 
 func (bs *BlockStore) Compact(height int64) error {
-	return bs.db.Compact(nil, []byte(calcBlockCommitKey(height)))
+	return bs.db.Compact(nil, nil)
 }
 
 // NewBlockStore returns a new BlockStore with the given DB,
@@ -431,13 +431,13 @@ func (bs *BlockStore) PruneBlocks(height int64, state sm.State) (uint64, int64, 
 	if err != nil {
 		return 0, -1, err
 	}
-	bs.blocksDeleted += int64(pruned)
+	// bs.blocksDeleted += int64(pruned)
 
-	if bs.blocksDeleted >= 1000 {
-		bs.db.Compact(nil, nil)
-		bs.blocksDeleted = 0
-	}
-	return pruned, evidencePoint, nil
+	// if bs.blocksDeleted >= 1000 {
+	// 	err = bs.db.Compact(nil, nil)
+	// 	bs.blocksDeleted = 0
+	// }
+	return pruned, evidencePoint, err
 }
 
 // SaveBlock persists the given block, blockParts, and seenCommit to the underlying db.
