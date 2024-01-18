@@ -148,8 +148,10 @@ func loadProcess(ctx context.Context, txCh <-chan types.Tx, chSuccess chan<- str
 			}
 		}
 		if _, err = client.BroadcastTxSync(ctx, tx); err != nil {
+			logger.Error("could not send tx", "tx", tx.CompactString(), "node", n.Name, "err", err)
 			continue
 		}
+		logger.Info("sent tx", "tx", tx.CompactString(), "node", n.Name)
 		chSuccess <- s
 	}
 }
