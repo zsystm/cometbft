@@ -71,6 +71,12 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Help:      "Age of transactions in the mempool.",
 			Buckets: stdprometheus.ExponentialBucketsRange(100, 6400, 7),
 		}, labels).With(labelsAndValues...),
+		OldestTxAge: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "oldest_tx_age",
+			Help:      "Age of the oldest transactions in the mempool.",
+		}, labels).With(labelsAndValues...),
 	}
 }
 
@@ -85,5 +91,6 @@ func NopMetrics() *Metrics {
 		AlreadyReceivedTxs:        discard.NewCounter(),
 		ActiveOutboundConnections: discard.NewGauge(),
 		TxsAge:                    discard.NewHistogram(),
+		OldestTxAge:               discard.NewGauge(),
 	}
 }

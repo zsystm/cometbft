@@ -657,6 +657,9 @@ func (mem *CListMempool) Update(
 	mem.metrics.Size.Set(float64(mem.Size()))
 	mem.metrics.SizeBytes.Set(float64(mem.SizeBytes()))
 	mem.observeTxsAgeMetric()
+	if front := mem.txs.Front(); front != nil {
+		mem.metrics.OldestTxAge.Set(float64(time.Since(front.Value.(*mempoolTx).timestamp)))
+	}
 
 	return nil
 }
