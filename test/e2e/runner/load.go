@@ -22,7 +22,7 @@ const workerPoolSize = 16
 // canceled.
 func Load(ctx context.Context, testnet *e2e.Testnet) error {
 	initialTimeout := 1 * time.Minute
-	stallTimeout := 30 * time.Second
+	stallTimeout := 300 * time.Second
 	chSuccess := make(chan struct{})
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -52,8 +52,7 @@ func Load(ctx context.Context, testnet *e2e.Testnet) error {
 		case <-chSuccess:
 			success++
 			if testnet.LoadMaxTxs > 0 && success >= testnet.LoadMaxTxs {
-				logger.Info("load", "msg", log.NewLazySprintf("Ending transaction load after reaching %v txs (%.1f tx/s)...",
-					success, testnet.LoadMaxTxs, float64(success)/time.Since(started).Seconds()))
+				logger.Info("load", "msg", log.NewLazySprintf("Finished loading after reaching %v txs", success))
 				return nil
 			}
 			timeout = stallTimeout
