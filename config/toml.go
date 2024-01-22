@@ -422,6 +422,10 @@ size = {{ .Mempool.Size }}
 # Limit the total size of all txs in the mempool.
 # This only accounts for raw transactions (e.g. given 1MB transactions and
 # max_txs_bytes=5MB, mempool will only accept 5 transactions).
+# The first quarter of the mempool's capacity is for txs of all sizes, 
+# while the rest is only for txs with maximum size of MaxTypicalTxBytes.
+# If max_typical_tx_bytes is set equal to max_tx_bytes, then transactions 
+# of all sizes are allowed in all the mempool.
 max_txs_bytes = {{ .Mempool.MaxTxsBytes }}
 
 # Size of the cache (used to filter transactions we saw earlier) in transactions
@@ -435,6 +439,13 @@ keep-invalid-txs-in-cache = {{ .Mempool.KeepInvalidTxsInCache }}
 # Maximum size of a single transaction.
 # NOTE: the max size of a tx transmitted over the network is {max_tx_bytes}.
 max_tx_bytes = {{ .Mempool.MaxTxBytes }}
+
+# Maximum size in bytes of a typical transaction. To compute this value:
+# take the sizes of all committed transactions in the chain in a period of
+# time, sort the sizes in ascending order, and take the highest value in
+# the 99th percentile of the accumulated sizes. Transactions of this size
+# or lower are expected to be processed by the node effortlessly.
+max_typical_tx_bytes = {{ .Mempool.MaxTypicalTxBytes }}
 
 # Experimental parameters to limit gossiping txs to up to the specified number of peers.
 # We use two independent upper values for persistent and non-persistent peers.

@@ -881,6 +881,10 @@ type MempoolConfig struct {
 	// Limit the total size of all txs in the mempool.
 	// This only accounts for raw transactions (e.g. given 1MB transactions and
 	// max_txs_bytes=5MB, mempool will only accept 5 transactions).
+	// The first quarter of the mempool's capacity is for txs of all sizes,
+	// while the rest is only for txs with maximum size of MaxTypicalTxBytes.
+	// If max_typical_tx_bytes is set equal to max_tx_bytes, then transactions
+	// of all sizes are allowed in all the mempool.
 	MaxTxsBytes int64 `mapstructure:"max_txs_bytes"`
 	// Size of the cache (used to filter transactions we saw earlier) in transactions
 	CacheSize int `mapstructure:"cache_size"`
@@ -891,6 +895,12 @@ type MempoolConfig struct {
 	// Maximum size of a single transaction
 	// NOTE: the max size of a tx transmitted over the network is {max_tx_bytes}.
 	MaxTxBytes int `mapstructure:"max_tx_bytes"`
+	// Maximum size in bytes of a typical transaction. To compute this value:
+	// take the sizes of all committed transactions in the chain in a period of
+	// time, sort the sizes in ascending order, and take the highest value in
+	// the 99th percentile of the accumulated sizes. Transactions of this size
+	// or lower are expected to be processed by the node effortlessly.
+	MaxTypicalTxBytes int `mapstructure:"max_bytes_typical_tx"`
 	// Experimental parameters to limit gossiping txs to up to the specified number of peers.
 	// We use two independent upper values for persistent and non-persistent peers.
 	// Unconditional peers are not affected by this feature.
@@ -916,10 +926,11 @@ func DefaultMempoolConfig() *MempoolConfig {
 		WalPath:   "",
 		// Each signature verification takes .5ms, Size reduced until we implement
 		// ABCI Recheck
-		Size:        5000,
-		MaxTxsBytes: 1024 * 1024 * 1024, // 1GB
-		CacheSize:   10000,
-		MaxTxBytes:  1024 * 1024, // 1MB
+		Size:              10000,
+		MaxTxsBytes:       200 * 1024 * 1024, // 200Mb = 4096 * MaxTypicalTxBytes = 50 * MaxTxBytes (in 1/4 of MaxTxsBytes) + 3072 * MaxTypicalTxBytes = 50 * BlockParams.MaxBytes
+		CacheSize:         20000,
+		MaxTxBytes:        1024 * 1024, // 1MB
+		MaxTypicalTxBytes: 51200,       // 50kb
 		ExperimentalMaxGossipConnectionsToNonPersistentPeers: 0,
 		ExperimentalMaxGossipConnectionsToPersistentPeers:    0,
 	}
