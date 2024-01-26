@@ -4,11 +4,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"math"
+	"strings"
+
 	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	"math"
-	"strings"
 )
 
 const (
@@ -61,7 +62,7 @@ func NewBytes(p *Payload) ([]byte, error) {
 func FromBytes(b []byte) (*Payload, error) {
 	// trH := bytes.TrimPrefix(b, []byte(keyPrefix))
 	value := strings.Split(string(b), "=")
-	//if bytes.Equal(b, trH) {
+	// if bytes.Equal(b, trH) {
 	//		return nil, fmt.Errorf("payload bytes missing key prefix '%s'", keyPrefix)
 	//	}
 	//	trB, err := hex.DecodeString(string(trH))

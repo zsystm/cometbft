@@ -52,7 +52,6 @@ type Application struct {
 
 // NewApplication creates an instance of the kvstore from the provided database.
 func NewApplication(db dbm.DB) *Application {
-
 	fmt.Println(" STARTING KV STORE")
 	return &Application{
 		logger:             log.NewNopLogger(),
