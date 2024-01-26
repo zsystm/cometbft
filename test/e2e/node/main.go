@@ -12,6 +12,8 @@ import (
 	"time"
 
 	dbm "github.com/cometbft/cometbft-db"
+	"github.com/spf13/viper"
+
 	"github.com/cometbft/cometbft/abci/server"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto/ed25519"
@@ -29,7 +31,6 @@ import (
 	rpcserver "github.com/cometbft/cometbft/rpc/jsonrpc/server"
 	app "github.com/cometbft/cometbft/test/e2e/app/kvstore"
 	e2e "github.com/cometbft/cometbft/test/e2e/pkg"
-	"github.com/spf13/viper"
 )
 
 var logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))

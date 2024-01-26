@@ -8,6 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/cometbft/cometbft/abci/example/kvstore"
 	abci "github.com/cometbft/cometbft/abci/types"
 	abcimocks "github.com/cometbft/cometbft/abci/types/mocks"
@@ -22,9 +26,6 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	p2pmock "github.com/cometbft/cometbft/p2p/mock"
 	"github.com/cometbft/cometbft/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -263,7 +264,7 @@ func TestStateBadProposal(t *testing.T) {
 }
 
 func TestStateOversizedBlock(t *testing.T) {
-	const maxBytes = 2000
+	const maxBytes = int64(types.BlockPartSizeBytes)
 
 	for _, testCase := range []struct {
 		name      string
@@ -309,6 +310,12 @@ func TestStateOversizedBlock(t *testing.T) {
 				totalBytes += len(part.Bytes)
 			}
 
+			maxBlockParts := maxBytes / int64(types.BlockPartSizeBytes)
+			if maxBytes > maxBlockParts*int64(types.BlockPartSizeBytes) {
+				maxBlockParts++
+			}
+			numBlockParts := int64(propBlockParts.Total())
+
 			if err := cs1.SetProposalAndBlock(proposal, propBlock, propBlockParts, "some peer"); err != nil {
 				t.Fatal(err)
 			}
@@ -316,7 +323,8 @@ func TestStateOversizedBlock(t *testing.T) {
 			// start the machine
 			startTestRound(cs1, height, round)
 
-			t.Log("Block Sizes;", "Limit", cs1.state.ConsensusParams.Block.MaxBytes, "Current", totalBytes)
+			t.Log("Block Sizes;", "Limit", maxBytes, "Current", totalBytes)
+			t.Log("Proposal Parts;", "Maximum", maxBlockParts, "Current", numBlockParts)
 
 			validateHash := propBlock.Hash()
 			lockedRound := int32(1)
@@ -331,6 +339,11 @@ func TestStateOversizedBlock(t *testing.T) {
 			}
 			ensurePrevote(voteCh, height, round)
 			validatePrevote(t, cs1, round, vss[0], validateHash)
+
+			// Should not accept a Proposal with too many block parts
+			if numBlockParts > maxBlockParts {
+				require.Nil(t, cs1.Proposal)
+			}
 
 			bps, err := propBlock.MakePartSet(partSize)
 			require.NoError(t, err)

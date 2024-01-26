@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtpubsub "github.com/cometbft/cometbft/internal/pubsub"
 	cmtquery "github.com/cometbft/cometbft/internal/pubsub/query"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestEventBusPublishEventTx(t *testing.T) {
@@ -95,7 +96,7 @@ func TestEventBusPublishEventNewBlock(t *testing.T) {
 	}()
 
 	var ps *PartSet
-	ps, err = block.MakePartSet(MaxBlockSizeBytes)
+	ps, err = block.MakePartSet(BlockPartSizeBytes)
 	require.NoError(t, err)
 
 	err = eventBus.PublishEventNewBlock(EventDataNewBlock{

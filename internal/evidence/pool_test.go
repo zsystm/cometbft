@@ -5,6 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	dbm "github.com/cometbft/cometbft-db"
 	cmtversion "github.com/cometbft/cometbft/api/cometbft/version/v1"
 	"github.com/cometbft/cometbft/internal/evidence"
@@ -16,9 +20,6 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
@@ -414,8 +415,7 @@ func initializeBlockStore(db dbm.DB, state sm.State, valAddr []byte) (*store.Blo
 		block := state.MakeBlock(i, test.MakeNTxs(i, 1), lastCommit.ToCommit(), nil, state.Validators.Proposer.Address)
 		block.Header.Time = defaultEvidenceTime.Add(time.Duration(i) * time.Minute)
 		block.Header.Version = cmtversion.Consensus{Block: version.BlockProtocol, App: 1}
-		const parts = 1
-		partSet, err := block.MakePartSet(parts)
+		partSet, err := block.MakePartSet(types.BlockPartSizeBytes)
 		if err != nil {
 			return nil, err
 		}

@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtstate "github.com/cometbft/cometbft/api/cometbft/state/v1"
@@ -19,8 +22,6 @@ import (
 	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStoreLoadValidators(t *testing.T) {
@@ -299,7 +300,7 @@ func fillStore(t *testing.T, height int64, stateStore sm.Store, bs *store.BlockS
 		require.Equal(t, response1, responses)
 	}
 	b1 := state.MakeBlock(state.LastBlockHeight+1, test.MakeNTxs(state.LastBlockHeight+1, 10), new(types.Commit), nil, nil)
-	partSet, err := b1.MakePartSet(2)
+	partSet, err := b1.MakePartSet(types.BlockPartSizeBytes)
 	require.NoError(t, err)
 	bs.SaveBlock(b1, partSet, &types.Commit{Height: state.LastBlockHeight + 1})
 }
