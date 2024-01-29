@@ -1,10 +1,8 @@
 package state
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/cosmos/gogoproto/proto"
 
@@ -17,10 +15,12 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
-	"github.com/go-kit/kit/metrics"
-	
-)
+	"time"
 
+	"github.com/go-kit/kit/metrics"
+
+	"encoding/binary"
+)
 
 const (
 	// persist validators every valSetCheckpointInterval blocks to avoid
@@ -301,14 +301,14 @@ func (store dbStore) Bootstrap(state State) error {
 // specifically older checkpoints and LastHeightChanged targets.
 func (store dbStore) PruneStates(from int64, to int64) error {
 	defer addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "prune_states"), time.Now())()
-	if from <= 0 || to <= 0 {
+
 	if from <= 0 || to <= 0 {
 		return fmt.Errorf("from height %v and to height %v must be greater than 0", from, to)
 	}
 	if from >= to {
 		return fmt.Errorf("from height %v must be lower than to height %v", from, to)
 	}
-	valInfo, err := loadValidatorsInfo(store.db, to)
+	valInfo, _, err := loadValidatorsInfo(store.db, to)
 	if err != nil {
 		return fmt.Errorf("validators at height %v not found: %w", to, err)
 	}
@@ -338,7 +338,7 @@ func (store dbStore) PruneStates(from int64, to int64) error {
 		// params, otherwise they will panic if they're retrieved directly (instead of
 		// indirectly via a LastHeightChanged pointer).
 		if keepVals[h] {
-			v, err := loadValidatorsInfo(store.db, h)
+			v, _, err := loadValidatorsInfo(store.db, h)
 			if err != nil || v.ValidatorSet == nil {
 				vip, err := store.LoadValidators(h)
 				if err != nil {
@@ -741,7 +741,7 @@ func loadValidatorsInfo(db dbm.DB, height int64) (*cmtstate.ValidatorsInfo, floa
 
 	elapsedTime := time.Since(start).Seconds()
 	if len(buf) == 0 {
-		return nil, errors.New("value retrieved from db is empty")
+		return nil, 0, errors.New("value retrieved from db is empty")
 	}
 
 	v := new(cmtstate.ValidatorsInfo)
@@ -792,7 +792,6 @@ func (store dbStore) saveValidatorsInfo(height, lastHeightChanged int64, valSet 
 
 	defer addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "saveValidatorsInfo"), start)()
 
-
 	return nil
 }
 
@@ -811,7 +810,6 @@ func (store dbStore) LoadConsensusParams(height int64) (types.ConsensusParams, e
 	if err != nil {
 		return empty, fmt.Errorf("could not find consensus params for height #%d: %w", height, err)
 	}
-	
 
 	if paramsInfo.ConsensusParams.Equal(&emptypb) {
 		paramsInfo2, err := store.loadConsensusParamsInfo(paramsInfo.LastHeightChanged)
