@@ -366,6 +366,7 @@ func (h *Handshaker) ReplayBlocksWithContext(
 			}
 			// We update the last results hash with the empty hash, to conform with RFC-6962.
 			state.LastResultsHash = merkle.HashFromByteSlices(nil)
+
 			if err := h.stateStore.Save(state); err != nil {
 				return nil, err
 			}

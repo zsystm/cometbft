@@ -45,14 +45,14 @@ func loadState(db dbm.DB) State {
 }
 
 func saveState(state State) {
-	stateBytes, err := json.Marshal(state)
-	if err != nil {
-		panic(err)
-	}
-	err = state.db.Set(stateKey, stateBytes)
-	if err != nil {
-		panic(err)
-	}
+	// stateBytes, err := json.Marshal(state)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// err = state.db.Set(stateKey, stateBytes)
+	// if err != nil {
+	// 	panic(err)
+	// }
 }
 
 func prefixKey(key []byte) []byte {
@@ -76,7 +76,7 @@ type Application struct {
 
 func NewApplication() *Application {
 	state := loadState(dbm.NewMemDB())
-	return &Application{state: state}
+	return &Application{state: state, RetainBlocks: 100}
 }
 
 func (app *Application) SetGenBlockEvents() {
@@ -107,10 +107,10 @@ func (app *Application) DeliverTx(req types.RequestDeliverTx) types.ResponseDeli
 		key, value = string(req.Tx), string(req.Tx)
 	}
 
-	err := app.state.db.Set(prefixKey([]byte(key)), []byte(value))
-	if err != nil {
-		panic(err)
-	}
+	// err := app.state.db.Set(prefixKey([]byte(key)), []byte(value))
+	// if err != nil {
+	// 	panic(err)
+	// }
 	app.state.Size++
 
 	events := []types.Event{
@@ -158,7 +158,7 @@ func (app *Application) Commit() types.ResponseCommit {
 	app.state.Height++
 
 	// empty out the set of transactions to remove via rechecktx
-	saveState(app.state)
+	// saveState(app.state)
 
 	resp := types.ResponseCommit{Data: appHash}
 	if app.RetainBlocks > 0 && app.state.Height >= app.RetainBlocks {
