@@ -7,6 +7,7 @@ import (
 	dbm "github.com/cometbft/cometbft-db"
 
 	"github.com/cosmos/gogoproto/proto"
+	"github.com/google/orderedcode"
 
 	cmtsync "github.com/cometbft/cometbft/libs/sync"
 	cmtstore "github.com/cometbft/cometbft/proto/tendermint/store"
@@ -161,7 +162,7 @@ func (bs *BlockStore) LoadBlockByHash(hash []byte) *types.Block {
 	// WARN this function includes the time for LoadBlock and will count the time it takes to load the entire block, block parts
 	// AND unmarshall
 	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_by_hash"), time.Now())()
-	bz, err := bs.db.Get(calcBlockHashKey(hash))
+	bz, err := bs.db.Get(blockHashKey(hash))
 	if err != nil {
 		panic(err)
 	}
@@ -183,7 +184,7 @@ func (bs *BlockStore) LoadBlockByHash(hash []byte) *types.Block {
 func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 	pbpart := new(cmtproto.Part)
 	start := time.Now()
-	bz, err := bs.db.Get(calcBlockPartKey(height, index))
+	bz, err := bs.db.Get(blockPartKey(height, index))
 	if err != nil {
 		panic(err)
 	}
@@ -209,7 +210,7 @@ func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 	pbbm := new(cmtproto.BlockMeta)
 	start := time.Now()
-	bz, err := bs.db.Get(calcBlockMetaKey(height))
+	bz, err := bs.db.Get(blockMetaKey(height))
 	if err != nil {
 		panic(err)
 	}
@@ -238,7 +239,7 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 func (bs *BlockStore) LoadBlockMetaByHash(hash []byte) *types.BlockMeta {
 	// WARN Same as for block by hash, this includes the time to get the block metadata and unmarshall it
 	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_meta_by_hash"), time.Now())()
-	bz, err := bs.db.Get(calcBlockHashKey(hash))
+	bz, err := bs.db.Get(blockHashKey(hash))
 	if err != nil {
 		panic(err)
 	}
@@ -261,7 +262,7 @@ func (bs *BlockStore) LoadBlockMetaByHash(hash []byte) *types.BlockMeta {
 func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 	pbc := new(cmtproto.Commit)
 	start := time.Now()
-	bz, err := bs.db.Get(calcBlockCommitKey(height))
+	bz, err := bs.db.Get(blockCommitKey(height))
 	if err != nil {
 		panic(err)
 	}
@@ -286,7 +287,7 @@ func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 func (bs *BlockStore) LoadSeenCommit(height int64) *types.Commit {
 	pbc := new(cmtproto.Commit)
 	start := time.Now()
-	bz, err := bs.db.Get(calcSeenCommitKey(height))
+	bz, err := bs.db.Get(seenCommitKey(height))
 	if err != nil {
 		panic(err)
 	}
@@ -352,20 +353,20 @@ func (bs *BlockStore) PruneBlocks(height int64) (uint64, error) {
 			continue
 		}
 
-		if err := batch.Delete(calcBlockMetaKey(h)); err != nil {
+		if err := batch.Delete(blockMetaKey(h)); err != nil {
 			return 0, err
 		}
-		if err := batch.Delete(calcBlockHashKey(meta.BlockID.Hash)); err != nil {
+		if err := batch.Delete(blockHashKey(meta.BlockID.Hash)); err != nil {
 			return 0, err
 		}
-		if err := batch.Delete(calcBlockCommitKey(h)); err != nil {
+		if err := batch.Delete(blockCommitKey(h)); err != nil {
 			return 0, err
 		}
-		if err := batch.Delete(calcSeenCommitKey(h)); err != nil {
+		if err := batch.Delete(seenCommitKey(height)); err != nil {
 			return 0, err
 		}
 		for p := 0; p < int(meta.BlockID.PartSetHeader.Total); p++ {
-			if err := batch.Delete(calcBlockPartKey(h, p)); err != nil {
+			if err := batch.Delete(blockPartKey(h, p)); err != nil {
 				return 0, err
 			}
 		}
@@ -427,17 +428,17 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 		panic("nil blockmeta")
 	}
 	metaBytes := mustEncode(pbm)
-	if err := bs.db.Set(calcBlockMetaKey(height), metaBytes); err != nil {
+	if err := bs.db.Set(blockMetaKey(height), metaBytes); err != nil {
 		panic(err)
 	}
-	if err := bs.db.Set(calcBlockHashKey(hash), []byte(fmt.Sprintf("%d", height))); err != nil {
+	if err := bs.db.Set(blockHashKey(hash), []byte(fmt.Sprintf("%d", height))); err != nil {
 		panic(err)
 	}
 
 	// Save block commit (duplicate and separate from the Block)
 	pbc := block.LastCommit.ToProto()
 	blockCommitBytes := mustEncode(pbc)
-	if err := bs.db.Set(calcBlockCommitKey(height-1), blockCommitBytes); err != nil {
+	if err := bs.db.Set(blockCommitKey(height-1), blockCommitBytes); err != nil {
 		panic(err)
 	}
 
@@ -445,7 +446,7 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	// NOTE: we can delete this at a later height
 	pbsc := seenCommit.ToProto()
 	seenCommitBytes := mustEncode(pbsc)
-	if err := bs.db.Set(calcSeenCommitKey(height), seenCommitBytes); err != nil {
+	if err := bs.db.Set(seenCommitKey(height), seenCommitBytes); err != nil {
 		panic(err)
 	}
 
@@ -468,7 +469,7 @@ func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
 		panic(fmt.Errorf("unable to make part into proto: %w", err))
 	}
 	partBytes := mustEncode(pbp)
-	if err := bs.db.Set(calcBlockPartKey(height, index), partBytes); err != nil {
+	if err := bs.db.Set(blockPartKey(height, index), partBytes); err != nil {
 		panic(err)
 	}
 }
@@ -492,12 +493,25 @@ func (bs *BlockStore) SaveSeenCommit(height int64, seenCommit *types.Commit) err
 		return fmt.Errorf("unable to marshal commit: %w", err)
 	}
 	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "save_seen_commit"), time.Now())()
-	return bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
+	return bs.db.Set(seenCommitKey(height), seenCommitBytes)
 }
 
 func (bs *BlockStore) Close() error {
 	return bs.db.Close()
 }
+
+// ---------------------------------- KEY ENCODING -----------------------------------------
+
+// key prefixes.
+const (
+	// prefixes are unique across all tm db's.
+	prefixBlockMeta   = int64(0)
+	prefixBlockPart   = int64(1)
+	prefixBlockCommit = int64(2)
+	prefixSeenCommit  = int64(3)
+	prefixExtCommit   = int64(4)
+	prefixBlockHash   = int64(5)
+)
 
 func addTimeSample(h metrics.Histogram, start time.Time) func() {
 	return func() {
@@ -507,24 +521,44 @@ func addTimeSample(h metrics.Histogram, start time.Time) func() {
 
 //-----------------------------------------------------------------------------
 
-func calcBlockMetaKey(height int64) []byte {
-	return []byte(fmt.Sprintf("H:%v", height))
+func blockMetaKey(height int64) []byte {
+	key, err := orderedcode.Append(nil, prefixBlockMeta, height)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
-func calcBlockPartKey(height int64, partIndex int) []byte {
-	return []byte(fmt.Sprintf("P:%v:%v", height, partIndex))
+func blockPartKey(height int64, partIndex int) []byte {
+	key, err := orderedcode.Append(nil, prefixBlockPart, height, int64(partIndex))
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
-func calcBlockCommitKey(height int64) []byte {
-	return []byte(fmt.Sprintf("C:%v", height))
+func blockCommitKey(height int64) []byte {
+	key, err := orderedcode.Append(nil, prefixBlockCommit, height)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
-func calcSeenCommitKey(height int64) []byte {
-	return []byte(fmt.Sprintf("SC:%v", height))
+func seenCommitKey(height int64) []byte {
+	key, err := orderedcode.Append(nil, prefixSeenCommit, height)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
-func calcBlockHashKey(hash []byte) []byte {
-	return []byte(fmt.Sprintf("BH:%x", hash))
+func blockHashKey(hash []byte) []byte {
+	key, err := orderedcode.Append(nil, prefixBlockHash, string(hash))
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
 //-----------------------------------------------------------------------------
@@ -593,23 +627,23 @@ func (bs *BlockStore) DeleteLatestBlock() error {
 	// delete what we can, skipping what's already missing, to ensure partial
 	// blocks get deleted fully.
 	if meta := bs.LoadBlockMeta(targetHeight); meta != nil {
-		if err := batch.Delete(calcBlockHashKey(meta.BlockID.Hash)); err != nil {
+		if err := batch.Delete(blockHashKey(meta.BlockID.Hash)); err != nil {
 			return err
 		}
 		for p := 0; p < int(meta.BlockID.PartSetHeader.Total); p++ {
-			if err := batch.Delete(calcBlockPartKey(targetHeight, p)); err != nil {
+			if err := batch.Delete(blockPartKey(targetHeight, p)); err != nil {
 				return err
 			}
 		}
 	}
-	if err := batch.Delete(calcBlockCommitKey(targetHeight)); err != nil {
+	if err := batch.Delete(blockCommitKey(targetHeight)); err != nil {
 		return err
 	}
-	if err := batch.Delete(calcSeenCommitKey(targetHeight)); err != nil {
+	if err := batch.Delete(seenCommitKey(targetHeight)); err != nil {
 		return err
 	}
 	// delete last, so as to not leave keys built on meta.BlockID dangling
-	if err := batch.Delete(calcBlockMetaKey(targetHeight)); err != nil {
+	if err := batch.Delete(blockMetaKey(targetHeight)); err != nil {
 		return err
 	}
 
