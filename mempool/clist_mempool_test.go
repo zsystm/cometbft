@@ -800,6 +800,59 @@ func TestMempoolNotifyTxsAvailable(t *testing.T) {
 	require.False(t, mp.notifiedTxsAvailable.Load())
 }
 
+func TestMempoolRecheckTxReturnError(t *testing.T) {
+	var callback abciclient.Callback
+	mockClient := new(abciclimocks.Client)
+	mockClient.On("Start").Return(nil)
+	mockClient.On("SetLogger", mock.Anything)
+	mockClient.On("Error").Return(nil).Times(4)
+	mockClient.On("SetResponseCallback", mock.MatchedBy(func(cb abciclient.Callback) bool { callback = cb; return true }))
+
+	mp, cleanup := newMempoolWithAppMock(mockClient)
+	defer cleanup()
+
+	// First we add a few txs to the mempool.
+	txs := []types.Tx{[]byte{0x01}, []byte{0x02}, []byte{0x03}}
+	for _, tx := range txs {
+		// We are mocking the local client, which will call the callback just after the response
+		// from the app.
+		mockClient.On("CheckTxAsync", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			req := args.Get(1).(*abci.CheckTxRequest)
+			reqRes := newReqRes(req.Tx, abci.CodeTypeOK, abci.CHECK_TX_TYPE_CHECK)
+			callback(reqRes.Request, reqRes.Response)
+		}).Return(nil, nil).Once()
+		_, err := mp.CheckTx(tx)
+		require.NoError(t, err)
+	}
+	require.Equal(t, len(txs), mp.Size())
+
+	// The first tx is valid when rechecking and the client will call the callback right after the
+	// response from the app.
+	mockClient.On("CheckTxAsync", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		reqRes := newReqRes(txs[0], abci.CodeTypeOK, abci.CHECK_TX_TYPE_RECHECK)
+		callback(reqRes.Request, reqRes.Response)
+	}).Return(nil, nil).Once()
+
+	// The second tx is invalid when rechecking and the client will call the callback right after the
+	// response from the app.
+	mockClient.On("CheckTxAsync", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		reqRes := newReqRes(txs[1], 1, abci.CHECK_TX_TYPE_RECHECK)
+		callback(reqRes.Request, reqRes.Response)
+	}).Return(nil, nil).Once()
+
+	// On the third tx the app returns an error, so the callback will not be called by the client.
+	mockClient.On("CheckTxAsync", mock.Anything, mock.Anything).Return(nil, ErrCheckTxAsync{}).Once()
+
+	// recheckCursor should be nil before and after calling recheckTxs.
+	require.Nil(t, mp.recheckCursor)
+	require.Nil(t, mp.recheckEnd)
+	mp.recheckTxs()
+	require.Nil(t, mp.recheckCursor)
+	require.NotNil(t, mp.recheckEnd)
+	require.Equal(t, mp.recheckEnd, mp.txs.Back())
+	require.Equal(t, len(txs)-1, mp.Size())
+}
+
 // caller must close server.
 func newRemoteApp(t *testing.T, addr string, app abci.Application) service.Service {
 	t.Helper()
@@ -822,6 +875,12 @@ func abciResponses(n int, code uint32) []*abci.ExecTxResult {
 		responses = append(responses, &abci.ExecTxResult{Code: code})
 	}
 	return responses
+}
+
+func newReqRes(tx types.Tx, code uint32, requestType abci.CheckTxType) *abciclient.ReqRes {
+	reqRes := abciclient.NewReqRes(abci.ToCheckTxRequest(&abci.CheckTxRequest{Tx: tx, Type: requestType}))
+	reqRes.Response = abci.ToCheckTxResponse(&abci.CheckTxResponse{Code: code})
+	return reqRes
 }
 
 func doCommit(t require.TestingT, mp Mempool, app abci.Application, txs types.Txs, height int64) {
