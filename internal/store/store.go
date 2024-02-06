@@ -55,10 +55,13 @@ type BlockStore struct {
 	// The only reason for keeping these fields in the struct is that the data
 	// can't efficiently be queried from the database since the key encoding we use is not
 	// lexicographically ordered (see https://github.com/tendermint/tendermint/issues/4567).
-	mtx           cmtsync.RWMutex
-	base          int64
-	height        int64
-	blocksDeleted int64
+	mtx    cmtsync.RWMutex
+	base   int64
+	height int64
+
+	blocksDeleted      int64
+	compact            bool
+	compactionInterval int64
 }
 
 type BlockStoreOption func(*BlockStore)
@@ -68,17 +71,19 @@ func WithMetrics(metrics *Metrics) BlockStoreOption {
 	return func(bs *BlockStore) { bs.metrics = metrics }
 }
 
-func (bs *BlockStore) Compact(height int64) error {
-	return bs.db.Compact(nil, nil)
+// WithCompaction sets the compaciton parameters.
+func WithCompaction(compact bool, compactionInterval int64) BlockStoreOption {
+	return func(bs *BlockStore) {
+		bs.compact = compact
+		bs.compactionInterval = compactionInterval
+	}
 }
 
 // NewBlockStore returns a new BlockStore with the given DB,
 // initialized to the last height that was committed to the DB.
 func NewBlockStore(db dbm.DB, options ...BlockStoreOption) *BlockStore {
 	start := time.Now()
-
 	bs := LoadBlockStoreState(db)
-
 	bStore := &BlockStore{
 		base:    bs.Base,
 		height:  bs.Height,
@@ -86,11 +91,12 @@ func NewBlockStore(db dbm.DB, options ...BlockStoreOption) *BlockStore {
 		metrics: NopMetrics(),
 	}
 
+	addTimeSample(bStore.metrics.BlockStoreAccessDurationSeconds.With("method", "new_block_store"), start)()
+
 	for _, option := range options {
 		option(bStore)
 	}
 
-	addTimeSample(bStore.metrics.BlockStoreAccessDurationSeconds.With("method", "new_block_store"), start)()
 	return bStore
 }
 
@@ -435,8 +441,10 @@ func (bs *BlockStore) PruneBlocks(height int64, state sm.State) (uint64, int64, 
 	}
 	bs.blocksDeleted += int64(pruned)
 
-	if bs.blocksDeleted >= 1000 {
-		err = bs.db.Compact(nil, nil)
+	if bs.compact && bs.blocksDeleted >= bs.compactionInterval {
+		// Error on compaction should not be reason to halt the chain
+		// TODO add logger to keep track of error
+		_ = bs.db.Compact(nil, nil)
 		bs.blocksDeleted = 0
 	}
 	return pruned, evidencePoint, nil

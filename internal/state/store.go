@@ -129,6 +129,10 @@ type StoreOptions struct {
 	// Metrics defines the metrics collector to use for the state store.
 	// if none is specified then a NopMetrics collector is used.
 	Metrics *Metrics
+
+	Compact bool
+
+	CompactionInterval int64
 }
 
 var _ Store = (*dbStore)(nil)
@@ -459,13 +463,13 @@ func (store dbStore) PruneStates(from int64, to int64, evidenceThresholdHeight i
 		return err
 	}
 
-	// if to%1000 == 0 || pruned > 1000 {
-	// 	err := store.db.Compact(nil, nil)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
 	store.metrics.StoreAccessDurationSeconds.With("method", "pruning_load_validator_info").Observe(elapsedTime)
+	// We do not want to panic or interrupt consensus on compaction failure
+	if store.StoreOptions.Compact && (to%store.StoreOptions.CompactionInterval == 0 || pruned >= uint64(store.StoreOptions.CompactionInterval)) {
+		// TODO add logger to output error.
+		_ = store.db.Compact(nil, nil)
+	}
+
 	return nil
 }
 
