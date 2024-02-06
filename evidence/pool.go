@@ -10,7 +10,6 @@ import (
 
 	"github.com/cosmos/gogoproto/proto"
 	gogotypes "github.com/cosmos/gogoproto/types"
-	"github.com/google/orderedcode"
 
 	dbm "github.com/cometbft/cometbft-db"
 
@@ -22,9 +21,8 @@ import (
 )
 
 const (
-	// prefixes must be unique across all db's.
-	prefixCommitted = int64(9)
-	prefixPending   = int64(10)
+	baseKeyCommitted = byte(0x00)
+	baseKeyPending   = byte(0x01)
 )
 
 // Pool maintains a pool of valid evidence to be broadcasted and committed
@@ -73,7 +71,7 @@ func NewPool(evidenceDB dbm.DB, stateDB sm.Store, blockStore BlockStore) (*Pool,
 	// if pending evidence already in db, in event of prior failure, then check for expiration,
 	// update the size and load it back to the evidenceList
 	pool.pruningHeight, pool.pruningTime = pool.removeExpiredPendingEvidence()
-	evList, _, err := pool.listEvidence(prefixPending, -1)
+	evList, _, err := pool.listEvidence(baseKeyPending, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +88,7 @@ func (evpool *Pool) PendingEvidence(maxBytes int64) ([]types.Evidence, int64) {
 	if evpool.Size() == 0 {
 		return []types.Evidence{}, 0
 	}
-	evidence, size, err := evpool.listEvidence(prefixPending, maxBytes)
+	evidence, size, err := evpool.listEvidence(baseKeyPending, maxBytes)
 	if err != nil {
 		evpool.logger.Error("Unable to retrieve pending evidence", "err", err)
 	}
@@ -359,7 +357,7 @@ func (evpool *Pool) markEvidenceAsCommitted(evidence types.EvidenceList) {
 
 // listEvidence retrieves lists evidence from oldest to newest within maxBytes.
 // If maxBytes is -1, there's no cap on the size of returned evidence.
-func (evpool *Pool) listEvidence(prefixKey, maxBytes int64) ([]types.Evidence, int64, error) {
+func (evpool *Pool) listEvidence(prefixKey byte, maxBytes int64) ([]types.Evidence, int64, error) {
 	var (
 		evSize    int64
 		totalSize int64
@@ -367,7 +365,7 @@ func (evpool *Pool) listEvidence(prefixKey, maxBytes int64) ([]types.Evidence, i
 		evList    cmtproto.EvidenceList // used for calculating the bytes size
 	)
 
-	iter, err := dbm.IteratePrefix(evpool.evidenceStore, prefixToBytes(prefixKey))
+	iter, err := dbm.IteratePrefix(evpool.evidenceStore, []byte{prefixKey})
 	if err != nil {
 		return nil, totalSize, fmt.Errorf("database error: %v", err)
 	}
@@ -403,7 +401,7 @@ func (evpool *Pool) listEvidence(prefixKey, maxBytes int64) ([]types.Evidence, i
 }
 
 func (evpool *Pool) removeExpiredPendingEvidence() (int64, time.Time) {
-	iter, err := dbm.IteratePrefix(evpool.evidenceStore, prefixToBytes(prefixPending))
+	iter, err := dbm.IteratePrefix(evpool.evidenceStore, []byte{baseKeyPending})
 	if err != nil {
 		evpool.logger.Error("Unable to iterate over pending evidence", "err", err)
 		return evpool.State().LastBlockHeight, evpool.State().LastBlockTime
@@ -558,30 +556,18 @@ func evMapKey(ev types.Evidence) string {
 }
 
 // big endian padded hex
-func prefixToBytes(prefix int64) []byte {
-	key, err := orderedcode.Append(nil, prefix)
-	if err != nil {
-		panic(err)
-	}
-	return key
+func bE(h int64) string {
+	return fmt.Sprintf("%0.16X", h)
 }
 
 func keyCommitted(evidence types.Evidence) []byte {
-	key, err := orderedcode.Append(nil, prefixCommitted, evidence.Height(), string(evidence.Hash()))
-	if err != nil {
-		panic(err)
-	}
-	return key
+	return append([]byte{baseKeyCommitted}, keySuffix(evidence)...)
 }
 
 func keyPending(evidence types.Evidence) []byte {
-	key, err := orderedcode.Append(nil, prefixPending, evidence.Height(), string(evidence.Hash()))
-	if err != nil {
-		panic(err)
-	}
-	return key
+	return append([]byte{baseKeyPending}, keySuffix(evidence)...)
 }
 
-// func keySuffix(evidence types.Evidence) []byte {
-// 	return []byte(fmt.Sprintf("%s/%X", bE(evidence.Height()), evidence.Hash()))
-// }
+func keySuffix(evidence types.Evidence) []byte {
+	return []byte(fmt.Sprintf("%s/%X", bE(evidence.Height()), evidence.Hash()))
+}
