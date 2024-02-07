@@ -230,10 +230,11 @@ func MigrateEvidenceDB(db dbm.DB) error {
 			logger.Debug("not an evidence key", "key", it.Key(), "err", err)
 			continue
 		}
-		key, err := orderedcode.Append(nil, height, subkeyCommitted, hash)
+		key, err := orderedcode.Append(nil, prefixCommitted, height, hash)
 		if err != nil {
 			panic(err)
 		}
+
 		if err = db.Set(key, it.Value()); err != nil {
 			return fmt.Errorf("db.Set: %w", err)
 		}
@@ -282,10 +283,7 @@ func MigrateEvidenceDB(db dbm.DB) error {
 }
 
 func MigrateLightClientDB(db dbm.DB) error {
-	var (
-		chainIDtoSizeMap = make(map[string]uint16)
-		err              error
-	)
+	var err error
 
 	logger.Info("migrating light blocks")
 	it, err := dbm.IteratePrefix(db, []byte("lb/"))
@@ -293,14 +291,16 @@ func MigrateLightClientDB(db dbm.DB) error {
 		panic(err)
 	}
 	defer it.Close()
-
+	var sizeK []byte
 	for ; it.Valid(); it.Next() {
 		chainID, height, ok := parseLbKey(it.Key())
+		logger.Info("ChainID ", chainID)
+		sizeK = sizeKey([]byte(chainID))
 		if !ok {
 			logger.Info("skipping invalid key", "key", it.Key())
 			continue
 		}
-		key, err := orderedcode.Append(nil, chainID, subkeyLightBlock, height)
+		key, err := orderedcode.Append(nil, chainID, prefixLightBlock, height)
 		if err != nil {
 			panic(err)
 		}
@@ -308,16 +308,24 @@ func MigrateLightClientDB(db dbm.DB) error {
 			return fmt.Errorf("db.Set: %w", err)
 		}
 
-		// one per chainID
-		if _, ok := chainIDtoSizeMap[chainID]; !ok {
-			chainIDtoSizeMap[chainID] = 1
-		} else {
-			chainIDtoSizeMap[chainID]++
-		}
+		// // one per chainID
+		// if _, ok := chainIDtoSizeMap[chainID]; !ok {
+		// 	chainIDtoSizeMap[chainID] = 1
+		// } else {
+		// 	chainIDtoSizeMap[chainID]++
+		// }
 	}
 
 	if err := deletePrefix(db, []byte("lb/")); err != nil {
 		return fmt.Errorf("delete old light blocks: %w", err)
+	}
+
+	logger.Info("Getting old size")
+	var size []byte
+	if size, err = db.Get([]byte("size")); err != nil {
+		return fmt.Errorf("error retrieveing old size key: %w ", err)
+	} else {
+		fmt.Println(string(size))
 	}
 
 	logger.Info("deleting old size key")
@@ -325,21 +333,19 @@ func MigrateLightClientDB(db dbm.DB) error {
 		return fmt.Errorf("delete old size: %w", err)
 	}
 
-	for chainID, size := range chainIDtoSizeMap {
-		logger.Info("setting size for", "chainID", chainID, "size", size)
-
-		if err = db.Set(sizeKey([]byte(chainID)), marshalSize(size)); err != nil {
-			return fmt.Errorf("db.Set: %w", err)
-		}
+	if err = db.Set(sizeK, size); err != nil {
+		return fmt.Errorf("db.Set: %w", err)
 	}
 
-	return nil
-}
+	// for chainID, size := range chainIDtoSizeMap {
+	// 	logger.Info("setting size for", "chainID", chainID, "size", size)
 
-func marshalSize(size uint16) []byte {
-	bs := make([]byte, 2)
-	binary.LittleEndian.PutUint16(bs, size)
-	return bs
+	// 	if err = db.Set(sizeKey([]byte(chainID)), marshalSize(size)); err != nil {
+	// 		return fmt.Errorf("db.Set: %w", err)
+	// 	}
+	// }
+
+	return nil
 }
 
 var keyPattern = regexp.MustCompile(`^(lb)/([^/]*)/([0-9]+)$`)
@@ -372,31 +378,25 @@ func parseLbKey(key []byte) (chainID string, height int64, ok bool) {
 //---------------------------------- KEY ENCODING -----------------------------------------
 
 const (
-	// subkeys must be unique within a single DB.
-	subkeyBlockMeta   = int64(0)
-	subkeyBlockPart   = int64(1)
-	subkeyBlockCommit = int64(2)
-	subkeySeenCommit  = int64(3)
-	subkeyExtCommit   = int64(4)
-
-	// prefixes must be unique within a single DB.
-	prefixBlockHash = int64(-1)
+	// prefixes are unique across all tm db's.
+	prefixBlockMeta   = int64(0)
+	prefixBlockPart   = int64(1)
+	prefixBlockCommit = int64(2)
+	prefixSeenCommit  = int64(3)
+	prefixExtCommit   = int64(4)
+	prefixBlockHash   = int64(5)
 )
 
-func encodeKey(height, prefix int64) []byte {
-	res, err := orderedcode.Append(nil, height, prefix)
+func blockMetaKey(height int64) []byte {
+	key, err := orderedcode.Append(nil, prefixBlockMeta, height)
 	if err != nil {
 		panic(err)
 	}
-	return res
-}
-
-func blockMetaKey(height int64) []byte {
-	return encodeKey(height, subkeyBlockMeta)
+	return key
 }
 
 func blockPartKey(height int64, partIndex int64) []byte {
-	key, err := orderedcode.Append(nil, height, subkeyBlockPart, partIndex)
+	key, err := orderedcode.Append(nil, prefixBlockPart, height, partIndex)
 	if err != nil {
 		panic(err)
 	}
@@ -404,19 +404,31 @@ func blockPartKey(height int64, partIndex int64) []byte {
 }
 
 func blockCommitKey(height int64) []byte {
-	return encodeKey(height, subkeyBlockCommit)
+	key, err := orderedcode.Append(nil, prefixBlockCommit, height)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
 func seenCommitKey(height int64) []byte {
-	return encodeKey(height, subkeySeenCommit)
+	key, err := orderedcode.Append(nil, prefixSeenCommit, height)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
 func extCommitKey(height int64) []byte {
-	return encodeKey(height, subkeyExtCommit)
+	key, err := orderedcode.Append(nil, prefixExtCommit, height)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
 func blockHashKey(hash []byte) []byte {
-	key, err := orderedcode.Append(nil, prefixBlockHash, string(hash))
+	key, err := orderedcode.Append(nil, prefixBlockHash, hash)
 	if err != nil {
 		panic(err)
 	}
@@ -424,39 +436,36 @@ func blockHashKey(hash []byte) []byte {
 }
 
 const (
-	// subkeys must be unique within a single DB.
-	subkeyValidators      = int64(5)
-	subkeyConsensusParams = int64(6)
-	subkeyABCIResponses   = int64(7)
+	// prefixes must be unique across all db's.
+	prefixValidators      = int64(6)
+	prefixConsensusParams = int64(7)
+	prefixABCIResponses   = int64(8)
 )
 
+func encodeKey(prefix, height int64) []byte {
+	res, err := orderedcode.Append(nil, prefix, height)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 func validatorsKey(height int64) []byte {
-	// Since CometBFT requests block H and validators H+1 on every height, we
-	// subtract 1 here so that the block's header and next validators are
-	// co-located.
-	//
-	// ```
-	// 1/{subkeyBlockMeta}
-	// 1/{subkeyValidators}
-	// ```
-	// where 1 is the height of the block.
-	return encodeKey(height-1, subkeyValidators)
+	return encodeKey(prefixValidators, height)
 }
 
 func consensusParamsKey(height int64) []byte {
-	return encodeKey(height, subkeyConsensusParams)
+	return encodeKey(prefixConsensusParams, height)
 }
 
 func abciResponsesKey(height int64) []byte {
-	return encodeKey(height, subkeyABCIResponses)
+	return encodeKey(prefixABCIResponses, height)
 }
 
 const (
-	// subkeys must be unique within a single DB.
-	subkeyCommitted = int64(8)
-
-	// prefixes must be unique within a single DB.
-	prefixPending = int64(-2)
+	// prefixes must be unique across all db's.
+	prefixCommitted = int64(9)
+	prefixPending   = int64(10)
 )
 
 func parseEvidenceKey(key []byte) (int64, string, error) {
@@ -479,13 +488,13 @@ func parseEvidenceKey(key []byte) (int64, string, error) {
 }
 
 const (
-	// subkeys must be unique within a single DB.
-	subkeyLightBlock = int64(9)
-	subkeySize       = int64(10)
+	// prefixes must be unique across all db's.
+	prefixLightBlock = int64(11)
+	prefixSize       = int64(12)
 )
 
 func sizeKey(prefix []byte) []byte {
-	key, err := orderedcode.Append(nil, prefix, subkeySize)
+	key, err := orderedcode.Append(nil, prefix, prefixSize)
 	if err != nil {
 		panic(err)
 	}

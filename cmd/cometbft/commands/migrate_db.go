@@ -105,14 +105,14 @@ func migrateDBs(targetVersion uint, config *cfg.Config) error {
 		return fmt.Errorf("evidence: %w", err)
 	}
 
-	lightClientDB, err := cfg.DefaultDBProvider(&cfg.DBContext{ID: "light-client-db", Config: config})
-	if err != nil {
-		return err
-	}
-	defer lightClientDB.Close()
-	if err := migrateLightClientDB(lightClientDB, targetVersion); err != nil {
-		return fmt.Errorf("light client db: %w", err)
-	}
+	// lightClientDB, err := cfg.DefaultDBProvider(&cfg.DBContext{ID: "light-client-db", Config: config})
+	// if err != nil {
+	// 	return err
+	// }
+	// defer lightClientDB.Close()
+	// if err := migrateLightClientDB(lightClientDB, targetVersion); err != nil {
+	// 	return fmt.Errorf("light client db: %w", err)
+	// }
 
 	return nil
 }
