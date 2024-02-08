@@ -90,6 +90,7 @@ func MigrateBlockStore(db dbm.DB) error {
 			logger.Info("skipping invalid key", "key", it.Key(), "err", err)
 			continue
 		}
+
 		if err = db.Set(blockHashKey(hash), it.Value()); err != nil {
 			return fmt.Errorf("db.Set: %w", err)
 		}
@@ -218,18 +219,19 @@ func MigrateStateDB(db dbm.DB) error {
 
 func MigrateEvidenceDB(db dbm.DB) error {
 	logger.Info("migrating committed evidence")
-	it, err := dbm.IteratePrefix(db, []byte{byte(0x00)})
+	it, err := dbm.IteratePrefix(db, []byte{baseKeyCommitted})
 	if err != nil {
 		panic(err)
 	}
 	defer it.Close()
 
 	for ; it.Valid(); it.Next() {
-		height, hash, err := parseEvidenceKey(it.Key())
+		height, hash, err := parseEvidenceKey(bytes.TrimPrefix(it.Key(), []byte{baseKeyCommitted}))
 		if err != nil {
 			logger.Debug("not an evidence key", "key", it.Key(), "err", err)
 			continue
 		}
+		// logger.Info("Evidence committed ", "height ", height, "hash", string(hash))
 		key, err := orderedcode.Append(nil, prefixCommitted, height, hash)
 		if err != nil {
 			panic(err)
@@ -250,18 +252,19 @@ func MigrateEvidenceDB(db dbm.DB) error {
 	}
 
 	logger.Info("migrating pending evidence")
-	it, err = dbm.IteratePrefix(db, []byte{byte(0x01)})
+	it, err = dbm.IteratePrefix(db, []byte{baseKeyPending})
 	if err != nil {
 		panic(err)
 	}
 	defer it.Close()
 
 	for ; it.Valid(); it.Next() {
-		height, hash, err := parseEvidenceKey(it.Key())
+		height, hash, err := parseEvidenceKey(bytes.TrimPrefix(it.Key(), []byte{baseKeyPending}))
 		if err != nil {
 			logger.Debug("not an evidence key", "key", it.Key(), "err", err)
 			continue
 		}
+		// logger.Info("Evidence pending ", "height ", height, "hash", string(hash))
 		key, err := orderedcode.Append(nil, prefixPending, height, hash)
 		if err != nil {
 			panic(err)
@@ -428,7 +431,7 @@ func extCommitKey(height int64) []byte {
 }
 
 func blockHashKey(hash []byte) []byte {
-	key, err := orderedcode.Append(nil, prefixBlockHash, hash)
+	key, err := orderedcode.Append(nil, prefixBlockHash, string(hash))
 	if err != nil {
 		panic(err)
 	}
@@ -500,3 +503,22 @@ func sizeKey(prefix []byte) []byte {
 	}
 	return key
 }
+
+// ----- Evidence old format -----
+
+const (
+	baseKeyCommitted = byte(0x00)
+	baseKeyPending   = byte(0x01)
+)
+
+// func keyCommitted(evidence types.Evidence) []byte {
+// 	return append([]byte{baseKeyCommitted}, keySuffix(evidence)...)
+// }
+
+// func keyPending(evidence types.Evidence) []byte {
+// 	return append([]byte{baseKeyPending}, keySuffix(evidence)...)
+// }
+
+// func keySuffix(evidence types.Evidence) []byte {
+// 	return []byte(fmt.Sprintf("%s/%X", bE(evidence.Height()), evidence.Hash()))
+// }

@@ -45,6 +45,7 @@ to compact the database IF you're using goleveldb.
 		if err != nil {
 			return fmt.Errorf("failed to parse config: %w", err)
 		}
+		fmt.Println("Config db folder ", config.DBDir())
 
 		fmt.Print("Did you backup your data? Y/N: ")
 
