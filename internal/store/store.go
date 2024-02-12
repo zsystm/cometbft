@@ -602,6 +602,8 @@ func (bs *BlockStore) saveBlockToBatch(
 	seenCommitBytes := mustEncode(pbsc)
 
 	blockMetaMarshallDiff += time.Since(marshallTime).Seconds()
+
+	//nolint:revive // this is a false positive from if-return
 	if err := batch.Set(calcSeenCommitKey(height), seenCommitBytes); err != nil {
 		return err
 	}
