@@ -433,12 +433,12 @@ func (bs *BlockStore) PruneBlocks(height int64, state sm.State) (uint64, int64, 
 	if err != nil {
 		return 0, -1, err
 	}
-	// bs.blocksDeleted += int64(pruned)
+	bs.blocksDeleted += int64(pruned)
 
-	// if bs.blocksDeleted >= 1000 {
-	// 	err = bs.db.Compact(nil, nil)
-	// 	bs.blocksDeleted = 0
-	// }
+	if bs.blocksDeleted >= 1000 {
+		err = bs.db.Compact(nil, nil)
+		bs.blocksDeleted = 0
+	}
 	return pruned, evidencePoint, nil
 }
 
