@@ -104,8 +104,6 @@ type Store interface {
 	GetOfflineStateSyncHeight() (int64, error)
 	// Close closes the connection with the database
 	Close() error
-
-	Compact(height int64) error
 }
 
 // dbStore wraps a db (github.com/cometbft/cometbft-db).

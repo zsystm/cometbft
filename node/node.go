@@ -165,7 +165,7 @@ func BootstrapState(ctx context.Context, config *cfg.Config, dbProvider cfg.DBPr
 	}
 	blockStoreDB, stateDB, err := initDBs(config, dbProvider)
 
-	blockStore := store.NewBlockStore(blockStoreDB, store.WithMetrics(store.NopMetrics()), store.WithCompaction(config.Storage.CompactOnPruning, config.Storage.CompactionInterval)))
+	blockStore := store.NewBlockStore(blockStoreDB, store.WithMetrics(store.NopMetrics()), store.WithCompaction(config.Storage.CompactOnPruning, config.Storage.CompactionInterval))
 
 	defer func() {
 		if derr := blockStore.Close(); derr != nil {
@@ -293,7 +293,7 @@ func NewNode(ctx context.Context,
 		CompactionInterval:   config.Storage.CompactionInterval,
 	})
 
-	blockStore := store.NewBlockStore(blockStoreDB, store.WithMetrics(bstMetrics), store.WithCompaction(config.Storage.CompactOnPruning, config.Storage.CompactionInterval)))
+	blockStore := store.NewBlockStore(blockStoreDB, store.WithMetrics(bstMetrics), store.WithCompaction(config.Storage.CompactOnPruning, config.Storage.CompactionInterval))
 
 	// The key will be deleted if it existed.
 	// Not checking whether the key is there in case the genesis file was larger than
