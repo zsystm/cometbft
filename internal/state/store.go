@@ -145,13 +145,13 @@ func IsEmpty(store dbStore) (bool, error) {
 
 // NewStore creates the dbStore of the state pkg.
 func NewStore(db dbm.DB, options StoreOptions) Store {
-	m := NopMetrics()
-	if options.Metrics != nil {
-		m = options.Metrics
+
+	if options.Metrics == nil {
+		options.Metrics = NopMetrics()
 	}
 	return dbStore{
 		db:            db,
-		metrics:       m,
+		metrics:       options.Metrics,
 		StoreOptions:  options,
 		HeightsPruned: 0,
 	}
