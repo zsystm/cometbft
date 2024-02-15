@@ -72,7 +72,7 @@ func loadRun(ctx context.Context, testnet *e2e.Testnet, runName string, runID []
 		"max_duration", run.MaxDuration, "max_txs", run.MaxTxs)
 
 	initialTimeout := 1 * time.Minute
-	stallTimeout := 300 * time.Second
+	stallTimeout := 30 * time.Second
 	chSuccess := make(chan struct{})
 	chFailed := make(chan struct{})
 
