@@ -128,7 +128,7 @@ func loadRun(ctx context.Context, runName string, runID []byte, run *e2e.LoadRun
 		total := success + failed
 		if total%run.BatchSize == 0 {
 			succcessRate := log.NewLazySprintf("%.2f", float64(success)/float64(total))
-			logger.Debug("load", "success", success, "failed", failed, "success/total", succcessRate, "tx/s", rate)
+			logger.Debug("load", "success", success, "failed", failed, "success/total", succcessRate, "tx/s", rate, "tx-bytes", run.TxBytes)
 		}
 
 		// Check if reached max number of allowed transactions to send.
