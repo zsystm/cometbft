@@ -3,6 +3,7 @@ package e2e
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -10,6 +11,11 @@ import (
 
 // Manifest represents a TOML testnet manifest.
 type Manifest struct {
+	// Import is a list of paths to other manifest files to be imported into the main manifest. The
+	// main file is loaded first into the manifest and successive imported files overwrite the
+	// values in the manifest. Imported paths are relative to the main file.
+	Import []string `toml:"import"`
+
 	// IPv6 uses IPv6 networking instead of IPv4. Defaults to IPv4.
 	IPv6 bool `toml:"ipv6"`
 
@@ -281,5 +287,14 @@ func LoadManifest(file string) (Manifest, error) {
 	if err != nil {
 		return manifest, fmt.Errorf("failed to load testnet manifest %q: %w", file, err)
 	}
+
+	dirName := filepath.Dir(file)
+	for _, importFile := range manifest.Import {
+		_, err := toml.DecodeFile(filepath.Join(dirName, importFile), &manifest)
+		if err != nil {
+			return manifest, fmt.Errorf("failed to load imported manifest %q: %w", file, err)
+		}
+	}
+
 	return manifest, nil
 }
