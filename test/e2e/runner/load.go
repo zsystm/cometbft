@@ -77,7 +77,7 @@ func loadRun(ctx context.Context, runName string, runID []byte, run *e2e.LoadRun
 	initialTimeout := 1 * time.Minute
 	stallTimeout := 30 * time.Second
 	chSuccess := make(chan struct{})
-	chFailed := make(chan struct{})
+	chFailed := make(chan error)
 
 	// Spawn the transaction generation routine.
 	txCh := make(chan types.Tx)
@@ -103,6 +103,7 @@ func loadRun(ctx context.Context, runName string, runID []byte, run *e2e.LoadRun
 	// Monitor successful and failed transactions, and abort on stalls.
 	success, failed := 0, 0
 	timeout := initialTimeout
+	counterLastErrors := make(map[error]int)
 	for {
 		rate := log.NewLazySprintf("%.1f", float64(success)/time.Since(started).Seconds())
 
@@ -110,8 +111,9 @@ func loadRun(ctx context.Context, runName string, runID []byte, run *e2e.LoadRun
 		case <-chSuccess:
 			success++
 			timeout = stallTimeout
-		case <-chFailed:
+		case err := <-chFailed:
 			failed++
+			counterLastErrors[err]++
 		case <-time.After(timeout):
 			return fmt.Errorf("unable to submit transactions for %v", timeout)
 		case <-maxDurationCh:
@@ -128,8 +130,13 @@ func loadRun(ctx context.Context, runName string, runID []byte, run *e2e.LoadRun
 		// Log every ~1 second the number of sent transactions.
 		total := success + failed
 		if total%run.BatchSize == 0 {
-			succcessRate := log.NewLazySprintf("%.2f", float64(success)/float64(total))
-			logger.Debug("load", "success", success, "failed", failed, "success/total", succcessRate, "tx/s", rate, "tx-bytes", run.TxBytes)
+			logger.Debug("load", "success", success, "failed", failed, "success/total", log.NewLazySprintf("%.1f", success/total), "tx/s", rate)
+			if len(counterLastErrors) > 0 {
+				for err, counter := range counterLastErrors {
+					logger.Error("load", "failed", counter, "err", err)
+				}
+			}
+			counterLastErrors = make(map[error]int)
 		}
 
 		// Check if reached max number of allowed transactions to send.
@@ -206,7 +213,7 @@ LOOP:
 
 // loadProcess processes transactions by sending transactions received on the txCh
 // to the client.
-func loadProcess(ctx context.Context, txCh <-chan types.Tx, chSuccess chan<- struct{}, chFailed chan<- struct{}, n *e2e.Node) {
+func loadProcess(ctx context.Context, txCh <-chan types.Tx, chSuccess chan<- struct{}, chFailed chan<- error, n *e2e.Node) {
 	var client *rpchttp.HTTP
 	var err error
 	s := struct{}{}
@@ -220,7 +227,7 @@ func loadProcess(ctx context.Context, txCh <-chan types.Tx, chSuccess chan<- str
 		}
 		if _, err = client.BroadcastTxSync(ctx, tx); err != nil {
 			logger.Error("failed to send transaction", "err", err)
-			chFailed <- s
+			chFailed <- err
 			continue
 		}
 		chSuccess <- s
