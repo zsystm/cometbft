@@ -95,6 +95,7 @@ func loadRun(ctx context.Context, runName string, runID []byte, run *e2e.LoadRun
 		}
 	}
 
+	// Set the timeout channel.
 	var maxDurationCh <-chan time.Time
 	if run.MaxDuration > 0 {
 		maxDurationCh = time.After(time.Duration(run.MaxDuration) * time.Second)
@@ -130,7 +131,8 @@ func loadRun(ctx context.Context, runName string, runID []byte, run *e2e.LoadRun
 		// Log every ~1 second the number of sent transactions.
 		total := success + failed
 		if total%run.BatchSize == 0 {
-			logger.Debug("load", "success", success, "failed", failed, "success/total", log.NewLazySprintf("%.1f", success/total), "tx/s", rate)
+			succcessRate := log.NewLazySprintf("%.2f", float64(success)/float64(total))
+			logger.Debug("load", "success", success, "failed", failed, "success/total", succcessRate, "tx/s", rate)
 			if len(counterLastErrors) > 0 {
 				for err, counter := range counterLastErrors {
 					logger.Error("load", "failed", counter, "err", err)
