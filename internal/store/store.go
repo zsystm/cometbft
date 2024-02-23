@@ -66,11 +66,6 @@ type BlockStore struct {
 
 type BlockStoreOption func(*BlockStore)
 
-// WithMetrics sets the metrics.
-func WithMetrics(metrics *Metrics) BlockStoreOption {
-	return func(bs *BlockStore) { bs.metrics = metrics }
-}
-
 // WithCompaction sets the compaciton parameters.
 func WithCompaction(compact bool, compactionInterval int64) BlockStoreOption {
 	return func(bs *BlockStore) {
@@ -79,11 +74,18 @@ func WithCompaction(compact bool, compactionInterval int64) BlockStoreOption {
 	}
 }
 
+// WithMetrics sets the metrics.
+func WithMetrics(metrics *Metrics) BlockStoreOption {
+	return func(bs *BlockStore) { bs.metrics = metrics }
+}
+
 // NewBlockStore returns a new BlockStore with the given DB,
 // initialized to the last height that was committed to the DB.
 func NewBlockStore(db dbm.DB, options ...BlockStoreOption) *BlockStore {
 	start := time.Now()
+
 	bs := LoadBlockStoreState(db)
+
 	bStore := &BlockStore{
 		base:    bs.Base,
 		height:  bs.Height,
@@ -91,12 +93,11 @@ func NewBlockStore(db dbm.DB, options ...BlockStoreOption) *BlockStore {
 		metrics: NopMetrics(),
 	}
 
-	addTimeSample(bStore.metrics.BlockStoreAccessDurationSeconds.With("method", "new_block_store"), start)()
-
 	for _, option := range options {
 		option(bStore)
 	}
 
+	addTimeSample(bStore.metrics.BlockStoreAccessDurationSeconds.With("method", "new_block_store"), start)()
 	return bStore
 }
 
@@ -148,7 +149,6 @@ func (bs *BlockStore) LoadBlock(height int64) (*types.Block, *types.BlockMeta) {
 	if blockMeta == nil {
 		return nil, nil
 	}
-	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block"), start)()
 	pbb := new(cmtproto.Block)
 	buf := []byte{}
 	for i := 0; i < int(blockMeta.BlockID.PartSetHeader.Total); i++ {
@@ -160,6 +160,8 @@ func (bs *BlockStore) LoadBlock(height int64) (*types.Block, *types.BlockMeta) {
 		}
 		buf = append(buf, part.Bytes...)
 	}
+	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block"), start)()
+
 	err := proto.Unmarshal(buf, pbb)
 	if err != nil {
 		// NOTE: The existence of meta should imply the existence of the
@@ -207,11 +209,12 @@ func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 	if err != nil {
 		panic(err)
 	}
+
+	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_part"), start)()
+
 	if len(bz) == 0 {
 		return nil
 	}
-	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_part"), start)()
-
 	err = proto.Unmarshal(bz, pbpart)
 	if err != nil {
 		panic(fmt.Errorf("unmarshal to cmtproto.Part failed: %w", err))
@@ -233,6 +236,9 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 	if err != nil {
 		panic(err)
 	}
+
+	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_meta"), start)()
+
 	if len(bz) == 0 {
 		return nil
 	}
@@ -282,11 +288,12 @@ func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 	if err != nil {
 		panic(err)
 	}
+
+	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_commit"), start)()
+
 	if len(bz) == 0 {
 		return nil
 	}
-	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_commit"), start)()
-
 	err = proto.Unmarshal(bz, pbc)
 	if err != nil {
 		panic(fmt.Errorf("error reading block commit: %w", err))
@@ -309,11 +316,12 @@ func (bs *BlockStore) LoadBlockExtendedCommit(height int64) *types.ExtendedCommi
 	if err != nil {
 		panic(fmt.Errorf("fetching extended commit: %w", err))
 	}
+
+	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_ext_commit"), start)()
+
 	if len(bz) == 0 {
 		return nil
 	}
-	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block_ext_commit"), start)()
-
 	err = proto.Unmarshal(bz, pbec)
 	if err != nil {
 		panic(fmt.Errorf("decoding extended commit: %w", err))
@@ -335,10 +343,12 @@ func (bs *BlockStore) LoadSeenCommit(height int64) *types.Commit {
 	if err != nil {
 		panic(err)
 	}
+
+	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_seen_commit"), start)()
+
 	if len(bz) == 0 {
 		return nil
 	}
-	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_seen_commit"), start)()
 	err = proto.Unmarshal(bz, pbc)
 	if err != nil {
 		panic(fmt.Sprintf("error reading block seen commit: %v", err))
@@ -356,7 +366,7 @@ func (bs *BlockStore) LoadSeenCommit(height int64) *types.Commit {
 // data needed to prove evidence must not be removed.
 func (bs *BlockStore) PruneBlocks(height int64, state sm.State) (uint64, int64, error) {
 	if height <= 0 {
-		return 0, -1, fmt.Errorf("height must be greater than 0")
+		return 0, -1, errors.New("height must be greater than 0")
 	}
 	bs.mtx.RLock()
 	if height > bs.height {
@@ -616,8 +626,6 @@ func (bs *BlockStore) saveBlockToBatch(
 	seenCommitBytes := mustEncode(pbsc)
 
 	blockMetaMarshallDiff += time.Since(marshallTime).Seconds()
-
-	//nolint:revive // this is a false positive from if-return
 	if err := batch.Set(calcSeenCommitKey(height), seenCommitBytes); err != nil {
 		return err
 	}
@@ -670,6 +678,9 @@ func (bs *BlockStore) SaveSeenCommit(height int64, seenCommit *types.Commit) err
 	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "save_seen_commit"), time.Now())()
 	pbc := seenCommit.ToProto()
 	seenCommitBytes, err := proto.Marshal(pbc)
+
+	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "save_seen_commit"), time.Now())()
+
 	if err != nil {
 		return fmt.Errorf("unable to marshal commit: %w", err)
 	}
@@ -800,6 +811,10 @@ func (bs *BlockStore) DeleteLatestBlock() error {
 	return bs.saveStateAndWriteDB(batch, "failed to delete the latest block")
 }
 
+// addTimeSample returns a function that, when called, adds an observation to m.
+// The observation added to m is the number of seconds elapsed since addTimeSample
+// was initially called. addTimeSample is meant to be called in a defer to calculate
+// the amount of time a function takes to complete.
 func addTimeSample(h metrics.Histogram, start time.Time) func() {
 	return func() {
 		h.Observe(time.Since(start).Seconds())
