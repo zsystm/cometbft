@@ -350,8 +350,8 @@ func (app *Application) Commit(context.Context, *types.CommitRequest) (*types.Co
 	}
 
 	// persist the state (i.e. size and height)
-	//saveState(app.state)
 
+	saveState(app.state)
 	resp := &types.CommitResponse{}
 	if app.RetainBlocks > 0 && app.state.Height >= app.RetainBlocks {
 		resp.RetainHeight = app.state.Height - app.RetainBlocks + 1

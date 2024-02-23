@@ -7,9 +7,10 @@ import (
 	"math"
 	"strings"
 
-	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+
+	cmtrand "github.com/cometbft/cometbft/internal/rand"
 )
 
 const (
