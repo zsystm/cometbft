@@ -228,7 +228,6 @@ func loadProcess(ctx context.Context, txCh <-chan types.Tx, chSuccess chan<- str
 			}
 		}
 		if _, err = client.BroadcastTxSync(ctx, tx); err != nil {
-			logger.Error("failed to send transaction", "err", err)
 			chFailed <- err
 			continue
 		}
