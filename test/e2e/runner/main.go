@@ -81,24 +81,17 @@ func NewCLI() *CLI {
 				return fmt.Errorf("unknown infrastructure type '%s'", inft)
 			}
 
-			testnet, err := e2e.LoadTestnet(file, ifd, cli.useInternalIP)
+			testnetDir, err := cmd.Flags().GetString("testnet-dir")
+			if err != nil {
+				return err
+			}
+
+			testnet, err := e2e.LoadTestnet(file, ifd, testnetDir, cli.useInternalIP)
 			if err != nil {
 				return fmt.Errorf("loading testnet: %s", err)
 			}
 
 			cli.testnet = testnet
-
-			testnetDir, err := cmd.Flags().GetString("testnet-dir")
-			if err != nil {
-				return err
-			}
-			if testnetDir != "" {
-				err := os.MkdirAll(testnetDir, os.ModePerm)
-				if err != nil {
-					return fmt.Errorf("failed to create directory for testnet files: %s", err)
-				}
-				cli.testnet.Dir = testnetDir
-			}
 
 			switch inft {
 			case "docker":
@@ -189,7 +182,7 @@ func NewCLI() *CLI {
 	cli.root.PersistentFlags().StringP("file", "f", "", "Testnet TOML manifest")
 	_ = cli.root.MarkPersistentFlagRequired("file")
 
-	cli.root.PersistentFlags().StringP("testnet-dir", "d", "", "Location for the testnet files generated during setup")
+	cli.root.PersistentFlags().StringP("testnet-dir", "d", "", "Set the directory for the testnet files generated during setup")
 
 	cli.root.PersistentFlags().StringP("infrastructure-type", "", "docker", "Backing infrastructure used to run the testnet. Either 'digital-ocean' or 'docker'")
 
