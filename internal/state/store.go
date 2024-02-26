@@ -557,7 +557,6 @@ func (store dbStore) LoadFinalizeBlockResponse(height int64) (*abci.FinalizeBloc
 	if len(buf) == 0 {
 		return nil, ErrNoABCIResponsesForHeight{height}
 	}
-	addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "load_abci_responses"), start)()
 
 	resp := new(abci.FinalizeBlockResponse)
 	err = resp.Unmarshal(buf)
