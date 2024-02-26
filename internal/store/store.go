@@ -242,7 +242,7 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 	if len(bz) == 0 {
 		return nil
 	}
-	
+
 	err = proto.Unmarshal(bz, pbbm)
 	if err != nil {
 		panic(fmt.Errorf("unmarshal to cmtproto.BlockMeta: %w", err))
