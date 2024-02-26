@@ -46,6 +46,6 @@ ifeq (boltdb,$(findstring boltdb,$(COMETBFT_BUILD_OPTIONS)))
 endif
 
 # handle pebbledb
-ifeq (pebbledb,$(findstring pebbledb,$(COMETBFT_BUILD_OPTIONS)))
-  BUILD_TAGS += pebbledb
-endif
+#ifeq (pebbledb,$(findstring pebbledb,$(COMETBFT_BUILD_OPTIONS)))
+BUILD_TAGS += pebbledb
+#endif

@@ -350,6 +350,7 @@ func (app *Application) Commit(context.Context, *types.CommitRequest) (*types.Co
 	}
 
 	// persist the state (i.e. size and height)
+	// saveState(app.state)
 
 	saveState(app.state)
 	resp := &types.CommitResponse{}
