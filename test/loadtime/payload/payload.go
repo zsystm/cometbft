@@ -1,16 +1,14 @@
 package payload
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math"
-	"strings"
 
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-
-	cmtrand "github.com/cometbft/cometbft/internal/rand"
 )
 
 const (
@@ -52,22 +50,18 @@ func NewBytes(p *Payload) ([]byte, error) {
 
 	// prepend a single key so that the kv store only ever stores a single
 	// transaction instead of storing all tx and ballooning in size.
-	// generate random keys for db footprint testing
-	key := cmtrand.Str(6) + "="
-	return append([]byte(key), h...), nil
+	return append([]byte(keyPrefix), h...), nil
 }
 
 // FromBytes extracts a paylod from the byte representation of the payload.
 // FromBytes leaves the padding untouched, returning it to the caller to handle
 // or discard per their preference.
 func FromBytes(b []byte) (*Payload, error) {
-	// trH := bytes.TrimPrefix(b, []byte(keyPrefix))
-	value := strings.Split(string(b), "=")
-	// if bytes.Equal(b, trH) {
-	//		return nil, fmt.Errorf("payload bytes missing key prefix '%s'", keyPrefix)
-	//	}
-	//	trB, err := hex.DecodeString(string(trH))
-	trB, err := hex.DecodeString(value[1])
+	trH := bytes.TrimPrefix(b, []byte(keyPrefix))
+	if bytes.Equal(b, trH) {
+		return nil, fmt.Errorf("payload bytes missing key prefix '%s'", keyPrefix)
+	}
+	trB, err := hex.DecodeString(string(trH))
 	if err != nil {
 		return nil, err
 	}
