@@ -918,7 +918,6 @@ func (store dbStore) loadConsensusParamsInfo(height int64) (*cmtstate.ConsensusP
 	if len(buf) == 0 {
 		return nil, errors.New("value retrieved from db is empty")
 	}
-	addTimeSample(store.StoreOptions.Metrics.StoreAccessDurationSeconds.With("method", "load_consensus_params"), start)()
 
 	paramsInfo := new(cmtstate.ConsensusParamsInfo)
 	if err = paramsInfo.Unmarshal(buf); err != nil {
