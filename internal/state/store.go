@@ -8,17 +8,15 @@ import (
 
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/go-kit/kit/metrics"
+	"github.com/google/orderedcode"
 
 	dbm "github.com/cometbft/cometbft-db"
-	"github.com/go-kit/kit/metrics"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtstate "github.com/cometbft/cometbft/api/cometbft/state/v1"
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cmtos "github.com/cometbft/cometbft/internal/os"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	"github.com/cometbft/cometbft/types"
-	"github.com/google/orderedcode"
 )
 
 const (
@@ -28,7 +26,7 @@ const (
 	// 100000 results in ~ 100ms to get 100 validators (see BenchmarkLoadValidators).
 	valSetCheckpointInterval = 100000
 
-	// prefixes must be unique across all db's
+	// prefixes must be unique across all db's.
 	prefixValidators      = int64(6)
 	prefixConsensusParams = int64(7)
 	prefixABCIResponses   = int64(8)
@@ -120,17 +118,11 @@ type Store interface {
 	GetOfflineStateSyncHeight() (int64, error)
 	// Close closes the connection with the database
 	Close() error
-
-	Compact(height int64) error
 }
 
 // dbStore wraps a db (github.com/cometbft/cometbft-db).
 type dbStore struct {
 	db dbm.DB
-
-	metrics *Metrics
-
-	heightsPruned int64
 
 	StoreOptions
 }
@@ -228,7 +220,7 @@ func (store dbStore) loadState(key []byte) (state State, err error) {
 	if len(buf) == 0 {
 		return state, nil
 	}
-	addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "load"), start)()
+	addTimeSample(store.StoreOptions.Metrics.StoreAccessDurationSeconds.With("method", "load"), start)()
 	sp := new(cmtstate.State)
 
 	err = proto.Unmarshal(buf, sp)
@@ -575,7 +567,7 @@ func (store dbStore) LoadFinalizeBlockResponse(height int64) (*abci.FinalizeBloc
 	if len(buf) == 0 {
 		return nil, ErrNoABCIResponsesForHeight{height}
 	}
-	addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "load_abci_responses"), start)()
+	addTimeSample(store.StoreOptions.Metrics.StoreAccessDurationSeconds.With("method", "load_abci_responses"), start)()
 
 	resp := new(abci.FinalizeBlockResponse)
 	err = resp.Unmarshal(buf)
@@ -654,7 +646,6 @@ func (store dbStore) LoadLastFinalizeBlockResponse(height int64) (*abci.Finalize
 //
 // CONTRACT: height must be monotonically increasing every time this is called.
 func (store dbStore) SaveFinalizeBlockResponse(height int64, resp *abci.FinalizeBlockResponse) error {
-
 	var dtxs []*abci.ExecTxResult
 	// strip nil values,
 	for _, tx := range resp.TxResults {
@@ -928,7 +919,7 @@ func (store dbStore) loadConsensusParamsInfo(height int64) (*cmtstate.ConsensusP
 	if len(buf) == 0 {
 		return nil, errors.New("value retrieved from db is empty")
 	}
-	addTimeSample(store.metrics.StoreAccessDurationSeconds.With("method", "load_consensus_params"), start)()
+	addTimeSample(store.StoreOptions.Metrics.StoreAccessDurationSeconds.With("method", "load_consensus_params"), start)()
 
 	paramsInfo := new(cmtstate.ConsensusParamsInfo)
 	if err = paramsInfo.Unmarshal(buf); err != nil {

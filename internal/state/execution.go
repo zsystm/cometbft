@@ -166,14 +166,6 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	return state.MakeBlock(height, txl, commit, evidence, proposerAddr), nil
 }
 
-func (blockExec *BlockExecutor) CompactBlockStore(height int64) error {
-	return blockExec.blockStore.Compact(height)
-}
-
-func (blockExec *BlockExecutor) CompactStateStore(height int64) error {
-	return blockExec.store.Compact(height)
-}
-
 func (blockExec *BlockExecutor) ProcessProposal(
 	block *types.Block,
 	state State,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/go-kit/kit/metrics"
+	"github.com/google/orderedcode"
 
 	dbm "github.com/cometbft/cometbft-db"
 	cmtstore "github.com/cometbft/cometbft/api/cometbft/store/v1"
@@ -17,7 +18,6 @@ import (
 	cmtsync "github.com/cometbft/cometbft/internal/sync"
 	"github.com/cometbft/cometbft/types"
 	cmterrors "github.com/cometbft/cometbft/types/errors"
-	"github.com/google/orderedcode"
 )
 
 // Assuming the length of a block part is 64kB (`types.BlockPartSizeBytes`),
@@ -285,7 +285,7 @@ func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 	pbc := new(cmtproto.Commit)
 
 	start := time.Now()
-	bz, err := bs.db.Get(calcBlockCommitKey(height))
+	bz, err := bs.db.Get(blockCommitKey(height))
 	if err != nil {
 		panic(err)
 	}
@@ -617,7 +617,7 @@ func (bs *BlockStore) saveBlockToBatch(
 
 	blockMetaMarshallDiff += time.Since(marshallTime).Seconds()
 
-	if err := batch.Set(calcBlockCommitKey(height-1), blockCommitBytes); err != nil {
+	if err := batch.Set(blockCommitKey(height-1), blockCommitBytes); err != nil {
 		return err
 	}
 
@@ -696,9 +696,9 @@ func (bs *BlockStore) Close() error {
 
 //---------------------------------- KEY ENCODING -----------------------------------------
 
-// key prefixes
+// key prefixes.
 const (
-	// prefixes are unique across all tm db's
+	// prefixes are unique across all tm db's.
 	prefixBlockMeta   = int64(0)
 	prefixBlockPart   = int64(1)
 	prefixBlockCommit = int64(2)
