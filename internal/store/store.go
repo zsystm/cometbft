@@ -147,10 +147,10 @@ func (bs *BlockStore) LoadBaseMeta() *types.BlockMeta {
 func (bs *BlockStore) LoadBlock(height int64) (*types.Block, *types.BlockMeta) {
 	start := time.Now()
 	blockMeta := bs.LoadBlockMeta(height)
+
 	if blockMeta == nil {
 		return nil, nil
 	}
-	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block"), start)()
 	pbb := new(cmtproto.Block)
 	buf := []byte{}
 	for i := 0; i < int(blockMeta.BlockID.PartSetHeader.Total); i++ {
@@ -162,6 +162,8 @@ func (bs *BlockStore) LoadBlock(height int64) (*types.Block, *types.BlockMeta) {
 		}
 		buf = append(buf, part.Bytes...)
 	}
+
+	addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "load_block"), start)()
 
 	err := proto.Unmarshal(buf, pbb)
 	if err != nil {
@@ -366,7 +368,6 @@ func (bs *BlockStore) LoadSeenCommit(height int64) *types.Commit {
 // number of blocks pruned and the evidence retain height - the height at which
 // data needed to prove evidence must not be removed.
 func (bs *BlockStore) PruneBlocks(height int64, state sm.State) (uint64, int64, error) {
-	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "prune_blocks"), time.Now())()
 	if height <= 0 {
 		return 0, -1, errors.New("height must be greater than 0")
 	}
@@ -563,7 +564,6 @@ func (bs *BlockStore) saveBlockToBatch(
 	if block == nil {
 		panic("BlockStore can only save a non-nil block")
 	}
-	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "save_block_to_batch"), time.Now())()
 
 	height := block.Height
 	hash := block.Hash()
@@ -678,7 +678,6 @@ func (bs *BlockStore) saveStateAndWriteDB(batch dbm.Batch, errMsg string) error 
 
 // SaveSeenCommit saves a seen commit, used by e.g. the state sync reactor when bootstrapping node.
 func (bs *BlockStore) SaveSeenCommit(height int64, seenCommit *types.Commit) error {
-	defer addTimeSample(bs.metrics.BlockStoreAccessDurationSeconds.With("method", "save_seen_commit"), time.Now())()
 	pbc := seenCommit.ToProto()
 	seenCommitBytes, err := proto.Marshal(pbc)
 

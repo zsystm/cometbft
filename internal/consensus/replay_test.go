@@ -1191,7 +1191,7 @@ func newMockBlockStore(t *testing.T, config *cfg.Config, params types.ConsensusP
 		t:      t,
 	}
 }
-func (bs *mockBlockStore) Compact(height int64) error     { return nil }
+
 func (bs *mockBlockStore) Height() int64                  { return int64(len(bs.chain)) }
 func (bs *mockBlockStore) Base() int64                    { return bs.base }
 func (bs *mockBlockStore) Size() int64                    { return bs.Height() - bs.Base() + 1 }
