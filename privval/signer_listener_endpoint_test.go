@@ -1,17 +1,19 @@
 package privval
 
 import (
+	"errors"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtnet "github.com/cometbft/cometbft/internal/net"
 	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -212,4 +214,29 @@ func getMockEndpoints(
 	<-endpointIsOpenCh
 
 	return listenerEndpoint, dialerEndpoint
+}
+
+func TestSignerListenerEndpointServiceLoop(t *testing.T) {
+	listenerEndpoint := NewSignerListenerEndpoint(
+		log.TestingLogger(),
+		&testListener{initialErrs: 5},
+	)
+
+	require.NoError(t, listenerEndpoint.Start())
+	require.NoError(t, listenerEndpoint.WaitForConnection(time.Second))
+}
+
+type testListener struct {
+	net.Listener
+	initialErrs int
+}
+
+func (l *testListener) Accept() (net.Conn, error) {
+	if l.initialErrs > 0 {
+		l.initialErrs--
+
+		return nil, errors.New("accept error")
+	}
+
+	return nil, nil // Note this doesn't actually return a valid connection, it just doesn't error.
 }

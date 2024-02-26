@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -11,6 +12,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-kit/log/term"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	dbm "github.com/cometbft/cometbft-db"
 	abcicli "github.com/cometbft/cometbft/abci/client"
@@ -33,9 +38,6 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/types"
 	cmttime "github.com/cometbft/cometbft/types/time"
-	"github.com/go-kit/log/term"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -135,7 +137,7 @@ func signVote(vs *validatorStub, voteType types.SignedMsgType, hash []byte, head
 	// Only non-nil precommits are allowed to carry vote extensions.
 	if extEnabled {
 		if voteType != types.PrecommitType {
-			panic(fmt.Errorf("vote type is not precommit but extensions enabled"))
+			panic(errors.New("vote type is not precommit but extensions enabled"))
 		}
 		if len(hash) != 0 || !header.IsZero() {
 			ext = []byte("extension")
@@ -283,7 +285,9 @@ func validatePrevote(t *testing.T, cs *State, round int32, privVal *validatorStu
 			panic(fmt.Sprintf("Expected prevote to be for nil, got %X", vote.BlockID.Hash))
 		}
 	} else {
-		if !bytes.Equal(vote.BlockID.Hash, blockHash) {
+		if vote.BlockID.Hash == nil {
+			panic(fmt.Sprintf("Expected prevote to be for %X, got <nil>", blockHash))
+		} else if !bytes.Equal(vote.BlockID.Hash, blockHash) {
 			panic(fmt.Sprintf("Expected prevote to be for %X, got %X", blockHash, vote.BlockID.Hash))
 		}
 	}

@@ -13,10 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
-	types "github.com/cometbft/cometbft/rpc/jsonrpc/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cometbft/cometbft/libs/log"
+	types "github.com/cometbft/cometbft/rpc/jsonrpc/types"
 )
 
 type sampleResult struct {
@@ -149,6 +150,7 @@ func TestWriteRPCResponseHTTPError(t *testing.T) {
 	resp := w.Result()
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
+
 	err = resp.Body.Close()
 	require.NoError(t, err)
 

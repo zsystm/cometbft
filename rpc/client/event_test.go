@@ -2,18 +2,18 @@ package client_test
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var waitForEventTimeout = 8 * time.Second
@@ -133,7 +133,7 @@ func testTxEventsSent(t *testing.T, broadcastMethod string) {
 				case "sync":
 					txres, err = c.BroadcastTxSync(ctx, tx)
 				default:
-					panic(fmt.Sprintf("Unknown broadcastMethod %s", broadcastMethod))
+					panic("Unknown broadcastMethod " + broadcastMethod)
 				}
 				if assert.NoError(t, err) { //nolint:testifylint // require.Error doesn't work with the conditional here
 					require.Equal(t, abci.CodeTypeOK, txres.Code)

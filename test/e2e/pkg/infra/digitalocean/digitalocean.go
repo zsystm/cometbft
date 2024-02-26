@@ -55,7 +55,7 @@ func (p Provider) StartNodes(ctx context.Context, nodes ...*e2e.Node) error {
 // SetLatency prepares and executes the latency-setter script in the given node.
 func (p Provider) SetLatency(ctx context.Context, node *e2e.Node) error {
 	// Directory in the DigitalOcean node that contains all latency files.
-	remoteDir := "/root/cometbft/test/e2e/latency/"
+	remoteDir := "/root/cometbft/test/e2e/pkg/latency/"
 
 	playbook := "- name: e2e custom playbook\n" +
 		"  hosts: all\n" +
@@ -192,7 +192,7 @@ func ansiblePerturbConnectionBytes(disconnect bool) string {
 }
 
 // ExecCompose runs a Docker Compose command for a testnet.
-func execAnsible(ctx context.Context, dir, playbook string, nodeIPs []string, args ...string) error {
+func execAnsible(ctx context.Context, dir, playbook string, nodeIPs []string, args ...string) error { //nolint:unparam
 	playbook = filepath.Join(dir, playbook)
 	return exec.CommandVerbose(ctx, append(
 		[]string{"ansible-playbook", playbook, "-f", "50", "-u", "root", "--inventory", strings.Join(nodeIPs, ",") + ","},

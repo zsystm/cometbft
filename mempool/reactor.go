@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/sync/semaphore"
+
 	abci "github.com/cometbft/cometbft/abci/types"
 	protomem "github.com/cometbft/cometbft/api/cometbft/mempool/v1"
 	cfg "github.com/cometbft/cometbft/config"
@@ -15,7 +17,6 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/types"
-	"golang.org/x/sync/semaphore"
 )
 
 // Reactor handles mempool tx broadcasting amongst peers.
@@ -165,9 +166,9 @@ func (memR *Reactor) Receive(e p2p.Envelope) {
 			reqRes, err := memR.mempool.CheckTx(tx)
 			switch {
 			case errors.Is(err, ErrTxInCache):
-				memR.Logger.Debug("Tx already exists in cache", "tx", tx.String())
+				memR.Logger.Debug("Tx already exists in cache", "tx", tx.Hash())
 			case err != nil:
-				memR.Logger.Info("Could not check tx", "tx", tx.String(), "err", err)
+				memR.Logger.Info("Could not check tx", "tx", tx.Hash(), "err", err)
 			default:
 				// Record the sender only when the transaction is valid and, as
 				// a consequence, added to the mempool. Senders are stored until

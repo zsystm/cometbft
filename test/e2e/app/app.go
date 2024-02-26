@@ -102,6 +102,17 @@ type Config struct {
 	// Vote extension padding size, to simulate different vote extension sizes.
 	VoteExtensionSize uint `toml:"vote_extension_size"`
 
+	// VoteExtensionsEnableHeight configures the first height during which
+	// the chain will use and require vote extension data to be present
+	// in precommit messages.
+	VoteExtensionsEnableHeight int64 `toml:"vote_extensions_enable_height"`
+
+	// VoteExtensionsUpdateHeight configures the height at which consensus
+	// param VoteExtensionsEnableHeight will be set.
+	// -1 denotes it is set at genesis.
+	// 0 denotes it is set at InitChain.
+	VoteExtensionsUpdateHeight int64 `toml:"vote_extensions_update_height"`
+
 	// Flag for enabling and disabling logging of ABCI requests.
 	ABCIRequestsLoggingEnabled bool `toml:"abci_requests_logging_enabled"`
 }
@@ -152,6 +163,23 @@ func (app *Application) Info(context.Context, *abci.InfoRequest) (*abci.InfoResp
 	}, nil
 }
 
+func (app *Application) updateVoteExtensionEnableHeight(currentHeight int64) *cmtproto.ConsensusParams {
+	var params *cmtproto.ConsensusParams
+	if app.cfg.VoteExtensionsUpdateHeight == currentHeight {
+		app.logger.Info("enabling vote extensions on the fly",
+			"current_height", currentHeight,
+			"enable_height", app.cfg.VoteExtensionsEnableHeight)
+		params = &cmtproto.ConsensusParams{
+			Abci: &cmtproto.ABCIParams{
+				VoteExtensionsEnableHeight: app.cfg.VoteExtensionsEnableHeight,
+			},
+		}
+		app.logger.Info("updating VoteExtensionsHeight in app_state", "height", app.cfg.VoteExtensionsEnableHeight)
+		app.state.Set(prefixReservedKey+suffixVoteExtHeight, strconv.FormatInt(app.cfg.VoteExtensionsEnableHeight, 10))
+	}
+	return params
+}
+
 // Info implements ABCI.
 func (app *Application) InitChain(_ context.Context, req *abci.InitChainRequest) (*abci.InitChainResponse, error) {
 	r := &abci.Request{Value: &abci.Request_InitChain{InitChain: &abci.InitChainRequest{}}}
@@ -182,8 +210,12 @@ func (app *Application) InitChain(_ context.Context, req *abci.InitChainRequest)
 			}
 		}
 	}
+
+	params := app.updateVoteExtensionEnableHeight(0)
+
 	resp := &abci.InitChainResponse{
-		AppHash: app.state.GetHash(),
+		ConsensusParams: params,
+		AppHash:         app.state.GetHash(),
 	}
 	if resp.Validators, err = app.validatorUpdates(0); err != nil {
 		return nil, err
@@ -253,14 +285,17 @@ func (app *Application) FinalizeBlock(_ context.Context, req *abci.FinalizeBlock
 		panic(err)
 	}
 
+	params := app.updateVoteExtensionEnableHeight(req.Height)
+
 	if app.cfg.FinalizeBlockDelay != 0 {
 		time.Sleep(app.cfg.FinalizeBlockDelay)
 	}
 
 	return &abci.FinalizeBlockResponse{
-		TxResults:        txs,
-		ValidatorUpdates: valUpdates,
-		AppHash:          app.state.Finalize(),
+		TxResults:             txs,
+		ValidatorUpdates:      valUpdates,
+		AppHash:               app.state.Finalize(),
+		ConsensusParamUpdates: params,
 		Events: []abci.Event{
 			{
 				Type: "val_updates",
@@ -433,7 +468,7 @@ func (app *Application) PrepareProposal(
 
 	txs := make([][]byte, 0, len(req.Txs)+1)
 	var totalBytes int64
-	extTxPrefix := fmt.Sprintf("%s=", voteExtensionKey)
+	extTxPrefix := voteExtensionKey + "="
 	sum, err := app.verifyAndSum(areExtensionsEnabled, req.Height, &req.LocalLastCommit, "prepare_proposal")
 	if err != nil {
 		panic(fmt.Errorf("failed to sum and verify in PrepareProposal; err %w", err))
@@ -530,6 +565,12 @@ func (app *Application) ProcessProposal(_ context.Context, req *abci.ProcessProp
 // key/value store ("extensionSum") with the sum of all of the numbers collected
 // from the vote extensions.
 func (app *Application) ExtendVote(_ context.Context, req *abci.ExtendVoteRequest) (*abci.ExtendVoteResponse, error) {
+	r := &abci.Request{Value: &abci.Request_ExtendVote{ExtendVote: &abci.ExtendVoteRequest{}}}
+	err := app.logABCIRequest(r)
+	if err != nil {
+		return nil, err
+	}
+
 	appHeight, areExtensionsEnabled := app.checkHeightAndExtensions(false, req.Height, "ExtendVote")
 	if !areExtensionsEnabled {
 		panic(fmt.Errorf("received call to ExtendVote at height %d, when vote extensions are disabled", appHeight))
@@ -566,6 +607,12 @@ func (app *Application) ExtendVote(_ context.Context, req *abci.ExtendVoteReques
 // without doing anything about them. In this case, it just makes sure that the
 // vote extension is a well-formed integer value.
 func (app *Application) VerifyVoteExtension(_ context.Context, req *abci.VerifyVoteExtensionRequest) (*abci.VerifyVoteExtensionResponse, error) {
+	r := &abci.Request{Value: &abci.Request_VerifyVoteExtension{VerifyVoteExtension: &abci.VerifyVoteExtensionRequest{}}}
+	err := app.logABCIRequest(r)
+	if err != nil {
+		return nil, err
+	}
+
 	appHeight, areExtensionsEnabled := app.checkHeightAndExtensions(false, req.Height, "VerifyVoteExtension")
 	if !areExtensionsEnabled {
 		panic(fmt.Errorf("received call to VerifyVoteExtension at height %d, when vote extensions are disabled", appHeight))
@@ -816,11 +863,11 @@ func (app *Application) verifyAndSum(
 func (app *Application) verifyExtensionTx(height int64, payload string) error {
 	parts := strings.Split(payload, "|")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid payload format")
+		return errors.New("invalid payload format")
 	}
 	expSumStr := parts[0]
 	if len(expSumStr) == 0 {
-		return fmt.Errorf("sum cannot be empty in vote extension payload")
+		return errors.New("sum cannot be empty in vote extension payload")
 	}
 
 	expSum, err := strconv.Atoi(expSumStr)
@@ -830,17 +877,17 @@ func (app *Application) verifyExtensionTx(height int64, payload string) error {
 
 	extCommitHex := parts[1]
 	if len(extCommitHex) == 0 {
-		return fmt.Errorf("extended commit data cannot be empty in vote extension payload")
+		return errors.New("extended commit data cannot be empty in vote extension payload")
 	}
 
 	extCommitBytes, err := hex.DecodeString(extCommitHex)
 	if err != nil {
-		return fmt.Errorf("could not hex-decode vote extension payload")
+		return errors.New("could not hex-decode vote extension payload")
 	}
 
 	var extCommit abci.ExtendedCommitInfo
 	if extCommit.Unmarshal(extCommitBytes) != nil {
-		return fmt.Errorf("unable to unmarshal extended commit")
+		return errors.New("unable to unmarshal extended commit")
 	}
 
 	sum, err := app.verifyAndSum(true, height, &extCommit, "process_proposal")

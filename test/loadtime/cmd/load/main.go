@@ -1,11 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 
-	"github.com/cometbft/cometbft/test/loadtime/payload"
 	"github.com/google/uuid"
-	"github.com/informalsystems/tm-load-test/pkg/loadtest"
+
+	"github.com/cometbft/cometbft-load-test/pkg/loadtest"
+	"github.com/cometbft/cometbft/test/loadtime/payload"
 )
 
 // Ensure all of the interfaces are correctly satisfied.
@@ -48,7 +49,7 @@ func (f *ClientFactory) ValidateConfig(cfg loadtest.Config) error {
 		return err
 	}
 	if psb > cfg.Size {
-		return fmt.Errorf("payload size exceeds configured size")
+		return errors.New("payload size exceeds configured size")
 	}
 	return nil
 }

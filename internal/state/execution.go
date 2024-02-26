@@ -192,7 +192,7 @@ func (blockExec *BlockExecutor) ProcessProposal(
 		return false, err
 	}
 	if resp.IsStatusUnknown() {
-		panic(fmt.Sprintf("ProcessProposal responded with status %s", resp.Status.String()))
+		panic("ProcessProposal responded with status " + resp.Status.String())
 	}
 
 	return resp.IsAccepted(), nil
@@ -210,6 +210,13 @@ func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) e
 	return blockExec.evpool.CheckEvidence(block.Evidence.Evidence)
 }
 
+// ApplyVerifiedBlock does the same as `ApplyBlock`, but skips verification.
+func (blockExec *BlockExecutor) ApplyVerifiedBlock(
+	state State, blockID types.BlockID, block *types.Block,
+) (State, error) {
+	return blockExec.applyBlock(state, blockID, block)
+}
+
 // ApplyBlock validates the block against the state, executes it against the app,
 // fires the relevant events, commits the app, and saves the new state and responses.
 // It returns the new state.
@@ -223,6 +230,10 @@ func (blockExec *BlockExecutor) ApplyBlock(
 		return state, ErrInvalidBlock(err)
 	}
 
+	return blockExec.applyBlock(state, blockID, block)
+}
+
+func (blockExec *BlockExecutor) applyBlock(state State, blockID types.BlockID, block *types.Block) (State, error) {
 	startTime := time.Now().UnixNano()
 	abciResponse, err := blockExec.proxyApp.FinalizeBlock(context.TODO(), &abci.FinalizeBlockRequest{
 		Hash:               block.Hash(),
@@ -376,7 +387,7 @@ func (blockExec *BlockExecutor) VerifyVoteExtension(ctx context.Context, vote *t
 		panic(fmt.Errorf("VerifyVoteExtension call failed: %w", err))
 	}
 	if resp.IsStatusUnknown() {
-		panic(fmt.Sprintf("VerifyVoteExtension responded with status %s", resp.Status.String()))
+		panic("VerifyVoteExtension responded with status " + resp.Status.String())
 	}
 
 	if !resp.IsAccepted() {

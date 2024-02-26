@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	cfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/cli"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var dumpCmd = &cobra.Command{
@@ -125,7 +126,7 @@ func dumpDebugData(outDir string, conf *cfg.Config, rpc *rpchttp.HTTP) {
 		}
 	}
 
-	outFile := filepath.Join(outDir, fmt.Sprintf("%s.zip", start.Format(time.RFC3339)))
+	outFile := filepath.Join(outDir, start.Format(time.RFC3339)+".zip")
 	if err := zipDir(tmpDir, outFile); err != nil {
 		logger.Error("failed to create and compress archive", "file", outFile, "error", err)
 	}

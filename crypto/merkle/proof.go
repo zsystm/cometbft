@@ -50,10 +50,10 @@ func (e ErrInvalidProof) Unwrap() error {
 // everything.  This also affects the generalized proof system as
 // well.
 type Proof struct {
-	Total    int64    `json:"total"`     // Total number of items.
-	Index    int64    `json:"index"`     // Index of item to prove.
-	LeafHash []byte   `json:"leaf_hash"` // Hash of item value.
-	Aunts    [][]byte `json:"aunts"`     // Hashes from leaf's sibling to a root's child.
+	Total    int64    `json:"total"`           // Total number of items.
+	Index    int64    `json:"index"`           // Index of item to prove.
+	LeafHash []byte   `json:"leaf_hash"`       // Hash of item value.
+	Aunts    [][]byte `json:"aunts,omitempty"` // Hashes from leaf's sibling to a root's child.
 }
 
 // ProofsFromByteSlices computes inclusion proof for given items.
@@ -209,12 +209,12 @@ func computeHashFromAunts(index, total int64, leafHash []byte, innerHashes [][]b
 		panic("Cannot call computeHashFromAunts() with 0 total")
 	case 1:
 		if len(innerHashes) != 0 {
-			return nil, fmt.Errorf("unexpected inner hashes")
+			return nil, errors.New("unexpected inner hashes")
 		}
 		return leafHash, nil
 	default:
 		if len(innerHashes) == 0 {
-			return nil, fmt.Errorf("expected at least one inner hash")
+			return nil, errors.New("expected at least one inner hash")
 		}
 		numLeft := getSplitPoint(total)
 		if index < numLeft {

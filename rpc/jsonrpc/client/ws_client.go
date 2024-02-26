@@ -9,13 +9,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
+	metrics "github.com/rcrowley/go-metrics"
+
 	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"github.com/cometbft/cometbft/internal/service"
 	cmtsync "github.com/cometbft/cometbft/internal/sync"
 	"github.com/cometbft/cometbft/libs/log"
 	types "github.com/cometbft/cometbft/rpc/jsonrpc/types"
-	"github.com/gorilla/websocket"
-	metrics "github.com/rcrowley/go-metrics"
 )
 
 const (
@@ -296,7 +297,7 @@ func (c *WSClient) reconnect() error {
 		time.Sleep(backoffDuration)
 
 		err := c.dial()
-		if err != nil {
+		if err != nil { //nolint:revive // this is a false positive from early-return
 			c.Logger.Error("failed to redial", "err", err)
 		} else {
 			c.Logger.Info("reconnected")

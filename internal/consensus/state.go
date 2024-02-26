@@ -11,6 +11,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cosmos/gogoproto/proto"
+
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
@@ -28,7 +30,6 @@ import (
 	"github.com/cometbft/cometbft/types"
 	cmterrors "github.com/cometbft/cometbft/types/errors"
 	cmttime "github.com/cometbft/cometbft/types/time"
-	"github.com/cosmos/gogoproto/proto"
 )
 
 var msgQueueSize = 1000
@@ -352,7 +353,7 @@ func (cs *State) OnStart() error {
 			repairAttempted = true
 
 			// 2) backup original WAL file
-			corruptedFile := fmt.Sprintf("%s.CORRUPTED", cs.config.WalFile())
+			corruptedFile := cs.config.WalFile() + ".CORRUPTED"
 			if err := cmtos.CopyFile(cs.config.WalFile(), corruptedFile); err != nil {
 				return err
 			}
@@ -1339,8 +1340,8 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 	logger := cs.Logger.With("height", height, "round", round)
 
 	// We did not receive a proposal within this round. (and thus executing this from a timeout)
-	if cs.ProposalBlock == nil {
-		logger.Debug("prevote step: ProposalBlock is nil; prevoting nil")
+	if cs.Proposal == nil || cs.ProposalBlock == nil {
+		logger.Debug("prevote step: Proposal or ProposalBlock is nil; prevoting nil")
 		cs.signAddVote(types.PrevoteType, nil, types.PartSetHeader{}, nil)
 		return
 	}
@@ -1456,8 +1457,8 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 	*/
 	blockID, ok := cs.Votes.Prevotes(cs.Proposal.POLRound).TwoThirdsMajority()
 	ok = ok && !blockID.IsNil()
-	if ok && cs.ProposalBlock.HashesTo(blockID.Hash) && cs.Proposal.POLRound >= 0 && cs.Proposal.POLRound < cs.Round {
-		if cs.LockedRound <= cs.Proposal.POLRound {
+	if ok && cs.ProposalBlock.HashesTo(blockID.Hash) && cs.Proposal.POLRound < cs.Round {
+		if cs.LockedRound < cs.Proposal.POLRound {
 			logger.Debug("prevote step: ProposalBlock is valid and received a 2/3" +
 				"majority in a round later than the locked round; prevoting the proposal")
 			cs.signAddVote(types.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header(), nil)
@@ -1465,6 +1466,17 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 		}
 		if cs.ProposalBlock.HashesTo(cs.LockedBlock.Hash()) {
 			logger.Debug("prevote step: ProposalBlock is valid and matches our locked block; prevoting the proposal")
+			cs.signAddVote(types.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header(), nil)
+			return
+		}
+		// If v_r = lockedRound_p we expect v to match lockedValue_p. If it is not the case,
+		// we have two 2/3+ majorities for different values at round v_r, meaning that the
+		// assumption of a 2/3+ majority of honest processes was violated. We should at
+		// least log this scenario, see: https://github.com/cometbft/cometbft/issues/1309.
+		if cs.LockedRound == cs.Proposal.POLRound {
+			logger.Info("prevote step: ProposalBlock is valid and received a 2/3" +
+				"majority at our locked round, while not matching our locked value;" +
+				"this can only happen when 1/3 or more validators are double signing; prevoting the proposal")
 			cs.signAddVote(types.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header(), nil)
 			return
 		}
@@ -1943,6 +1955,7 @@ func (cs *State) recordMetrics(height int64, block *types.Block) {
 	cs.metrics.NumTxs.Set(float64(len(block.Data.Txs)))
 	cs.metrics.TotalTxs.Add(float64(len(block.Data.Txs)))
 	cs.metrics.BlockSizeBytes.Set(float64(block.Size()))
+	cs.metrics.ChainSizeBytes.Add(float64(block.Size()))
 	cs.metrics.CommittedHeight.Set(float64(block.Height))
 }
 
@@ -1973,6 +1986,15 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 		types.ProposalSignBytes(cs.state.ChainID, p), proposal.Signature,
 	) {
 		return ErrInvalidProposalSignature
+	}
+
+	// Validate the proposed block size, derived from its PartSetHeader
+	maxBytes := cs.state.ConsensusParams.Block.MaxBytes
+	if maxBytes == -1 {
+		maxBytes = int64(types.MaxBlockSizeBytes)
+	}
+	if int64(proposal.BlockID.PartSetHeader.Total) > (maxBytes-1)/int64(types.BlockPartSizeBytes)+1 {
+		return ErrProposalTooManyParts
 	}
 
 	proposal.Signature = p.Signature
@@ -2032,6 +2054,10 @@ func (cs *State) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (add
 	} else {
 		cs.evsw.FireEvent(types.EventProposalBlockPart, msg)
 	}
+
+	count, total := cs.ProposalBlockParts.Count(), cs.ProposalBlockParts.Total()
+	cs.Logger.Debug("receive block part", "height", height, "round", round,
+		"index", part.Index, "count", count, "total", total, "from", peerID)
 
 	maxBytes := cs.state.ConsensusParams.Block.MaxBytes
 	if maxBytes == -1 {

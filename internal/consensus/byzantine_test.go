@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	dbm "github.com/cometbft/cometbft-db"
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -23,8 +26,6 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 //----------------------------------------------
@@ -145,7 +146,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 			require.NoError(t, err)
 			prevote2, err := bcs.signVote(types.PrevoteType, nil, types.PartSetHeader{}, nil)
 			require.NoError(t, err)
-			peerList := reactors[byzantineNode].Switch.Peers().List()
+			peerList := reactors[byzantineNode].Switch.Peers().Copy()
 			bcs.Logger.Info("Getting peer list", "peers", peerList)
 			// send two votes to all peers (1st to one half, 2nd to another half)
 			for i, peer := range peerList {
@@ -402,7 +403,7 @@ func TestByzantineConflictingProposalsWithPartition(t *testing.T) {
 	// byz proposer sends one block to peers[0]
 	// and the other block to peers[1] and peers[2].
 	// note peers and switches order don't match.
-	peers := switches[0].Peers().List()
+	peers := switches[0].Peers().Copy()
 
 	// partition A
 	ind0 := getSwitchIndex(switches, peers[0])
@@ -491,7 +492,7 @@ func byzantineDecideProposalFunc(ctx context.Context, t *testing.T, height int64
 	block2Hash := block2.Hash()
 
 	// broadcast conflicting proposals/block parts to peers
-	peers := sw.Peers().List()
+	peers := sw.Peers().Copy()
 	t.Logf("Byzantine: broadcasting conflicting proposals to %d peers", len(peers))
 	for i, peer := range peers {
 		if i < len(peers)/2 {

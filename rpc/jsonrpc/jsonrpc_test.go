@@ -15,21 +15,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log/term"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/cometbft/cometbft/internal/net"
 	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/libs/log"
 	client "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	server "github.com/cometbft/cometbft/rpc/jsonrpc/server"
 	types "github.com/cometbft/cometbft/rpc/jsonrpc/types"
-	"github.com/go-kit/log/term"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // Client and Server should work over tcp or unix sockets.
 const (
-	tcpAddr = "tcp://127.0.0.1:47768"
-
 	unixSocket = "/tmp/rpc_test.sock"
 	unixAddr   = "unix://" + unixSocket
 
@@ -38,7 +38,12 @@ const (
 	testVal = "acbd"
 )
 
-var ctx = context.Background()
+var (
+	ctx     = context.Background()
+	baseIP  = "tcp://127.0.0.1"
+	port, _ = net.GetFreePort()
+	tcpAddr = baseIP + ":" + strconv.Itoa(port)
+)
 
 type ResultEcho struct {
 	Value string `json:"value"`

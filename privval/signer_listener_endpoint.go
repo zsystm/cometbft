@@ -1,7 +1,7 @@
 package privval
 
 import (
-	"fmt"
+	"errors"
 	"net"
 	"time"
 
@@ -64,10 +64,10 @@ func NewSignerListenerEndpoint(
 
 // OnStart implements service.Service.
 func (sl *SignerListenerEndpoint) OnStart() error {
-	sl.connectRequestCh = make(chan struct{})
+	sl.connectRequestCh = make(chan struct{}, 1) // Buffer of 1 to allow `serviceLoop` to re-trigger itself.
 	sl.connectionAvailableCh = make(chan net.Conn)
 
-	// NOTE: ping timeout must be less than read/write timeout
+	// NOTE: ping timeout must be less than read/write timeout.
 	sl.pingInterval = time.Duration(sl.signerEndpoint.timeoutReadWrite.Milliseconds()*2/3) * time.Millisecond
 	sl.pingTimer = time.NewTicker(sl.pingInterval)
 
@@ -152,7 +152,7 @@ func (sl *SignerListenerEndpoint) ensureConnection(maxWait time.Duration) error 
 
 func (sl *SignerListenerEndpoint) acceptNewConnection() (net.Conn, error) {
 	if !sl.IsRunning() || sl.listener == nil {
-		return nil, fmt.Errorf("endpoint is closing")
+		return nil, errors.New("endpoint is closing")
 	}
 
 	// wait for a new conn
@@ -181,23 +181,19 @@ func (sl *SignerListenerEndpoint) serviceLoop() {
 	for {
 		select {
 		case <-sl.connectRequestCh:
-			{
-				conn, err := sl.acceptNewConnection()
-				if err == nil {
-					sl.Logger.Info("SignerListener: Connected")
+			conn, err := sl.acceptNewConnection()
+			if err != nil {
+				sl.Logger.Error("SignerListener: Error accepting connection", "err", err)
+				sl.triggerConnect()
+				continue
+			}
 
-					// We have a good connection, wait for someone that needs one otherwise cancellation
-					select {
-					case sl.connectionAvailableCh <- conn:
-					case <-sl.Quit():
-						return
-					}
-				}
-
-				select {
-				case sl.connectRequestCh <- struct{}{}:
-				default:
-				}
+			// We have a good connection, wait for someone that needs one otherwise cancellation
+			sl.Logger.Info("SignerListener: Connected")
+			select {
+			case sl.connectionAvailableCh <- conn:
+			case <-sl.Quit():
+				return
 			}
 		case <-sl.Quit():
 			return

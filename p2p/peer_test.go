@@ -1,11 +1,16 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
 	golog "log"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/cosmos/gogoproto/proto"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	p2p "github.com/cometbft/cometbft/api/cometbft/p2p/v1"
 	"github.com/cometbft/cometbft/config"
@@ -14,9 +19,6 @@ import (
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtconn "github.com/cometbft/cometbft/p2p/conn"
-	"github.com/cosmos/gogoproto/proto"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPeerBasic(t *testing.T) {
@@ -104,7 +106,7 @@ func createOutboundPeerAndPerformHandshake(
 
 func testDial(addr *NetAddress, cfg *config.P2PConfig) (net.Conn, error) {
 	if cfg.TestDialFail {
-		return nil, fmt.Errorf("dial err (peerConfig.DialFail == true)")
+		return nil, errors.New("dial err (peerConfig.DialFail == true)")
 	}
 
 	conn, err := addr.DialTimeout(cfg.DialTimeout)

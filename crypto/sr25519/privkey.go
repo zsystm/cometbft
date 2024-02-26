@@ -2,11 +2,13 @@ package sr25519
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
-	"github.com/cometbft/cometbft/crypto"
 	"github.com/oasisprotocol/curve25519-voi/primitives/sr25519"
+
+	"github.com/cometbft/cometbft/crypto"
 )
 
 var (
@@ -40,7 +42,7 @@ func (privKey PrivKey) Bytes() []byte {
 func (privKey PrivKey) Sign(msg []byte) ([]byte, error) {
 	if privKey.kp == nil {
 		return nil, ErrInvalidKey{
-			Err: fmt.Errorf("sr25519: uninitialized private key"),
+			Err: errors.New("sr25519: uninitialized private key"),
 		}
 	}
 

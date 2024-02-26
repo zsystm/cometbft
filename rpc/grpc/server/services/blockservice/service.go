@@ -4,6 +4,9 @@ import (
 	context "context"
 	"fmt"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	blocksvc "github.com/cometbft/cometbft/api/cometbft/services/block/v1"
 	ptypes "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cmtpubsub "github.com/cometbft/cometbft/internal/pubsub"
@@ -11,8 +14,6 @@ import (
 	"github.com/cometbft/cometbft/internal/store"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/types"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type blockServiceServer struct {
@@ -43,26 +44,6 @@ func (s *blockServiceServer) GetByHeight(_ context.Context, req *blocksvc.GetByH
 	}
 
 	return &blocksvc.GetByHeightResponse{
-		BlockId: blockID,
-		Block:   block,
-	}, nil
-}
-
-// GetLatest implements v1.BlockServiceServer.
-func (s *blockServiceServer) GetLatest(context.Context, *blocksvc.GetLatestRequest) (*blocksvc.GetLatestResponse, error) {
-	logger := s.logger.With("endpoint", "GetLatest")
-
-	latestHeight := s.store.Height()
-	if latestHeight < 1 {
-		return nil, status.Error(codes.NotFound, "No block data yet")
-	}
-
-	blockID, block, err := s.getBlock(latestHeight, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	return &blocksvc.GetLatestResponse{
 		BlockId: blockID,
 		Block:   block,
 	}, nil

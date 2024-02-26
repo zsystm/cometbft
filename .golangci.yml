@@ -26,7 +26,6 @@ linters:
     - goerr113
     - golint
     - gomnd
-    - gomoddirectives
     - ifshort
     - interfacebloat
     - interfacer
@@ -44,8 +43,7 @@ linters:
     - scopelint
     - structcheck
     - tagliatelle
-    - typecheck
-    - unparam
+    - testifylint
     - varcheck
     - varnamelen
     - wrapcheck
@@ -76,10 +74,16 @@ linters-settings:
     max-blank-identifiers: 3
   goconst:
     ignore-tests: true
-  maligned:
-    suggest-new: true
   misspell:
     locale: US
+  gci:
+    sections:
+      - standard # Standard section: captures all standard packages.
+      - default # Default section: contains all imports that could not be matched to another section type.
+      - blank # blank imports
+      - dot # dot imports
+      - prefix(github.com/cometbft/cometbft, github.com/cometbft/cometbft-db, github.com/cometbft/cometbft-load-test)
+    custom-order: true
   depguard:
     rules:
       main:
@@ -98,7 +102,6 @@ linters-settings:
           - github.com/gofrs/uuid
           - github.com/google
           - github.com/gorilla/websocket
-          - github.com/informalsystems/tm-load-test/pkg/loadtest
           - github.com/lib/pq
           - github.com/libp2p/go-buffer-pool
           - github.com/Masterminds/semver/v3

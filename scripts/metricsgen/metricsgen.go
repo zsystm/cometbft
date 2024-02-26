@@ -273,7 +273,7 @@ func extractHelpMessage(cg *ast.CommentGroup) string {
 	}
 	var help []string //nolint: prealloc
 	for _, c := range cg.List {
-		mt := strings.TrimPrefix(c.Text, "//metrics:")
+		mt := strings.TrimPrefix(c.Text, "// metrics:")
 		if mt != c.Text {
 			return strings.TrimSpace(mt)
 		}
@@ -283,7 +283,7 @@ func extractHelpMessage(cg *ast.CommentGroup) string {
 }
 
 func isMetric(e ast.Expr, mPkgName string) bool {
-	return strings.Contains(types.ExprString(e), fmt.Sprintf("%s.", mPkgName))
+	return strings.Contains(types.ExprString(e), mPkgName+".")
 }
 
 func extractLabels(bl *ast.BasicLit) string {

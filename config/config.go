@@ -170,7 +170,7 @@ func (cfg *Config) ValidateBasic() error {
 		return ErrInSection{Section: "instrumentation", Err: err}
 	}
 	if !cfg.Consensus.CreateEmptyBlocks && cfg.Mempool.Type == MempoolTypeNop {
-		return fmt.Errorf("`nop` mempool does not support create_empty_blocks = false")
+		return errors.New("`nop` mempool does not support create_empty_blocks = false")
 	}
 	return nil
 }
@@ -201,25 +201,31 @@ type BaseConfig struct {
 	// A custom human readable name for this node
 	Moniker string `mapstructure:"moniker"`
 
-	// Database backend: goleveldb | cleveldb | boltdb | rocksdb
-	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
-	//   - pure go
+	// Database backend: goleveldb | cleveldb | boltdb | rocksdb | pebbledb
+	// * goleveldb (github.com/syndtr/goleveldb)
+	//   - UNMAINTAINED
 	//   - stable
+	//   - pure go
 	// * cleveldb (uses levigo wrapper)
-	//   - fast
 	//   - requires gcc
 	//   - use cleveldb build tag (go build -tags cleveldb)
 	// * boltdb (uses etcd's fork of bolt - github.com/etcd-io/bbolt)
 	//   - EXPERIMENTAL
-	//   - may be faster is some use-cases (random reads - indexer)
+	//   - stable
 	//   - use boltdb build tag (go build -tags boltdb)
-	// * rocksdb (uses github.com/tecbot/gorocksdb)
+	// * rocksdb (uses github.com/linxGnu/grocksdb)
 	//   - EXPERIMENTAL
 	//   - requires gcc
 	//   - use rocksdb build tag (go build -tags rocksdb)
 	// * badgerdb (uses github.com/dgraph-io/badger)
 	//   - EXPERIMENTAL
+	//   - stable
 	//   - use badgerdb build tag (go build -tags badgerdb)
+	// * pebbledb (uses github.com/cockroachdb/pebble)
+	//   - EXPERIMENTAL
+	//   - stable
+	//   - pure go
+	//   - use pebbledb build tag (go build -tags pebbledb)
 	DBBackend string `mapstructure:"db_backend"`
 
 	// Database directory
@@ -887,10 +893,6 @@ type MempoolConfig struct {
 	// Maximum size of a single transaction
 	// NOTE: the max size of a tx transmitted over the network is {max_tx_bytes}.
 	MaxTxBytes int `mapstructure:"max_tx_bytes"`
-	// Maximum size of a batch of transactions to send to a peer
-	// Including space needed by encoding (one varint per transaction).
-	// XXX: Unused due to https://github.com/tendermint/tendermint/issues/5796
-	MaxBatchBytes int `mapstructure:"max_batch_bytes"`
 	// Experimental parameters to limit gossiping txs to up to the specified number of peers.
 	// We use two independent upper values for persistent and non-persistent peers.
 	// Unconditional peers are not affected by this feature.
@@ -1272,7 +1274,21 @@ type StorageConfig struct {
 	DiscardABCIResponses bool `mapstructure:"discard_abci_responses"`
 	// Configuration related to storage pruning.
 	Pruning *PruningConfig `mapstructure:"pruning"`
-
+	// Compaction on pruning - enable or disable in-process compaction.
+	// If the DB backend supports it, this will force the DB to compact
+	// the database levels and save on storage space. Setting this to true
+	// is most beneficial when used in combination with pruning as it will
+	// phyisically delete the entries marked for deletion.
+	// false by default (forcing compaction is disabled).
+	Compact bool `mapstructure:"compact"`
+	// Compaction interval - number of blocks to try explicit compaction on.
+	// This parameter should be tuned depending on the number of items
+	// you expect to delete between two calls to forced compaction.
+	// If your retain height is 1 block, it is too much of an overhead
+	// to try compaction every block. But it should also not be a very
+	// large multiple of your retain height as it might occur bigger overheads.
+	// 1000 by default.
+	CompactionInterval int64 `mapstructure:"compaction_interval"`
 	// Hex representation of the hash of the genesis file.
 	// This is an optional parameter set when an operator provides
 	// a hash via the command line.
@@ -1288,6 +1304,8 @@ func DefaultStorageConfig() *StorageConfig {
 	return &StorageConfig{
 		DiscardABCIResponses: false,
 		Pruning:              DefaultPruningConfig(),
+		Compact:              false,
+		CompactionInterval:   1000,
 		GenesisHash:          "",
 	}
 }
