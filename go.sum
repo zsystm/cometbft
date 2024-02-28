@@ -103,6 +103,8 @@ github.com/cometbft/cometbft-db v0.10.0 h1:VMBQh88zXn64jXVvj39tlu/IgsGR84T7ImjS5
 github.com/cometbft/cometbft-db v0.10.0/go.mod h1:7RR7NRv99j7keWJ5IkE9iZibUTKYdtepXTp7Ra0FxKk=
 github.com/cometbft/cometbft-load-test v0.1.0 h1:Axw5oVXlQqZLVUHVxmULSfEtpEuaUMmoeM560hvBAmw=
 github.com/cometbft/cometbft-load-test v0.1.0/go.mod h1:QEXKZ2L5SH1gEw6DRSKYpd3nDCWrzIejaHxwYdgKtkc=
+github.com/cometbft/cometbft/api v0.0.0-20240227230128-fede9dbd2e22 h1:iOBkKnRNF7/5lurT6MMd6PP98Z+0CGRm/mNv9e+4cxo=
+github.com/cometbft/cometbft/api v0.0.0-20240227230128-fede9dbd2e22/go.mod h1:H52lgJKkSPeVpTcKr9a4nrSpyr6s1B352SWa6ajNHv0=
 github.com/cometbft/cometbft/api v1.0.0-alpha.1 h1:/Ey3EyNgY7aO3fl8TvNOpipfRWQCIIC3iN1M5+jJIZI=
 github.com/cometbft/cometbft/api v1.0.0-alpha.1/go.mod h1:5vJTKMdvGufLjyQ0fqSfZ1Dbr7xENK170gUunyT7UL8=
 github.com/containerd/console v1.0.3/go.mod h1:7LqA/THxQ86k76b8c/EMSiaJ3h1eZkMkXar0TQ1gf3U=
