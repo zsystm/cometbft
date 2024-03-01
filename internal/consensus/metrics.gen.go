@@ -204,7 +204,7 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "proposal_timestamp_difference",
 			Help:      "Difference between the timestamp in the proposal message and the local time of the validator at the time it received the message.",
 
-			Buckets: []float64{-10, -.5, -.025, 0, .1, .5, 1, 1.5, 2, 10},
+			Buckets: []float64{-10, -9.5, -9, -8.5, -8, -7.5, -7, -6.5, -6, -5.5, -5, -4.5, -4, -3.5, -3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10},
 		}, append(labels, "is_timely")).With(labelsAndValues...),
 	}
 }
