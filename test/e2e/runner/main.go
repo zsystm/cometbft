@@ -203,6 +203,14 @@ func NewCLI() *CLI {
 	})
 
 	cli.root.AddCommand(&cobra.Command{
+		Use:   "install",
+		Short: "Install CometBFT on the validators nodes",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return Install(cmd.Context(), cli.testnet, cli.infp)
+		},
+	})
+
+	cli.root.AddCommand(&cobra.Command{
 		Use:   "start",
 		Short: "Starts the testnet, waiting for nodes to become available",
 		RunE: func(cmd *cobra.Command, args []string) error {

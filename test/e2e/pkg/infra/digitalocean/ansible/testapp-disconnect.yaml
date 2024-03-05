@@ -1,0 +1,9 @@
+---
+- name: disconnect node
+  hosts: validators,ephemeral
+  gather_facts: false
+  tasks:
+    - name: disconnect node
+      ansible.builtin.command: |
+        iptables -A INPUT -p tcp --dport 26656 -j DROP
+        iptables -A OUTPUT -p tcp --dport 26656 -j DROP

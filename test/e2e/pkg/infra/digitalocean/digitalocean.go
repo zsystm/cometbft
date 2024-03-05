@@ -2,11 +2,11 @@ package digitalocean
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+
+	_ "embed"
 
 	e2e "github.com/cometbft/cometbft/test/e2e/pkg"
 	"github.com/cometbft/cometbft/test/e2e/pkg/exec"
@@ -20,96 +20,69 @@ type Provider struct {
 	infra.ProviderData
 }
 
-// Setup generates the file mapping IPs to zones, used for emulating latencies.
+// Setup generates any necessary configuration for the infrastructure
+// provider during testnet setup.
 func (p *Provider) Setup() error {
-	err := infra.GenerateIPZonesTable(p.Testnet.Nodes, p.IPZonesFilePath(), false)
-	if err != nil {
+	// Create directory for Ansible files.
+	if err := os.MkdirAll(filepath.Join(p.Testnet.Dir, ".ansible"), 0o755); err != nil {
+		return err
+	}
+
+	// Generate the file mapping IPs to zones, needed for emulating latencies.
+	if err := infra.GenerateIPZonesTable(p.Testnet.Nodes, p.IPZonesFilePath(), false); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-var ymlPlaybookSeq int
+//go:embed ansible/testapp-set-latency.yaml
+var ansibleSetLatencyContent []byte
 
-func getNextPlaybookFilename() string {
-	const ymlPlaybookAction = "playbook-action"
-	ymlPlaybookSeq++
-	return ymlPlaybookAction + strconv.Itoa(ymlPlaybookSeq) + ".yml"
+// SetLatency prepares and executes the latency-setter script in the given list of nodes.
+func (p Provider) SetLatency(ctx context.Context, nodes ...*e2e.Node) error {
+	// Execute Ansible playbook on all nodes.
+	externalIPs := make([]string, len(nodes))
+	for i, n := range nodes {
+		externalIPs[i] = n.ExternalIP.String()
+	}
+	return p.execAnsible(ctx, "testapp-set-latency.yaml", ansibleSetLatencyContent, externalIPs)
 }
+
+//go:embed ansible/testapp-start.yaml
+var ansibleStartContent []byte
 
 func (p Provider) StartNodes(ctx context.Context, nodes ...*e2e.Node) error {
 	nodeIPs := make([]string, len(nodes))
 	for i, n := range nodes {
 		nodeIPs[i] = n.ExternalIP.String()
 	}
-	playbook := ansibleSystemdBytes(true)
-	playbookFile := getNextPlaybookFilename()
-	if err := p.writePlaybook(playbookFile, playbook); err != nil {
-		return err
-	}
-
-	return execAnsible(ctx, p.Testnet.Dir, playbookFile, nodeIPs)
+	return p.execAnsible(ctx, "testapp-start.yaml", ansibleStartContent, nodeIPs)
 }
 
-// SetLatency prepares and executes the latency-setter script in the given node.
-func (p Provider) SetLatency(ctx context.Context, node *e2e.Node) error {
-	// Directory in the DigitalOcean node that contains all latency files.
-	remoteDir := "/root/cometbft/test/e2e/pkg/latency/"
-
-	playbook := "- name: e2e custom playbook\n" +
-		"  hosts: all\n" +
-		"  tasks:\n"
-
-	// Add task to copy the necessary files to the node.
-	playbook = ansibleAddCopyTask(playbook, "copy zones file to node", filepath.Base(p.IPZonesFilePath()), remoteDir)
-
-	// Add task to execute latency-setter script in the node.
-	cmd := fmt.Sprintf("%s set %s %s eth0",
-		filepath.Join(remoteDir, "latency-setter.py"),
-		filepath.Join(remoteDir, filepath.Base(p.IPZonesFilePath())),
-		filepath.Join(remoteDir, "aws-latencies.csv"),
-	)
-	playbook = ansibleAddShellTasks(playbook, "execute latency setter script", cmd)
-
-	// Execute playbook
-	playbookFile := getNextPlaybookFilename()
-	if err := p.writePlaybook(playbookFile, playbook); err != nil {
-		return err
-	}
-	return execAnsible(ctx, p.Testnet.Dir, playbookFile, []string{node.ExternalIP.String()})
-}
+//go:embed ansible/testapp-start.yaml
+var ansibleStopContent []byte
 
 func (p Provider) StopTestnet(ctx context.Context) error {
 	nodeIPs := make([]string, len(p.Testnet.Nodes))
 	for i, n := range p.Testnet.Nodes {
 		nodeIPs[i] = n.ExternalIP.String()
 	}
-
-	playbook := ansibleSystemdBytes(false)
-	playbookFile := getNextPlaybookFilename()
-	if err := p.writePlaybook(playbookFile, playbook); err != nil {
-		return err
-	}
-	return execAnsible(ctx, p.Testnet.Dir, playbookFile, nodeIPs)
+	return p.execAnsible(ctx, "testapp-stop.yaml", ansibleStopContent, nodeIPs)
 }
+
+//go:embed ansible/testapp-disconnect.yaml
+var ansibleDisconnectContent []byte
 
 func (p Provider) Disconnect(ctx context.Context, _ string, ip string) error {
-	playbook := ansiblePerturbConnectionBytes(true)
-	playbookFile := getNextPlaybookFilename()
-	if err := p.writePlaybook(playbookFile, playbook); err != nil {
-		return err
-	}
-	return execAnsible(ctx, p.Testnet.Dir, playbookFile, []string{ip})
+	return p.execAnsible(ctx, "testapp-disconnect.yaml", ansibleDisconnectContent, []string{ip})
 }
 
+//go:embed ansible/testapp-reconnect.yaml
+var ansibleReconnectContent []byte
+
 func (p Provider) Reconnect(ctx context.Context, _ string, ip string) error {
-	playbook := ansiblePerturbConnectionBytes(false)
-	playbookFile := getNextPlaybookFilename()
-	if err := p.writePlaybook(playbookFile, playbook); err != nil {
-		return err
-	}
-	return execAnsible(ctx, p.Testnet.Dir, playbookFile, []string{ip})
+	return p.execAnsible(ctx, "testapp-reconnect.yaml", ansibleReconnectContent, []string{ip})
 }
 
 func (p Provider) CheckUpgraded(_ context.Context, node *e2e.Node) (string, bool, error) {
@@ -117,84 +90,16 @@ func (p Provider) CheckUpgraded(_ context.Context, node *e2e.Node) (string, bool
 	return node.Name, false, nil
 }
 
-func (p Provider) writePlaybook(yaml, playbook string) error {
-	//nolint: gosec
-	// G306: Expect WriteFile permissions to be 0600 or less
-	err := os.WriteFile(filepath.Join(p.Testnet.Dir, yaml), []byte(playbook), 0o644)
-	if err != nil {
+// ExecCompose runs a Docker Compose command for a testnet.
+func (p Provider) execAnsible(ctx context.Context, playbook string, content []byte, nodeIPs []string, args ...string) error { //nolint:unparam
+	// Write playbook file to Ansible testnet directory.
+	playbookPath := filepath.Join(p.Testnet.Dir, ".ansible", playbook)
+	//nolint: gosec // G306: Expect WriteFile permissions to be 0600 or less
+	if err := os.WriteFile(playbookPath, content, 0o644); err != nil {
 		return err
 	}
-	return nil
-}
-
-const basePlaybook = `- name: e2e custom playbook
-  hosts: all
-  gather_facts: yes
-  vars:
-    ansible_host_key_checking: false
-
-  tasks:
-`
-
-func ansibleAddTask(playbook, name, contents string) string {
-	return playbook + "  - name: " + name + "\n" + contents + "\n"
-}
-
-func ansibleAddCopyTask(playbook, name, src, dest string) string {
-	copyTask := fmt.Sprintf("    ansible.builtin.copy:\n"+
-		"      src: %s\n"+
-		"      dest: %s\n",
-		src, dest)
-	return ansibleAddTask(playbook, name, copyTask)
-}
-
-func ansibleAddSystemdTask(playbook string, starting bool) string {
-	startStop := "stopped"
-	if starting {
-		startStop = "started"
-	}
-	// testappd is the name of the daemon running the node in the ansible scripts in the qa-infra repo.
-	contents := fmt.Sprintf(`    ansible.builtin.systemd:
-      name: testappd
-      state: %s
-      enabled: yes`, startStop)
-
-	return ansibleAddTask(playbook, "operate on the systemd-unit", contents)
-}
-
-func ansibleAddShellTasks(playbook, name string, shells ...string) string {
-	for _, shell := range shells {
-		contents := fmt.Sprintf("    shell: \"%s\"\n", shell)
-		playbook = ansibleAddTask(playbook, name, contents)
-	}
-	return playbook
-}
-
-// file as bytes to be written out to disk.
-// ansibleStartBytes generates an Ansible playbook to start the network.
-func ansibleSystemdBytes(starting bool) string {
-	return ansibleAddSystemdTask(basePlaybook, starting)
-}
-
-func ansiblePerturbConnectionBytes(disconnect bool) string {
-	disconnecting := "reconnect"
-	op := "-D"
-	if disconnect {
-		disconnecting = "disconnect"
-		op = "-A"
-	}
-	playbook := basePlaybook
-	for _, dir := range []string{"INPUT", "OUTPUT"} {
-		playbook = ansibleAddShellTasks(playbook, disconnecting+" node",
-			fmt.Sprintf("iptables %s %s -p tcp --dport 26656 -j DROP", op, dir))
-	}
-	return playbook
-}
-
-// ExecCompose runs a Docker Compose command for a testnet.
-func execAnsible(ctx context.Context, dir, playbook string, nodeIPs []string, args ...string) error { //nolint:unparam
-	playbook = filepath.Join(dir, playbook)
+	// Execute playbook.
 	return exec.CommandVerbose(ctx, append(
-		[]string{"ansible-playbook", playbook, "-f", "50", "-u", "root", "--inventory", strings.Join(nodeIPs, ",") + ","},
+		[]string{"ansible-playbook", playbookPath, "--limit", strings.Join(nodeIPs, ",")},
 		args...)...)
 }

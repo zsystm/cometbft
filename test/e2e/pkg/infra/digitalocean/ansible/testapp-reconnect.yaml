@@ -1,0 +1,9 @@
+---
+- name: reconnect node
+  hosts: validators,ephemeral
+  gather_facts: false
+  tasks:
+    - name: reconnect node
+      ansible.builtin.command: |
+        iptables -D INPUT -p tcp --dport 26656 -j DROP
+        iptables -D OUTPUT -p tcp --dport 26656 -j DROP
