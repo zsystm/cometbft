@@ -1,0 +1,10 @@
+---
+- name: stop test app
+  hosts: validators,ephemeral
+  gather_facts: false
+  tasks:
+    - name: operate on the systemd-unit
+      ansible.builtin.systemd:
+        name: testappd
+        state: stopped
+        enabled: yes

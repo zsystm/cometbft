@@ -47,8 +47,7 @@ func Start(ctx context.Context, testnet *e2e.Testnet, p infra.Provider) error {
 		nodesAtZero = append(nodesAtZero, nodeQueue[0])
 		nodeQueue = nodeQueue[1:]
 	}
-	err := p.StartNodes(context.Background(), nodesAtZero...)
-	if err != nil {
+	if err := p.StartNodes(ctx, nodesAtZero...); err != nil {
 		return err
 	}
 	for _, node := range nodesAtZero {
@@ -63,12 +62,6 @@ func Start(ctx context.Context, testnet *e2e.Testnet, p infra.Provider) error {
 		} else {
 			logger.Info("start", "msg", log.NewLazySprintf("Node %v up on http://%s:%v",
 				node.Name, node.ExternalIP, node.RPCProxyPort))
-		}
-		if node.ZoneIsSet() {
-			logger.Info("setting latency", "zone", node.Zone)
-			if err := p.SetLatency(ctx, node); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -117,8 +110,7 @@ func Start(ctx context.Context, testnet *e2e.Testnet, p infra.Provider) error {
 
 		logger.Info("Starting catch up node", "node", node.Name, "height", node.StartAt)
 
-		err := p.StartNodes(context.Background(), node)
-		if err != nil {
+		if err := p.StartNodes(ctx, node); err != nil {
 			return err
 		}
 		status, err := waitForNode(ctx, node, node.StartAt, 3*time.Minute)
@@ -131,12 +123,6 @@ func Start(ctx context.Context, testnet *e2e.Testnet, p infra.Provider) error {
 		} else {
 			logger.Info("start", "msg", log.NewLazySprintf("Node %v up on http://%s:%v at height %v",
 				node.Name, node.ExternalIP, node.RPCProxyPort, status.SyncInfo.LatestBlockHeight))
-		}
-		if node.ZoneIsSet() {
-			logger.Info("setting latency", "zone", node.Zone)
-			if err := p.SetLatency(ctx, node); err != nil {
-				return err
-			}
 		}
 	}
 

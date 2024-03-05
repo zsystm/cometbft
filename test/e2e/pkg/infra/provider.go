@@ -20,7 +20,7 @@ type Provider interface {
 	StartNodes(ctx context.Context, nodes ...*e2e.Node) error
 
 	// Set emulated latencies from a node to other nodes.
-	SetLatency(ctx context.Context, node *e2e.Node) error
+	SetLatency(ctx context.Context, nodes ...*e2e.Node) error
 
 	// Stops the whole network
 	StopTestnet(ctx context.Context) error
@@ -51,5 +51,5 @@ func (pd ProviderData) GetInfrastructureData() *e2e.InfrastructureData {
 
 // IPZonesFilePath returns the path to the file with the mapping from IP addresses to zones.
 func (pd ProviderData) IPZonesFilePath() string {
-	return filepath.Join(pd.Testnet.Dir, "zones.csv")
+	return filepath.Join(pd.Testnet.Dir, "latency", "zones.csv")
 }

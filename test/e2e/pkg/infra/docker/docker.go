@@ -75,19 +75,10 @@ func (p Provider) CheckUpgraded(ctx context.Context, node *e2e.Node) (string, bo
 	return name, upgraded, nil
 }
 
-func (p Provider) SetLatency(ctx context.Context, node *e2e.Node) error {
-	containerDir := "/scripts/"
-
-	// Copy zone file used by the script that sets latency.
-	if err := Exec(ctx, "cp", p.IPZonesFilePath(), node.Name+":"+containerDir); err != nil {
-		return err
-	}
-
-	// Execute the latency setter script in the container.
-	return ExecVerbose(ctx, "exec", "--privileged", node.Name,
-		filepath.Join(containerDir, "latency-setter.py"), "set",
-		filepath.Join(containerDir, filepath.Base(p.IPZonesFilePath())),
-		filepath.Join(containerDir, "aws-latencies.csv"), "eth0")
+// SetLatency is empty for Docker: the script to enable latency emulation is run in the container
+// entrypoint when the zones files, which is created at startup, is present at the correct location.
+func (p Provider) SetLatency(ctx context.Context, nodes ...*e2e.Node) error {
+	return nil
 }
 
 // dockerComposeBytes generates a Docker Compose config file for a testnet and returns the
@@ -133,6 +124,7 @@ services:
     volumes:
     - ./{{ .Name }}:/cometbft
     - ./{{ .Name }}:/tendermint
+    - ./latency:/latency
     networks:
       {{ $.Name }}:
         ipv{{ if $.IPv6 }}6{{ else }}4{{ end}}_address: {{ .InternalIP }}
@@ -161,6 +153,7 @@ services:
     volumes:
     - ./{{ .Name }}:/cometbft
     - ./{{ .Name }}:/tendermint
+    - ./latency:/latency
     networks:
       {{ $.Name }}:
         ipv{{ if $.IPv6 }}6{{ else }}4{{ end}}_address: {{ .InternalIP }}

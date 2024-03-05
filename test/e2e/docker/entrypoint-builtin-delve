@@ -3,4 +3,6 @@
 # Forcibly remove any stray UNIX sockets left behind from previous runs
 rm -rf /var/run/privval.sock /var/run/app.sock
 
+[ -f /latency/zones.csv ] && /scripts/latency-setter.py set /latency/zones.csv /scripts/aws-latencies.csv eth0
+
 dlv --headless --listen=:2345 --log --log-output=debugger,debuglineerr,gdbwire,lldbout,rpc --accept-multiclient --api-version=2 exec /usr/bin/app -- /cometbft/config/app.toml

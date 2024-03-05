@@ -3,6 +3,7 @@ package infra
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"text/template"
 
 	e2e "github.com/cometbft/cometbft/test/e2e/pkg"
@@ -15,9 +16,12 @@ func GenerateIPZonesTable(nodes []*e2e.Node, zonesPath string, useInternalIP boo
 	if err != nil {
 		return err
 	}
+	// Create directory in case it's not there yet.
+	if err := os.MkdirAll(filepath.Dir(zonesPath), 0o755); err != nil {
+		return err
+	}
 	//nolint: gosec // G306: Expect WriteFile permissions to be 0600 or less
-	err = os.WriteFile(zonesPath, zonesTable, 0o644)
-	if err != nil {
+	if err = os.WriteFile(zonesPath, zonesTable, 0o644); err != nil {
 		return err
 	}
 	return nil
