@@ -107,6 +107,8 @@ type Testnet struct {
 	DefaultZone                                          string
 	RPCMaxBodyBytes                                      uint64
 	RPCMaxHeaderBytes                                    uint64
+	PbtsEnableHeight                                     int64
+	PbtsUpdateHeight                                     int64
 }
 
 // Node represents a CometBFT node in a testnet.
@@ -142,6 +144,7 @@ type Node struct {
 	Prometheus              bool
 	PrometheusProxyPort     uint32
 	Zone                    ZoneID
+	ClockSkew               time.Duration
 }
 
 type Load struct {
@@ -222,6 +225,8 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 		DefaultZone:       manifest.DefaultZone,
 		RPCMaxBodyBytes:   manifest.RPCMaxBodyBytes,
 		RPCMaxHeaderBytes: manifest.RPCMaxHeaderBytes,
+		PbtsEnableHeight:  manifest.PbtsEnableHeight,
+		PbtsUpdateHeight:  manifest.PbtsUpdateHeight,
 	}
 	if len(manifest.KeyType) != 0 {
 		testnet.KeyType = manifest.KeyType
@@ -278,6 +283,7 @@ func NewTestnetFromManifest(manifest Manifest, file string, ifd InfrastructureDa
 			SendNoLoad:              nodeManifest.SendNoLoad,
 			Prometheus:              testnet.Prometheus,
 			Zone:                    ZoneID(nodeManifest.Zone),
+			ClockSkew:               nodeManifest.ClockSkew,
 		}
 		if node.StartAt == testnet.InitialHeight {
 			node.StartAt = 0 // normalize to 0 for initial nodes, since code expects this
@@ -528,7 +534,7 @@ func (t Testnet) Validate() error {
 	}
 	if t.VoteExtensionsUpdateHeight > 0 && t.VoteExtensionsUpdateHeight < t.InitialHeight {
 		return fmt.Errorf("a value of VoteExtensionsUpdateHeight greater than 0 "+
-			"must not be less than InitialHeight; "+
+			"must not be less than InitialHeight; "+ //nolint: goconst
 			"update height %d, initial height %d",
 			t.VoteExtensionsUpdateHeight, t.InitialHeight,
 		)
@@ -546,6 +552,33 @@ func (t Testnet) Validate() error {
 				"must be greater than VoteExtensionsUpdateHeight; "+
 				"update height %d, enable height %d",
 				t.VoteExtensionsUpdateHeight, t.VoteExtensionsEnableHeight,
+			)
+		}
+	}
+	if t.PbtsEnableHeight < 0 {
+		return fmt.Errorf("value of PbtsEnableHeight must be positive, or 0 (disable); "+
+			"enable height %d", t.PbtsEnableHeight)
+	}
+	if t.PbtsUpdateHeight > 0 && t.PbtsUpdateHeight < t.InitialHeight {
+		return fmt.Errorf("a value of PbtsUpdateHeight greater than 0 "+
+			"must not be less than InitialHeight; "+
+			"update height %d, initial height %d",
+			t.PbtsUpdateHeight, t.InitialHeight,
+		)
+	}
+	if t.PbtsEnableHeight > 0 {
+		if t.PbtsEnableHeight < t.InitialHeight {
+			return fmt.Errorf("a value of PbtsEnableHeight greater than 0 "+
+				"must not be less than InitialHeight; "+
+				"enable height %d, initial height %d",
+				t.PbtsEnableHeight, t.InitialHeight,
+			)
+		}
+		if t.PbtsEnableHeight <= t.PbtsUpdateHeight {
+			return fmt.Errorf("a value of PbtsEnableHeight greater than 0 "+
+				"must be greater than PbtsUpdateHeight; "+
+				"update height %d, enable height %d",
+				t.PbtsUpdateHeight, t.PbtsEnableHeight,
 			)
 		}
 	}
@@ -642,6 +675,9 @@ func (n Node) Validate(testnet Testnet) error {
 	}
 	if n.Mode == ModeLight && n.ABCIProtocol != ProtocolBuiltin && n.ABCIProtocol != ProtocolBuiltinConnSync {
 		return errors.New("light client must use builtin protocol")
+	}
+	if n.Mode != ModeFull && n.Mode != ModeValidator && n.ClockSkew != 0 {
+		return errors.New("clock skew configuration only supported on full nodes")
 	}
 	switch n.PrivvalProtocol {
 	case ProtocolFile, ProtocolUNIX, ProtocolTCP:

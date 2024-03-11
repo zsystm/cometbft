@@ -11,7 +11,7 @@ RUN mkdir -p /scripts
 COPY test/e2e/pkg/latency/* /scripts/
 
 # Set up build directory /src/cometbft
-ENV COMETBFT_BUILD_OPTIONS badgerdb,boltdb,cleveldb,rocksdb,pebbledb
+ENV COMETBFT_BUILD_OPTIONS badgerdb,boltdb,cleveldb,rocksdb,pebbledb,clock_skew
 WORKDIR /src/cometbft
 
 # Fetch dependencies separately (for layer caching)

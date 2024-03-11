@@ -2,6 +2,7 @@ package digitalocean
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,12 @@ func (p *Provider) Setup() error {
 	// Generate the file mapping IPs to zones, needed for emulating latencies.
 	if err := infra.GenerateIPZonesTable(p.Testnet.Nodes, p.IPZonesFilePath(), false); err != nil {
 		return err
+	}
+
+	for _, n := range p.Testnet.Nodes {
+		if n.ClockSkew != 0 {
+			return fmt.Errorf("node %q contains clock skew configuration (not supported on DO)", n.Name)
+		}
 	}
 
 	return nil
