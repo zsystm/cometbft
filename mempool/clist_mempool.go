@@ -392,9 +392,9 @@ func (mem *CListMempool) isFull(txSize int) error {
 
 	bytesCapacity := mem.config.MaxTxsBytes
 
-	// Very big txs are only allowed in the first quarter of the mempool.
+	// Very big txs are only allowed in the first 1/8th of the mempool.
 	if txSize > mem.config.MaxTypicalTxBytes {
-		bytesCapacity /= 4
+		bytesCapacity /= 8
 	}
 
 	if memSize >= mem.config.Size || int64(txSize)+txsBytes > bytesCapacity {
