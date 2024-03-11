@@ -2,4 +2,6 @@
 
 rm -rf /var/run/privval.sock /var/run/app.sock
 
+[ -f /latency/zones.csv ] && /scripts/latency-setter.py set /latency/zones.csv /scripts/aws-latencies.csv eth0
+
 /app /cometbft/config/app.toml # > /dev/null

@@ -1,0 +1,20 @@
+---
+- name: enable latency emulation
+  hosts: validators,ephemeral
+  become_method: sudo
+  gather_facts: false
+  vars:
+    latency_dir: /root/cometbft/test/e2e/pkg/latency/
+
+  tasks:
+    - name: copy zones file
+      ansible.builtin.copy:
+        src: "{{ .ZonesFilePath }}"
+        dest: "{{ latency_dir }}"
+      become: true
+
+    - name: execute script to set latencies
+      ansible.builtin.command: ./latency-setter.py set zones.csv aws-latencies.csv eth0
+      args:
+        chdir: "{{ latency_dir }}"
+      become: true

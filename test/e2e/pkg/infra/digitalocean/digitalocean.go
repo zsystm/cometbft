@@ -1,8 +1,10 @@
 package digitalocean
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +36,11 @@ func (p *Provider) Setup() error {
 		return err
 	}
 
+	// Generate the file mapping IPs to zones, needed for emulating latencies.
+	if err := infra.GenerateIPZonesTable(p.Testnet.Nodes, p.IPZonesFilePath(), false); err != nil {
+		return err
+	}
+
 	for _, n := range p.Testnet.Nodes {
 		if n.ClockSkew != 0 {
 			return fmt.Errorf("node %q contains clock skew configuration (not supported on DO)", n.Name)
@@ -43,17 +50,25 @@ func (p *Provider) Setup() error {
 	return nil
 }
 
-//go:embed ansible/testapp-set-latency.yaml
-var ansibleSetLatencyContent []byte
+//go:embed ansible/testapp-set-latency.tmpl.yaml
+var ansibleTestAppSetLatencyContent string
 
 // SetLatency prepares and executes the latency-setter script in the given list of nodes.
 func (p Provider) SetLatency(ctx context.Context, nodes ...*e2e.Node) error {
+	// Prepare content of Ansible playbook.
+	tmpl := template.Must(template.New("set-latency").Parse(ansibleTestAppSetLatencyContent))
+	var buf bytes.Buffer
+	templateData := struct{ ZonesFilePath string }{ZonesFilePath: filepath.Base(p.IPZonesFilePath())}
+	if err := tmpl.Execute(&buf, templateData); err != nil {
+		return err
+	}
+
 	// Execute Ansible playbook on all nodes.
 	externalIPs := make([]string, len(nodes))
 	for i, n := range nodes {
 		externalIPs[i] = n.ExternalIP.String()
 	}
-	return p.execAnsible(ctx, "testapp-set-latency.yaml", ansibleSetLatencyContent, externalIPs)
+	return p.execAnsible(ctx, "testapp-set-latency.yaml", buf.Bytes(), externalIPs)
 }
 
 //go:embed ansible/testapp-start.yaml
