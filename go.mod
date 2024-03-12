@@ -30,7 +30,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/net v0.22.0
-	google.golang.org/grpc v1.62.0
+	google.golang.org/grpc v1.62.1
 )
 
 require github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
@@ -41,7 +41,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/cometbft/cometbft-db v0.11.0
 	github.com/cometbft/cometbft-load-test v0.1.0
-	github.com/cometbft/cometbft/api v1.0.0-alpha.1
+	github.com/cometbft/cometbft/api v0.0.0-20240311183503-2f0dc67ee8d5
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/goccmack/goutil v1.2.3
