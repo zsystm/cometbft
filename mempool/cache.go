@@ -3,7 +3,7 @@ package mempool
 import (
 	"container/list"
 
-	cmtsync "github.com/cometbft/cometbft/internal/sync"
+	cmtsync "github.com/cometbft/cometbft/libs/sync"
 	"github.com/cometbft/cometbft/types"
 )
 
@@ -53,12 +53,11 @@ func (c *LRUTxCache) GetList() *list.List {
 	return c.list
 }
 
-// Reset resets the cache to an empty state.
 func (c *LRUTxCache) Reset() {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	clear(c.cacheMap)
+	c.cacheMap = make(map[types.TxKey]*list.Element, c.size)
 	c.list.Init()
 }
 

@@ -13,20 +13,25 @@ import (
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/cometbft/cometbft/crypto/tmhash"
-	cmtrand "github.com/cometbft/cometbft/internal/rand"
 	"github.com/cometbft/cometbft/internal/test"
+	cmtrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cometbft/cometbft/privval"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/rpc/client"
 	rpctest "github.com/cometbft/cometbft/rpc/test"
 	"github.com/cometbft/cometbft/types"
 )
 
+// For some reason the empty node used in tests has a time of
+// 2018-10-10 08:20:13.695936996 +0000 UTC
+// this is because the test genesis time is set here
+// so in order to validate evidence we need evidence to be the same time
+var defaultTestTime = time.Date(2018, 10, 10, 8, 20, 13, 695936996, time.UTC)
+
 func newEvidence(t *testing.T, val *privval.FilePV,
 	vote *types.Vote, vote2 *types.Vote,
-	chainID string,
-	timestamp time.Time,
-) *types.DuplicateVoteEvidence {
-	t.Helper()
+	chainID string) *types.DuplicateVoteEvidence {
+
 	var err error
 
 	v := vote.ToProto()
@@ -41,7 +46,7 @@ func newEvidence(t *testing.T, val *privval.FilePV,
 	validator := types.NewValidator(val.Key.PubKey, 10)
 	valSet := types.NewValidatorSet([]*types.Validator{validator})
 
-	ev, err := types.NewDuplicateVoteEvidence(vote, vote2, timestamp, valSet)
+	ev, err := types.NewDuplicateVoteEvidence(vote, vote2, defaultTestTime, valSet)
 	require.NoError(t, err)
 	return ev
 }
@@ -50,16 +55,14 @@ func makeEvidences(
 	t *testing.T,
 	val *privval.FilePV,
 	chainID string,
-	timestamp time.Time,
 ) (correct *types.DuplicateVoteEvidence, fakes []*types.DuplicateVoteEvidence) {
-	t.Helper()
 	vote := types.Vote{
 		ValidatorAddress: val.Key.Address,
 		ValidatorIndex:   0,
 		Height:           1,
 		Round:            0,
-		Type:             types.PrevoteType,
-		Timestamp:        timestamp,
+		Type:             cmtproto.PrevoteType,
+		Timestamp:        defaultTestTime,
 		BlockID: types.BlockID{
 			Hash: tmhash.Sum(cmtrand.Bytes(tmhash.Size)),
 			PartSetHeader: types.PartSetHeader{
@@ -71,7 +74,7 @@ func makeEvidences(
 
 	vote2 := vote
 	vote2.BlockID.Hash = tmhash.Sum([]byte("blockhash2"))
-	correct = newEvidence(t, val, &vote, &vote2, chainID, timestamp)
+	correct = newEvidence(t, val, &vote, &vote2, chainID)
 
 	fakes = make([]*types.DuplicateVoteEvidence, 0)
 
@@ -79,34 +82,34 @@ func makeEvidences(
 	{
 		v := vote2
 		v.ValidatorAddress = []byte("some_address")
-		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID, timestamp))
+		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID))
 	}
 
 	// different height
 	{
 		v := vote2
 		v.Height = vote.Height + 1
-		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID, timestamp))
+		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID))
 	}
 
 	// different round
 	{
 		v := vote2
 		v.Round = vote.Round + 1
-		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID, timestamp))
+		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID))
 	}
 
 	// different type
 	{
 		v := vote2
-		v.Type = types.PrecommitType
-		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID, timestamp))
+		v.Type = cmtproto.PrecommitType
+		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID))
 	}
 
 	// exactly same vote
 	{
 		v := vote
-		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID, timestamp))
+		fakes = append(fakes, newEvidence(t, val, &vote, &v, chainID))
 	}
 
 	return correct, fakes
@@ -120,13 +123,7 @@ func TestBroadcastEvidence_DuplicateVoteEvidence(t *testing.T) {
 	)
 
 	for i, c := range GetClients() {
-		evidenceHeight := int64(1)
-		err := client.WaitForHeight(c, evidenceHeight, nil)
-		require.NoError(t, err)
-		block, err := c.Block(ctx, &evidenceHeight)
-		require.NoError(t, err)
-		ts := block.Block.Time
-		correct, fakes := makeEvidences(t, pv, chainID, ts)
+		correct, fakes := makeEvidences(t, pv, chainID)
 		t.Logf("client %d", i)
 
 		result, err := c.BroadcastEvidence(context.Background(), correct)
@@ -165,6 +162,6 @@ func TestBroadcastEvidence_DuplicateVoteEvidence(t *testing.T) {
 func TestBroadcastEmptyEvidence(t *testing.T) {
 	for _, c := range GetClients() {
 		_, err := c.BroadcastEvidence(context.Background(), nil)
-		require.Error(t, err)
+		assert.Error(t, err)
 	}
 }

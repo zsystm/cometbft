@@ -6,7 +6,6 @@ services:
     image: "cometbft/localnode"
     ports:
       - "26656-26657:26656-26657"
-      - "26670:26660"
     environment:
       - ID=0
       - LOG=${LOG:-cometbft.log}
@@ -21,7 +20,6 @@ services:
     image: "cometbft/localnode"
     ports:
       - "26659-26660:26656-26657"
-      - "26671:26660"
     environment:
       - ID=1
       - LOG=${LOG:-cometbft.log}
@@ -39,7 +37,6 @@ services:
       - LOG=${LOG:-cometbft.log}
     ports:
       - "26661-26662:26656-26657"
-      - "26672:26660"
     volumes:
       - ./build:/cometbft:Z
     networks:
@@ -54,7 +51,6 @@ services:
       - LOG=${LOG:-cometbft.log}
     ports:
       - "26663-26664:26656-26657"
-      - "26673:26660"
     volumes:
       - ./build:/cometbft:Z
     networks:
@@ -67,4 +63,4 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 192.167.0.0/16
+        - subnet: 192.167.10.0/16

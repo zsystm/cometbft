@@ -75,7 +75,7 @@ func (e ErrRejected) Error() string {
 		return fmt.Sprintf("self ID<%v>", e.id)
 	}
 
-	return e.err.Error()
+	return fmt.Sprintf("%s", e.err)
 }
 
 // IsAuthFailure when Peer authentication was unsuccessful.

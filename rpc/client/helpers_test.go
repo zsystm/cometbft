@@ -26,10 +26,10 @@ func TestWaitForHeight(t *testing.T) {
 
 	// connection failure always leads to error
 	err := client.WaitForHeight(r, 8, nil)
-	require.Error(err)
+	require.NotNil(err)
 	require.Equal("bye", err.Error())
 	// we called status once to check
-	require.Len(r.Calls, 1)
+	require.Equal(1, len(r.Calls))
 
 	// now set current block height to 10
 	m.Call = mock.Call{
@@ -38,16 +38,16 @@ func TestWaitForHeight(t *testing.T) {
 
 	// we will not wait for more than 10 blocks
 	err = client.WaitForHeight(r, 40, nil)
-	require.Error(err)
+	require.NotNil(err)
 	require.True(strings.Contains(err.Error(), "aborting"))
 	// we called status once more to check
-	require.Len(r.Calls, 2)
+	require.Equal(2, len(r.Calls))
 
 	// waiting for the past returns immediately
 	err = client.WaitForHeight(r, 5, nil)
-	require.NoError(err)
+	require.Nil(err)
 	// we called status once more to check
-	require.Len(r.Calls, 3)
+	require.Equal(3, len(r.Calls))
 
 	// since we can't update in a background goroutine (test --race)
 	// we use the callback to update the status height
@@ -59,18 +59,18 @@ func TestWaitForHeight(t *testing.T) {
 
 	// we wait for a few blocks
 	err = client.WaitForHeight(r, 12, myWaiter)
-	require.NoError(err)
+	require.Nil(err)
 	// we called status once to check
-	require.Len(r.Calls, 5)
+	require.Equal(5, len(r.Calls))
 
 	pre := r.Calls[3]
-	require.NoError(pre.Error)
+	require.Nil(pre.Error)
 	prer, ok := pre.Response.(*ctypes.ResultStatus)
 	require.True(ok)
 	assert.Equal(int64(10), prer.SyncInfo.LatestBlockHeight)
 
 	post := r.Calls[4]
-	require.NoError(post.Error)
+	require.Nil(post.Error)
 	postr, ok := post.Response.(*ctypes.ResultStatus)
 	require.True(ok)
 	assert.Equal(int64(15), postr.SyncInfo.LatestBlockHeight)

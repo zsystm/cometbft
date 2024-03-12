@@ -2,7 +2,6 @@ package sr25519
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 
@@ -41,25 +40,19 @@ func (privKey PrivKey) Bytes() []byte {
 // Sign produces a signature on the provided message.
 func (privKey PrivKey) Sign(msg []byte) ([]byte, error) {
 	if privKey.kp == nil {
-		return nil, ErrInvalidKey{
-			Err: errors.New("sr25519: uninitialized private key"),
-		}
+		return nil, fmt.Errorf("sr25519: uninitialized private key")
 	}
 
 	st := signingCtx.NewTranscriptBytes(msg)
 
 	sig, err := privKey.kp.Sign(crypto.CReader(), st)
 	if err != nil {
-		return nil, ErrInvalidSignature{
-			Err: fmt.Errorf("sr25519: failed to sign message: %w", err),
-		}
+		return nil, fmt.Errorf("sr25519: failed to sign message: %w", err)
 	}
 
 	sigBytes, err := sig.MarshalBinary()
 	if err != nil {
-		return nil, ErrInvalidSignature{
-			Err: fmt.Errorf("sr25519: failed to serialize signature: %w", err),
-		}
+		return nil, fmt.Errorf("sr25519: failed to serialize signature: %w", err)
 	}
 
 	return sigBytes, nil
@@ -111,9 +104,7 @@ func (privKey *PrivKey) UnmarshalJSON(data []byte) error {
 
 	var b []byte
 	if err := json.Unmarshal(data, &b); err != nil {
-		return ErrInvalidKey{
-			Err: fmt.Errorf("sr25519: failed to deserialize JSON: %w", err),
-		}
+		return fmt.Errorf("sr25519: failed to deserialize JSON: %w", err)
 	}
 	if len(b) == 0 {
 		return nil

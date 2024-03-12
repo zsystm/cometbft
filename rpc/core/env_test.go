@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPaginationPage(t *testing.T) {
@@ -43,7 +42,7 @@ func TestPaginationPage(t *testing.T) {
 	for _, c := range cases {
 		p, err := validatePage(&c.page, c.perPage, c.totalCount)
 		if c.expErr {
-			require.Error(t, err)
+			assert.Error(t, err)
 			continue
 		}
 
@@ -52,7 +51,7 @@ func TestPaginationPage(t *testing.T) {
 
 	// nil case
 	p, err := validatePage(nil, 1, 1)
-	if assert.NoError(t, err) { //nolint:testifylint // require.Error doesn't work with the conditional here
+	if assert.NoError(t, err) {
 		assert.Equal(t, 1, p)
 	}
 }

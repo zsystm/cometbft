@@ -33,16 +33,11 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestConfigValidateBasic(t *testing.T) {
 	cfg := config.DefaultConfig()
-	require.NoError(t, cfg.ValidateBasic())
+	assert.NoError(t, cfg.ValidateBasic())
 
 	// tamper with timeout_propose
 	cfg.Consensus.TimeoutPropose = -10 * time.Second
-	require.Error(t, cfg.ValidateBasic())
-	cfg.Consensus.TimeoutPropose = 3 * time.Second
-
-	cfg.Consensus.CreateEmptyBlocks = false
-	cfg.Mempool.Type = config.MempoolTypeNop
-	require.Error(t, cfg.ValidateBasic())
+	assert.Error(t, cfg.ValidateBasic())
 }
 
 func TestTLSConfiguration(t *testing.T) {
@@ -63,16 +58,16 @@ func TestTLSConfiguration(t *testing.T) {
 
 func TestBaseConfigValidateBasic(t *testing.T) {
 	cfg := config.TestBaseConfig()
-	require.NoError(t, cfg.ValidateBasic())
+	assert.NoError(t, cfg.ValidateBasic())
 
 	// tamper with log format
 	cfg.LogFormat = "invalid"
-	require.Error(t, cfg.ValidateBasic())
+	assert.Error(t, cfg.ValidateBasic())
 }
 
 func TestRPCConfigValidateBasic(t *testing.T) {
 	cfg := config.TestRPCConfig()
-	require.NoError(t, cfg.ValidateBasic())
+	assert.NoError(t, cfg.ValidateBasic())
 
 	fieldsToTest := []string{
 		"MaxOpenConnections",
@@ -85,14 +80,14 @@ func TestRPCConfigValidateBasic(t *testing.T) {
 
 	for _, fieldName := range fieldsToTest {
 		reflect.ValueOf(cfg).Elem().FieldByName(fieldName).SetInt(-1)
-		require.Error(t, cfg.ValidateBasic())
+		assert.Error(t, cfg.ValidateBasic())
 		reflect.ValueOf(cfg).Elem().FieldByName(fieldName).SetInt(0)
 	}
 }
 
 func TestP2PConfigValidateBasic(t *testing.T) {
 	cfg := config.TestP2PConfig()
-	require.NoError(t, cfg.ValidateBasic())
+	assert.NoError(t, cfg.ValidateBasic())
 
 	fieldsToTest := []string{
 		"MaxNumInboundPeers",
@@ -105,14 +100,14 @@ func TestP2PConfigValidateBasic(t *testing.T) {
 
 	for _, fieldName := range fieldsToTest {
 		reflect.ValueOf(cfg).Elem().FieldByName(fieldName).SetInt(-1)
-		require.Error(t, cfg.ValidateBasic())
+		assert.Error(t, cfg.ValidateBasic())
 		reflect.ValueOf(cfg).Elem().FieldByName(fieldName).SetInt(0)
 	}
 }
 
 func TestMempoolConfigValidateBasic(t *testing.T) {
 	cfg := config.TestMempoolConfig()
-	require.NoError(t, cfg.ValidateBasic())
+	assert.NoError(t, cfg.ValidateBasic())
 
 	fieldsToTest := []string{
 		"Size",
@@ -123,12 +118,9 @@ func TestMempoolConfigValidateBasic(t *testing.T) {
 
 	for _, fieldName := range fieldsToTest {
 		reflect.ValueOf(cfg).Elem().FieldByName(fieldName).SetInt(-1)
-		require.Error(t, cfg.ValidateBasic())
+		assert.Error(t, cfg.ValidateBasic())
 		reflect.ValueOf(cfg).Elem().FieldByName(fieldName).SetInt(0)
 	}
-
-	reflect.ValueOf(cfg).Elem().FieldByName("Type").SetString("invalid")
-	require.Error(t, cfg.ValidateBasic())
 }
 
 func TestStateSyncConfigValidateBasic(t *testing.T) {
@@ -138,14 +130,14 @@ func TestStateSyncConfigValidateBasic(t *testing.T) {
 
 func TestBlockSyncConfigValidateBasic(t *testing.T) {
 	cfg := config.TestBlockSyncConfig()
-	require.NoError(t, cfg.ValidateBasic())
+	assert.NoError(t, cfg.ValidateBasic())
 
 	// tamper with version
 	cfg.Version = "v1"
-	require.Error(t, cfg.ValidateBasic())
+	assert.Error(t, cfg.ValidateBasic())
 
 	cfg.Version = "invalid"
-	require.Error(t, cfg.ValidateBasic())
+	assert.Error(t, cfg.ValidateBasic())
 }
 
 func TestConsensusConfig_ValidateBasic(t *testing.T) {
@@ -182,9 +174,9 @@ func TestConsensusConfig_ValidateBasic(t *testing.T) {
 
 			err := cfg.ValidateBasic()
 			if tc.expectErr {
-				require.Error(t, err)
+				assert.Error(t, err)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -192,9 +184,9 @@ func TestConsensusConfig_ValidateBasic(t *testing.T) {
 
 func TestInstrumentationConfigValidateBasic(t *testing.T) {
 	cfg := config.TestInstrumentationConfig()
-	require.NoError(t, cfg.ValidateBasic())
+	assert.NoError(t, cfg.ValidateBasic())
 
 	// tamper with maximum open connections
 	cfg.MaxOpenConnections = -1
-	require.Error(t, cfg.ValidateBasic())
+	assert.Error(t, cfg.ValidateBasic())
 }

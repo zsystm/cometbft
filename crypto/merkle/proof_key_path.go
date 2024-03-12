@@ -82,21 +82,11 @@ func (pth KeyPath) String() string {
 	return res
 }
 
-type ErrInvalidKey struct {
-	Err error
-}
-
-func (e ErrInvalidKey) Error() string {
-	return fmt.Sprintf("merkle: invalid key error: %v", e.Err)
-}
-
 // Decode a path to a list of keys. Path must begin with `/`.
 // Each key must use a known encoding.
 func KeyPathToKeys(path string) (keys [][]byte, err error) {
 	if path == "" || path[0] != '/' {
-		return nil, ErrInvalidKey{
-			Err: errors.New("key path string must start with a forward slash '/'"),
-		}
+		return nil, errors.New("key path string must start with a forward slash '/'")
 	}
 	parts := strings.Split(path[1:], "/")
 	keys = make([][]byte, len(parts))
@@ -105,17 +95,13 @@ func KeyPathToKeys(path string) (keys [][]byte, err error) {
 			hexPart := part[2:]
 			key, err := hex.DecodeString(hexPart)
 			if err != nil {
-				return nil, ErrInvalidKey{
-					Err: fmt.Errorf("decoding hex-encoded part #%d: /%s: %w", i, part, err),
-				}
+				return nil, fmt.Errorf("decoding hex-encoded part #%d: /%s: %w", i, part, err)
 			}
 			keys[i] = key
 		} else {
 			key, err := url.PathUnescape(part)
 			if err != nil {
-				return nil, ErrInvalidKey{
-					Err: fmt.Errorf("decoding url-encoded part #%d: /%s: %w", i, part, err),
-				}
+				return nil, fmt.Errorf("decoding url-encoded part #%d: /%s: %w", i, part, err)
 			}
 			keys[i] = []byte(key) // TODO Test this with random bytes, I'm not sure that it works for arbitrary bytes...
 		}

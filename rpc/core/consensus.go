@@ -1,11 +1,8 @@
 package core
 
 import (
-	"fmt"
-
-	cm "github.com/cometbft/cometbft/internal/consensus"
+	cm "github.com/cometbft/cometbft/consensus"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
-	"github.com/cometbft/cometbft/p2p"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/jsonrpc/types"
 	"github.com/cometbft/cometbft/types"
@@ -58,29 +55,24 @@ func (env *Environment) Validators(
 // More: https://docs.cometbft.com/main/rpc/#/Info/dump_consensus_state
 func (env *Environment) DumpConsensusState(*rpctypes.Context) (*ctypes.ResultDumpConsensusState, error) {
 	// Get Peer consensus states.
-	peerStates := make([]ctypes.PeerStateInfo, 0)
-	var err error
-	env.P2PPeers.Peers().ForEach(func(peer p2p.Peer) {
+	peers := env.P2PPeers.Peers().List()
+	peerStates := make([]ctypes.PeerStateInfo, len(peers))
+	for i, peer := range peers {
 		peerState, ok := peer.Get(types.PeerStateKey).(*cm.PeerState)
 		if !ok { // peer does not have a state yet
-			return
+			continue
 		}
-		peerStateJSON, marshalErr := peerState.MarshalJSON()
-		if marshalErr != nil {
-			err = fmt.Errorf("failed to marshal peer %v state: %w", peer.ID(), marshalErr)
-			return
+		peerStateJSON, err := peerState.MarshalJSON()
+		if err != nil {
+			return nil, err
 		}
-		peerStates = append(peerStates, ctypes.PeerStateInfo{
+		peerStates[i] = ctypes.PeerStateInfo{
 			// Peer basic info.
 			NodeAddress: peer.SocketAddr().String(),
 			// Peer consensus state.
 			PeerState: peerStateJSON,
-		})
-	})
-	if err != nil {
-		return nil, err
+		}
 	}
-
 	// Get self round state.
 	roundState, err := env.ConsensusState.GetRoundStateJSON()
 	if err != nil {

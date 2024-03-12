@@ -1,9 +1,9 @@
-FROM golang:1.21
+FROM golang:1.15
 
 # Grab deps (jq, hexdump, xxd, killall)
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
-  jq bsdmainutils vim-common psmisc netcat-traditional curl
+  jq bsdmainutils vim-common psmisc netcat curl
 
 # Setup CometBFT repo
 ENV REPO $GOPATH/src/github.com/cometbft/cometbft
@@ -14,6 +14,9 @@ WORKDIR $REPO
 # TODO: rewrite to only copy Makefile & other files?
 COPY . $REPO
 
+# Install the vendored dependencies
+# docker caching prevents reinstall on code change!
+RUN make tools
 
 # install ABCI CLI
 RUN make install_abci

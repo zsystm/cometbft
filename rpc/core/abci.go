@@ -19,7 +19,7 @@ func (env *Environment) ABCIQuery(
 	height int64,
 	prove bool,
 ) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := env.ProxyAppQuery.Query(context.TODO(), &abci.QueryRequest{
+	resQuery, err := env.ProxyAppQuery.Query(context.TODO(), &abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: height,
@@ -35,7 +35,7 @@ func (env *Environment) ABCIQuery(
 // ABCIInfo gets some info about the application.
 // More: https://docs.cometbft.com/main/rpc/#/ABCI/abci_info
 func (env *Environment) ABCIInfo(_ *rpctypes.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := env.ProxyAppQuery.Info(context.TODO(), proxy.InfoRequest)
+	resInfo, err := env.ProxyAppQuery.Info(context.TODO(), proxy.RequestInfo)
 	if err != nil {
 		return nil, err
 	}

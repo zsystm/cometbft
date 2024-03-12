@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"strings"
 
-	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	"github.com/cometbft/cometbft/crypto"
 	ce "github.com/cometbft/cometbft/crypto/encoding"
-	cmtrand "github.com/cometbft/cometbft/internal/rand"
+	cmtrand "github.com/cometbft/cometbft/libs/rand"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 )
 
 // Volatile state for each Validator
 // NOTE: The ProposerPriority is not included in Validator.Hash();
-// make sure to update that method if changes are made here.
+// make sure to update that method if changes are made here
 type Validator struct {
 	Address     Address       `json:"address"`
 	PubKey      crypto.PubKey `json:"pub_key"`
@@ -46,22 +46,21 @@ func (v *Validator) ValidateBasic() error {
 		return errors.New("validator has negative voting power")
 	}
 
-	addr := v.PubKey.Address()
-	if !bytes.Equal(v.Address, addr) {
-		return fmt.Errorf("validator address is incorrectly derived from pubkey. Exp: %v, got %v", addr, v.Address)
+	if len(v.Address) != crypto.AddressSize {
+		return fmt.Errorf("validator address is the wrong size: %v", v.Address)
 	}
 
 	return nil
 }
 
-// Copy creates a new copy of the validator so we can mutate ProposerPriority.
+// Creates a new copy of the validator so we can mutate ProposerPriority.
 // Panics if the validator is nil.
 func (v *Validator) Copy() *Validator {
 	vCopy := *v
 	return &vCopy
 }
 
-// CompareProposerPriority returns the one with higher ProposerPriority.
+// Returns the one with higher ProposerPriority.
 func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 	if v == nil {
 		return other
@@ -89,7 +88,7 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 // 1. address
 // 2. public key
 // 3. voting power
-// 4. proposer priority.
+// 4. proposer priority
 func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"
@@ -133,7 +132,7 @@ func (v *Validator) Bytes() []byte {
 	return bz
 }
 
-// ToProto converts Validator to protobuf.
+// ToProto converts Valiator to protobuf
 func (v *Validator) ToProto() (*cmtproto.Validator, error) {
 	if v == nil {
 		return nil, errors.New("nil validator")
@@ -154,7 +153,7 @@ func (v *Validator) ToProto() (*cmtproto.Validator, error) {
 	return &vp, nil
 }
 
-// ValidatorFromProto sets a protobuf Validator to the given pointer.
+// FromProto sets a protobuf Validator to the given pointer.
 // It returns an error if the public key is invalid.
 func ValidatorFromProto(vp *cmtproto.Validator) (*Validator, error) {
 	if vp == nil {
@@ -178,7 +177,7 @@ func ValidatorFromProto(vp *cmtproto.Validator) (*Validator, error) {
 // RandValidator
 
 // RandValidator returns a randomized validator, useful for testing.
-// UNSTABLE.
+// UNSTABLE
 func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	privVal := NewMockPV()
 	votePower := minPower

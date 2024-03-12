@@ -1,4 +1,4 @@
-FROM alpine:3.19
+FROM alpine:3.7
 
 RUN apk update && \
     apk upgrade && \
@@ -6,7 +6,7 @@ RUN apk update && \
 
 VOLUME /cometbft
 WORKDIR /cometbft
-EXPOSE 26656 26657 26660
+EXPOSE 26656 26657
 ENTRYPOINT ["/usr/bin/wrapper.sh"]
 CMD ["node", "--proxy_app", "kvstore"]
 STOPSIGNAL SIGTERM

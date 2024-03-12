@@ -12,7 +12,7 @@ import (
 	"io"
 	"os"
 
-	cs "github.com/cometbft/cometbft/internal/consensus"
+	cs "github.com/cometbft/cometbft/consensus"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 )
 
@@ -57,5 +57,6 @@ func main() {
 			fmt.Println("Failed to write message", err)
 			os.Exit(1) //nolint:gocritic
 		}
+
 	}
 }

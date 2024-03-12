@@ -5,13 +5,14 @@ import (
 	"math/big"
 	"testing"
 
-	underlyingSecp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
+
+	underlyingSecp256k1 "github.com/btcsuite/btcd/btcec/v2"
 )
 
 type keyData struct {
@@ -53,7 +54,7 @@ func TestSignAndValidateSecp256k1(t *testing.T) {
 
 	msg := crypto.CRandBytes(128)
 	sig, err := privKey.Sign(msg)
-	require.NoError(t, err)
+	require.Nil(t, err)
 
 	assert.True(t, pubKey.VerifySignature(msg, sig))
 
@@ -85,7 +86,7 @@ func TestSecp256k1LoadPrivkeyAndSerializeIsIdentity(t *testing.T) {
 }
 
 func TestGenPrivKeySecp256k1(t *testing.T) {
-	// curve order N
+	// curve oder N
 	N := underlyingSecp256k1.S256().N
 	tests := []struct {
 		name   string
@@ -108,8 +109,8 @@ func TestGenPrivKeySecp256k1(t *testing.T) {
 			require.NotNil(t, gotPrivKey)
 			// interpret as a big.Int and make sure it is a valid field element:
 			fe := new(big.Int).SetBytes(gotPrivKey[:])
-			require.Less(t, fe.Cmp(N), 0)
-			require.Greater(t, fe.Sign(), 0)
+			require.True(t, fe.Cmp(N) < 0)
+			require.True(t, fe.Sign() > 0)
 		})
 	}
 }

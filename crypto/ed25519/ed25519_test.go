@@ -16,7 +16,7 @@ func TestSignAndValidateEd25519(t *testing.T) {
 
 	msg := crypto.CRandBytes(128)
 	sig, err := privKey.Sign(msg)
-	require.NoError(t, err)
+	require.Nil(t, err)
 
 	// Test the signature
 	assert.True(t, pubKey.VerifySignature(msg, sig))

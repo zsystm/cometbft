@@ -9,10 +9,11 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	cfg "github.com/cometbft/cometbft/config"
-	cmtnet "github.com/cometbft/cometbft/internal/net"
 	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/log"
+
+	cfg "github.com/cometbft/cometbft/config"
+	cmtnet "github.com/cometbft/cometbft/libs/net"
 	nm "github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
@@ -54,7 +55,7 @@ func waitForRPC() {
 	}
 }
 
-// f**ing long, but unique for each test.
+// f**ing long, but unique for each test
 func makePathname() string {
 	// get path
 	p, err := os.Getwd()
@@ -74,8 +75,9 @@ func randPort() int {
 	return port
 }
 
-func makeAddr() string {
-	return fmt.Sprintf("tcp://127.0.0.1:%d", randPort())
+func makeAddrs() (string, string) {
+	return fmt.Sprintf("tcp://127.0.0.1:%d", randPort()),
+		fmt.Sprintf("tcp://127.0.0.1:%d", randPort())
 }
 
 func createConfig() *cfg.Config {
@@ -83,20 +85,14 @@ func createConfig() *cfg.Config {
 	c := test.ResetTestRoot(pathname)
 
 	// and we use random ports to run in parallel
-	c.P2P.ListenAddress = makeAddr()
-	c.RPC.ListenAddress = makeAddr()
+	tm, rpc := makeAddrs()
+	c.P2P.ListenAddress = tm
+	c.RPC.ListenAddress = rpc
 	c.RPC.CORSAllowedOrigins = []string{"https://cometbft.com/"}
-	c.GRPC.ListenAddress = makeAddr()
-	c.GRPC.VersionService.Enabled = true
-	c.GRPC.Privileged.ListenAddress = makeAddr()
-	c.GRPC.Privileged.PruningService.Enabled = true
-	// Set pruning interval to a value lower than the default for some of the
-	// tests that rely on pruning to occur quickly
-	c.Storage.Pruning.Interval = 100 * time.Millisecond
 	return c
 }
 
-// GetConfig returns a config for the test cases as a singleton.
+// GetConfig returns a config for the test cases as a singleton
 func GetConfig(forceCreate ...bool) *cfg.Config {
 	if globalConfig == nil || (len(forceCreate) > 0 && forceCreate[0]) {
 		globalConfig = createConfig()
@@ -104,13 +100,13 @@ func GetConfig(forceCreate ...bool) *cfg.Config {
 	return globalConfig
 }
 
-// StartCometBFT starts a test CometBFT server in a go routine and returns when it is initialized.
-func StartCometBFT(app abci.Application, opts ...func(*Options)) *nm.Node {
+// StartTendermint starts a test CometBFT server in a go routine and returns when it is initialized
+func StartTendermint(app abci.Application, opts ...func(*Options)) *nm.Node {
 	nodeOpts := defaultOptions
 	for _, opt := range opts {
 		opt(&nodeOpts)
 	}
-	node := NewCometBFT(app, &nodeOpts)
+	node := NewTendermint(app, &nodeOpts)
 	err := node.Start()
 	if err != nil {
 		panic(err)
@@ -126,9 +122,9 @@ func StartCometBFT(app abci.Application, opts ...func(*Options)) *nm.Node {
 	return node
 }
 
-// StopCometBFT stops a test CometBFT server, waits until it's stopped and
+// StopTendermint stops a test CometBFT server, waits until it's stopped and
 // cleans up test/config files.
-func StopCometBFT(node *nm.Node) {
+func StopTendermint(node *nm.Node) {
 	if err := node.Stop(); err != nil {
 		node.Logger.Error("Error when trying to stop node", "err", err)
 	}
@@ -136,8 +132,8 @@ func StopCometBFT(node *nm.Node) {
 	os.RemoveAll(node.Config().RootDir)
 }
 
-// NewCometBFT creates a new CometBFT server and sleeps forever.
-func NewCometBFT(app abci.Application, opts *Options) *nm.Node {
+// NewTendermint creates a new CometBFT server and sleeps forever
+func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 	// Create & start node
 	config := GetConfig(opts.recreateConfig)
 	var logger log.Logger
@@ -155,7 +151,7 @@ func NewCometBFT(app abci.Application, opts *Options) *nm.Node {
 	if err != nil {
 		panic(err)
 	}
-	node, err := nm.NewNode(context.Background(), config, pv, nodeKey, papp,
+	node, err := nm.NewNode(config, pv, nodeKey, papp,
 		nm.DefaultGenesisDocProviderFunc(config),
 		cfg.DefaultDBProvider,
 		nm.DefaultMetricsProvider(config.Instrumentation),

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-release = 'v0.38.0-alpha2'
+release = 'abci++vef_Smoke'
 
 #FIXME: figure out in which timezone prometheus was running to adjust to UTC.
 tz = pytz.timezone('America/Sao_Paulo')
@@ -56,25 +56,21 @@ for (key,ax) in zip(groups.groups.keys(), [axes] if ncols == 1 else axes.flatten
     paramGroups = group.groupby(['connections','rate'])
     for (subKey) in paramGroups.groups.keys():
         subGroup = paramGroups.get_group(subKey)
-        startTime = subGroup.block_time.min()
-        endTime = subGroup.block_time.max()
-        localStartTime = tz.localize(datetime.fromtimestamp(startTime)).astimezone(pytz.utc)
-        localEndTime  = tz.localize(datetime.fromtimestamp(endTime)).astimezone(pytz.utc)
-        subGroup.block_time.apply(lambda x: x - startTime )
-        mean = subGroup.duration_ns.mean()
-        print('exp', key ,'start', localEndTime.strftime("%Y-%m-%dT%H:%M:%SZ"), 'end', localStartTime.strftime("%Y-%m-%dT%H:%M:%SZ"), 'duration', endTime - startTime, "mean", mean)
+        startTime = subGroup['block_time'].min()
+        dt = tz.localize(datetime.fromtimestamp(startTime)).astimezone(pytz.utc)
+        print('exp ' + key + ' starts at ' + dt.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        subGroupMod = subGroup['block_time'].apply(lambda x: x - startTime)
 
         (con,rate) = subKey
         label = 'c='+str(con) + ' r='+ str(rate)
-        ax.axhline(y = mean, color = 'r', linestyle = '-', label="mean")
-        ax.scatter(subGroup.block_time, subGroup.duration_ns, label=label)
+        ax.scatter(subGroupMod, subGroup.duration_ns, label=label)
     ax.legend()
 
     #Save individual axes
     extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    fig.savefig(os.path.join(path,'e_'+key + '.png'), bbox_inches=extent.expanded(1.2, 1.3))
+    fig.savefig(os.path.join(path,'e_'+key + '.png'), bbox_inches=extent.expanded(1.2, 1.2))
 
-fig.suptitle('Vote Extensions Testnet - ' + release)
+fig.suptitle('200-node testnet experiments - ' + release)
 
 # Save the figure with subplots
 fig.savefig(os.path.join(path,'all_experiments.png'))
@@ -104,18 +100,16 @@ for (key,ax) in zip(groups.groups.keys(), [axes] if ncols == 1 else axes.flatten
     paramGroups = group.groupby(['experiment_id'])
     for (subKey) in paramGroups.groups.keys():
         subGroup = paramGroups.get_group(subKey)
-        startTime = subGroup.block_time.min()
-        subGroupMod = subGroup.block_time.apply(lambda x: x - startTime)
+        startTime = subGroup['block_time'].min()
+        subGroupMod = subGroup['block_time'].apply(lambda x: x - startTime)
         ax.scatter(subGroupMod, subGroup.duration_ns, label=label)
     #ax.legend()
     
-
     #Save individual axes
     extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    fig.savefig(os.path.join(path,'c'+str(con) + 'r'+ str(rate) + '.png'), bbox_inches=extent.expanded(1.2, 1.3))
+    fig.savefig(os.path.join(path,'c'+str(con) + 'r'+ str(rate) + '.png'), bbox_inches=extent.expanded(1.2, 1.2))
 
-fig.suptitle('Vote Extensions Testnet - ' + release)
-
+fig.suptitle('200-node testnet configurations - ' + release)
 
 # Save the figure with subplots
 fig.savefig(os.path.join(path,'all_configs.png'))
@@ -138,8 +132,8 @@ for (key,ax) in zip(groups.groups.keys(), [axes] if ncols == 1 else axes.flatten
     paramGroups = group.groupby(['experiment_id'])
     for (subKey) in paramGroups.groups.keys():
         subGroup = paramGroups.get_group(subKey)
-        startTime = subGroup.block_time.min()
-        subGroupMod = subGroup.block_time.apply(lambda x: x - startTime)
+        startTime = subGroup['block_time'].min()
+        subGroupMod = subGroup['block_time'].apply(lambda x: x - startTime)
         ax.scatter(subGroupMod, subGroup.duration_ns, marker='o',c='#1f77b4')
     
     #Save individual axes

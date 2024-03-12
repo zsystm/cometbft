@@ -8,30 +8,28 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
-	cmterrors "github.com/cometbft/cometbft/types/errors"
 	"github.com/cometbft/cometbft/version"
 )
 
 const (
-	// FuzzModeDrop is a mode in which we randomly drop reads/writes, connections or sleep.
+	// FuzzModeDrop is a mode in which we randomly drop reads/writes, connections or sleep
 	FuzzModeDrop = iota
-	// FuzzModeDelay is a mode in which we randomly sleep.
+	// FuzzModeDelay is a mode in which we randomly sleep
 	FuzzModeDelay
 
-	// LogFormatPlain is a format for colored text.
+	// LogFormatPlain is a format for colored text
 	LogFormatPlain = "plain"
-	// LogFormatJSON is a format for json output.
+	// LogFormatJSON is a format for json output
 	LogFormatJSON = "json"
 
 	// DefaultLogLevel defines a default log level as INFO.
 	DefaultLogLevel = "info"
 
-	DefaultCometDir  = ".cometbft"
-	DefaultConfigDir = "config"
-	DefaultDataDir   = "data"
+	DefaultTendermintDir = ".cometbft"
+	DefaultConfigDir     = "config"
+	DefaultDataDir       = "data"
 
 	DefaultConfigFileName  = "config.toml"
 	DefaultGenesisJSONName = "genesis.json"
@@ -41,15 +39,6 @@ const (
 
 	DefaultNodeKeyName  = "node_key.json"
 	DefaultAddrBookName = "addrbook.json"
-
-	DefaultPruningInterval = 10 * time.Second
-
-	v0 = "v0"
-	v1 = "v1"
-	v2 = "v2"
-
-	MempoolTypeFlood = "flood"
-	MempoolTypeNop   = "nop"
 )
 
 // NOTE: Most of the structs & relevant comments + the
@@ -74,14 +63,13 @@ var (
 	semverRegexp = regexp.MustCompile(`^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
 )
 
-// Config defines the top level configuration for a CometBFT node.
+// Config defines the top level configuration for a CometBFT node
 type Config struct {
 	// Top level options use an anonymous struct
 	BaseConfig `mapstructure:",squash"`
 
 	// Options for services
 	RPC             *RPCConfig             `mapstructure:"rpc"`
-	GRPC            *GRPCConfig            `mapstructure:"grpc"`
 	P2P             *P2PConfig             `mapstructure:"p2p"`
 	Mempool         *MempoolConfig         `mapstructure:"mempool"`
 	StateSync       *StateSyncConfig       `mapstructure:"statesync"`
@@ -92,12 +80,11 @@ type Config struct {
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
 }
 
-// DefaultConfig returns a default configuration for a CometBFT node.
+// DefaultConfig returns a default configuration for a CometBFT node
 func DefaultConfig() *Config {
 	return &Config{
 		BaseConfig:      DefaultBaseConfig(),
 		RPC:             DefaultRPCConfig(),
-		GRPC:            DefaultGRPCConfig(),
 		P2P:             DefaultP2PConfig(),
 		Mempool:         DefaultMempoolConfig(),
 		StateSync:       DefaultStateSyncConfig(),
@@ -109,12 +96,11 @@ func DefaultConfig() *Config {
 	}
 }
 
-// TestConfig returns a configuration that can be used for testing.
+// TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
 		BaseConfig:      TestBaseConfig(),
 		RPC:             TestRPCConfig(),
-		GRPC:            TestGRPCConfig(),
 		P2P:             TestP2PConfig(),
 		Mempool:         TestMempoolConfig(),
 		StateSync:       TestStateSyncConfig(),
@@ -126,7 +112,7 @@ func TestConfig() *Config {
 	}
 }
 
-// SetRoot sets the RootDir for all Config structs.
+// SetRoot sets the RootDir for all Config structs
 func (cfg *Config) SetRoot(root string) *Config {
 	cfg.BaseConfig.RootDir = root
 	cfg.RPC.RootDir = root
@@ -143,39 +129,30 @@ func (cfg *Config) ValidateBasic() error {
 		return err
 	}
 	if err := cfg.RPC.ValidateBasic(); err != nil {
-		return ErrInSection{Section: "rpc", Err: err}
-	}
-	if err := cfg.GRPC.ValidateBasic(); err != nil {
-		return fmt.Errorf("error in [grpc] section: %w", err)
+		return fmt.Errorf("error in [rpc] section: %w", err)
 	}
 	if err := cfg.P2P.ValidateBasic(); err != nil {
-		return ErrInSection{Section: "p2p", Err: err}
+		return fmt.Errorf("error in [p2p] section: %w", err)
 	}
 	if err := cfg.Mempool.ValidateBasic(); err != nil {
-		return ErrInSection{Section: "mempool", Err: err}
+		return fmt.Errorf("error in [mempool] section: %w", err)
 	}
 	if err := cfg.StateSync.ValidateBasic(); err != nil {
-		return ErrInSection{Section: "statesync", Err: err}
+		return fmt.Errorf("error in [statesync] section: %w", err)
 	}
 	if err := cfg.BlockSync.ValidateBasic(); err != nil {
-		return ErrInSection{Section: "blocksync", Err: err}
+		return fmt.Errorf("error in [blocksync] section: %w", err)
 	}
 	if err := cfg.Consensus.ValidateBasic(); err != nil {
-		return ErrInSection{Section: "consensus", Err: err}
-	}
-	if err := cfg.Storage.ValidateBasic(); err != nil {
-		return fmt.Errorf("error in [storage] section: %w", err)
+		return fmt.Errorf("error in [consensus] section: %w", err)
 	}
 	if err := cfg.Instrumentation.ValidateBasic(); err != nil {
-		return ErrInSection{Section: "instrumentation", Err: err}
-	}
-	if !cfg.Consensus.CreateEmptyBlocks && cfg.Mempool.Type == MempoolTypeNop {
-		return errors.New("`nop` mempool does not support create_empty_blocks = false")
+		return fmt.Errorf("error in [instrumentation] section: %w", err)
 	}
 	return nil
 }
 
-// CheckDeprecated returns any deprecation warnings. These are printed to the operator on startup.
+// CheckDeprecated returns any deprecation warnings. These are printed to the operator on startup
 func (cfg *Config) CheckDeprecated() []string {
 	var warnings []string
 	return warnings
@@ -184,8 +161,9 @@ func (cfg *Config) CheckDeprecated() []string {
 //-----------------------------------------------------------------------------
 // BaseConfig
 
-// BaseConfig defines the base configuration for a CometBFT node.
-type BaseConfig struct {
+// BaseConfig defines the base configuration for a CometBFT node
+type BaseConfig struct { //nolint: maligned
+
 	// The version of the CometBFT binary that created
 	// or last modified the config file
 	Version string `mapstructure:"version"`
@@ -201,31 +179,25 @@ type BaseConfig struct {
 	// A custom human readable name for this node
 	Moniker string `mapstructure:"moniker"`
 
-	// Database backend: goleveldb | cleveldb | boltdb | rocksdb | pebbledb
-	// * goleveldb (github.com/syndtr/goleveldb)
-	//   - UNMAINTAINED
-	//   - stable
+	// Database backend: goleveldb | cleveldb | boltdb | rocksdb
+	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
 	//   - pure go
+	//   - stable
 	// * cleveldb (uses levigo wrapper)
+	//   - fast
 	//   - requires gcc
 	//   - use cleveldb build tag (go build -tags cleveldb)
 	// * boltdb (uses etcd's fork of bolt - github.com/etcd-io/bbolt)
 	//   - EXPERIMENTAL
-	//   - stable
+	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	// * rocksdb (uses github.com/linxGnu/grocksdb)
+	// * rocksdb (uses github.com/tecbot/gorocksdb)
 	//   - EXPERIMENTAL
 	//   - requires gcc
 	//   - use rocksdb build tag (go build -tags rocksdb)
 	// * badgerdb (uses github.com/dgraph-io/badger)
 	//   - EXPERIMENTAL
-	//   - stable
 	//   - use badgerdb build tag (go build -tags badgerdb)
-	// * pebbledb (uses github.com/cockroachdb/pebble)
-	//   - EXPERIMENTAL
-	//   - stable
-	//   - pure go
-	//   - use pebbledb build tag (go build -tags pebbledb)
 	DBBackend string `mapstructure:"db_backend"`
 
 	// Database directory
@@ -261,10 +233,10 @@ type BaseConfig struct {
 	FilterPeers bool `mapstructure:"filter_peers"` // false
 }
 
-// DefaultBaseConfig returns a default base configuration for a CometBFT node.
+// DefaultBaseConfig returns a default base configuration for a CometBFT node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Version:            version.CMTSemVer,
+		Version:            version.TMCoreSemVer,
 		Genesis:            defaultGenesisJSONPath,
 		PrivValidatorKey:   defaultPrivValKeyPath,
 		PrivValidatorState: defaultPrivValStatePath,
@@ -280,7 +252,7 @@ func DefaultBaseConfig() BaseConfig {
 	}
 }
 
-// TestBaseConfig returns a base configuration for testing a CometBFT node.
+// TestBaseConfig returns a base configuration for testing a CometBFT node
 func TestBaseConfig() BaseConfig {
 	cfg := DefaultBaseConfig()
 	cfg.ProxyApp = "kvstore"
@@ -288,27 +260,27 @@ func TestBaseConfig() BaseConfig {
 	return cfg
 }
 
-// GenesisFile returns the full path to the genesis.json file.
+// GenesisFile returns the full path to the genesis.json file
 func (cfg BaseConfig) GenesisFile() string {
 	return rootify(cfg.Genesis, cfg.RootDir)
 }
 
-// PrivValidatorKeyFile returns the full path to the priv_validator_key.json file.
+// PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
 func (cfg BaseConfig) PrivValidatorKeyFile() string {
 	return rootify(cfg.PrivValidatorKey, cfg.RootDir)
 }
 
-// PrivValidatorFile returns the full path to the priv_validator_state.json file.
+// PrivValidatorFile returns the full path to the priv_validator_state.json file
 func (cfg BaseConfig) PrivValidatorStateFile() string {
 	return rootify(cfg.PrivValidatorState, cfg.RootDir)
 }
 
-// NodeKeyFile returns the full path to the node_key.json file.
+// NodeKeyFile returns the full path to the node_key.json file
 func (cfg BaseConfig) NodeKeyFile() string {
 	return rootify(cfg.NodeKey, cfg.RootDir)
 }
 
-// DBDir returns the full path to the database directory.
+// DBDir returns the full path to the database directory
 func (cfg BaseConfig) DBDir() string {
 	return rootify(cfg.DBPath, cfg.RootDir)
 }
@@ -333,7 +305,7 @@ func (cfg BaseConfig) ValidateBasic() error {
 //-----------------------------------------------------------------------------
 // RPCConfig
 
-// RPCConfig defines the configuration options for the CometBFT RPC server.
+// RPCConfig defines the configuration options for the CometBFT RPC server
 type RPCConfig struct {
 	RootDir string `mapstructure:"home"`
 
@@ -431,7 +403,7 @@ type RPCConfig struct {
 	PprofListenAddress string `mapstructure:"pprof_laddr"`
 }
 
-// DefaultRPCConfig returns a default configuration for the RPC server.
+// DefaultRPCConfig returns a default configuration for the RPC server
 func DefaultRPCConfig() *RPCConfig {
 	return &RPCConfig{
 		ListenAddress:      "tcp://127.0.0.1:26657",
@@ -456,7 +428,7 @@ func DefaultRPCConfig() *RPCConfig {
 	}
 }
 
-// TestRPCConfig returns a configuration for testing the RPC server.
+// TestRPCConfig returns a configuration for testing the RPC server
 func TestRPCConfig() *RPCConfig {
 	cfg := DefaultRPCConfig()
 	cfg.ListenAddress = "tcp://127.0.0.1:36657"
@@ -468,16 +440,19 @@ func TestRPCConfig() *RPCConfig {
 // returns an error if any check fails.
 func (cfg *RPCConfig) ValidateBasic() error {
 	if cfg.MaxOpenConnections < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_open_connections"}
+		return errors.New("max_open_connections can't be negative")
 	}
 	if cfg.MaxSubscriptionClients < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_subscription_clients"}
+		return errors.New("max_subscription_clients can't be negative")
 	}
 	if cfg.MaxSubscriptionsPerClient < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_subscriptions_per_client"}
+		return errors.New("max_subscriptions_per_client can't be negative")
 	}
 	if cfg.SubscriptionBufferSize < minSubscriptionBufferSize {
-		return ErrSubscriptionBufferSizeInvalid
+		return fmt.Errorf(
+			"experimental_subscription_buffer_size must be >= %d",
+			minSubscriptionBufferSize,
+		)
 	}
 	if cfg.WebSocketWriteBufferSize < cfg.SubscriptionBufferSize {
 		return fmt.Errorf(
@@ -486,13 +461,13 @@ func (cfg *RPCConfig) ValidateBasic() error {
 		)
 	}
 	if cfg.TimeoutBroadcastTxCommit < 0 {
-		return cmterrors.ErrNegativeField{Field: "timeout_broadcast_tx_commit"}
+		return errors.New("timeout_broadcast_tx_commit can't be negative")
 	}
 	if cfg.MaxBodyBytes < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_body_bytes"}
+		return errors.New("max_body_bytes can't be negative")
 	}
 	if cfg.MaxHeaderBytes < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_header_bytes"}
+		return errors.New("max_header_bytes can't be negative")
 	}
 	return nil
 }
@@ -527,154 +502,9 @@ func (cfg RPCConfig) IsTLSEnabled() bool {
 }
 
 //-----------------------------------------------------------------------------
-// GRPCConfig
-
-// GRPCConfig defines the configuration for the CometBFT gRPC server.
-type GRPCConfig struct {
-	// TCP or Unix socket address for the gRPC server to listen on. If empty,
-	// the gRPC server will be disabled.
-	ListenAddress string `mapstructure:"laddr"`
-
-	// The gRPC version service provides version information about the node and
-	// the protocols it uses.
-	VersionService *GRPCVersionServiceConfig `mapstructure:"version_service"`
-
-	// The gRPC block service provides block information
-	BlockService *GRPCBlockServiceConfig `mapstructure:"block_service"`
-
-	// The gRPC block results service provides the block results for a given height
-	// If no height is provided, the block results of the latest height are returned
-	BlockResultsService *GRPCBlockResultsServiceConfig `mapstructure:"block_results_service"`
-
-	// The "privileged" section provides configuration for the gRPC server
-	// dedicated to privileged clients.
-	Privileged *GRPCPrivilegedConfig `mapstructure:"privileged"`
-}
-
-func DefaultGRPCConfig() *GRPCConfig {
-	return &GRPCConfig{
-		ListenAddress:       "",
-		VersionService:      DefaultGRPCVersionServiceConfig(),
-		BlockService:        DefaultGRPCBlockServiceConfig(),
-		BlockResultsService: DefaultGRPCBlockResultsServiceConfig(),
-		Privileged:          DefaultGRPCPrivilegedConfig(),
-	}
-}
-
-func TestGRPCConfig() *GRPCConfig {
-	return &GRPCConfig{
-		ListenAddress:       "tcp://127.0.0.1:36670",
-		VersionService:      TestGRPCVersionServiceConfig(),
-		BlockService:        TestGRPCBlockServiceConfig(),
-		BlockResultsService: DefaultGRPCBlockResultsServiceConfig(),
-		Privileged:          TestGRPCPrivilegedConfig(),
-	}
-}
-
-func (cfg *GRPCConfig) ValidateBasic() error {
-	if len(cfg.ListenAddress) > 0 {
-		addrParts := strings.SplitN(cfg.ListenAddress, "://", 2)
-		if len(addrParts) != 2 {
-			return fmt.Errorf(
-				"invalid listening address %s (use fully formed addresses, including the tcp:// or unix:// prefix)",
-				cfg.ListenAddress,
-			)
-		}
-	}
-	return nil
-}
-
-type GRPCVersionServiceConfig struct {
-	Enabled bool `mapstructure:"enabled"`
-}
-
-type GRPCBlockResultsServiceConfig struct {
-	Enabled bool `mapstructure:"enabled"`
-}
-
-func DefaultGRPCVersionServiceConfig() *GRPCVersionServiceConfig {
-	return &GRPCVersionServiceConfig{
-		Enabled: true,
-	}
-}
-
-func DefaultGRPCBlockResultsServiceConfig() *GRPCBlockResultsServiceConfig {
-	return &GRPCBlockResultsServiceConfig{
-		Enabled: true,
-	}
-}
-
-func TestGRPCVersionServiceConfig() *GRPCVersionServiceConfig {
-	return &GRPCVersionServiceConfig{
-		Enabled: true,
-	}
-}
-
-type GRPCBlockServiceConfig struct {
-	Enabled bool `mapstructure:"enabled"`
-}
-
-func DefaultGRPCBlockServiceConfig() *GRPCBlockServiceConfig {
-	return &GRPCBlockServiceConfig{
-		Enabled: true,
-	}
-}
-
-func TestGRPCBlockServiceConfig() *GRPCBlockServiceConfig {
-	return &GRPCBlockServiceConfig{
-		Enabled: true,
-	}
-}
-
-//-----------------------------------------------------------------------------
-// GRPCPrivilegedConfig
-
-// GRPCPrivilegedConfig defines the configuration for the CometBFT gRPC server
-// exposing privileged endpoints.
-type GRPCPrivilegedConfig struct {
-	// TCP or Unix socket address for the gRPC server for privileged clients
-	// to listen on. If empty, the privileged gRPC server will be disabled.
-	ListenAddress string `mapstructure:"laddr"`
-
-	// The gRPC pruning service provides control over the depth of block
-	// storage information that the node
-	PruningService *GRPCPruningServiceConfig `mapstructure:"pruning_service"`
-}
-
-func DefaultGRPCPrivilegedConfig() *GRPCPrivilegedConfig {
-	return &GRPCPrivilegedConfig{
-		ListenAddress:  "",
-		PruningService: DefaultGRPCPruningServiceConfig(),
-	}
-}
-
-func TestGRPCPrivilegedConfig() *GRPCPrivilegedConfig {
-	return &GRPCPrivilegedConfig{
-		ListenAddress:  "tcp://127.0.0.1:36671",
-		PruningService: TestGRPCPruningServiceConfig(),
-	}
-}
-
-type GRPCPruningServiceConfig struct {
-	Enabled bool `mapstructure:"enabled"`
-}
-
-func DefaultGRPCPruningServiceConfig() *GRPCPruningServiceConfig {
-	return &GRPCPruningServiceConfig{
-		Enabled: false,
-	}
-}
-
-func TestGRPCPruningServiceConfig() *GRPCPruningServiceConfig {
-	return &GRPCPruningServiceConfig{
-		Enabled: true,
-	}
-}
-
-//-----------------------------------------------------------------------------
 // P2PConfig
 
-// P2PConfig defines the configuration options for the CometBFT peer-to-peer networking layer.
+// P2PConfig defines the configuration options for the CometBFT peer-to-peer networking layer
 type P2PConfig struct { //nolint: maligned
 	RootDir string `mapstructure:"home"`
 
@@ -688,8 +518,16 @@ type P2PConfig struct { //nolint: maligned
 	// We only use these if we can’t connect to peers in the addrbook
 	Seeds string `mapstructure:"seeds"`
 
+	// Comma separated list of peers to be added to the peer store
+	// on startup. Either BootstrapPeers or PersistentPeers are
+	// needed for peer discovery
+	BootstrapPeers string `mapstructure:"bootstrap_peers"`
+
 	// Comma separated list of nodes to keep persistent connections to
 	PersistentPeers string `mapstructure:"persistent_peers"`
+
+	// UPNP port forwarding
+	UPNP bool `mapstructure:"upnp"`
 
 	// Path to address book
 	AddrBook string `mapstructure:"addr_book_file"`
@@ -745,16 +583,17 @@ type P2PConfig struct { //nolint: maligned
 	// Testing params.
 	// Force dial to fail
 	TestDialFail bool `mapstructure:"test_dial_fail"`
-	// Fuzz connection
+	// FUzz connection
 	TestFuzz       bool            `mapstructure:"test_fuzz"`
 	TestFuzzConfig *FuzzConnConfig `mapstructure:"test_fuzz_config"`
 }
 
-// DefaultP2PConfig returns a default configuration for the peer-to-peer layer.
+// DefaultP2PConfig returns a default configuration for the peer-to-peer layer
 func DefaultP2PConfig() *P2PConfig {
 	return &P2PConfig{
 		ListenAddress:                "tcp://0.0.0.0:26656",
 		ExternalAddress:              "",
+		UPNP:                         false,
 		AddrBook:                     defaultAddrBookPath,
 		AddrBookStrict:               true,
 		MaxNumInboundPeers:           40,
@@ -775,7 +614,7 @@ func DefaultP2PConfig() *P2PConfig {
 	}
 }
 
-// TestP2PConfig returns a configuration for testing the peer-to-peer layer.
+// TestP2PConfig returns a configuration for testing the peer-to-peer layer
 func TestP2PConfig() *P2PConfig {
 	cfg := DefaultP2PConfig()
 	cfg.ListenAddress = "tcp://127.0.0.1:36656"
@@ -784,7 +623,7 @@ func TestP2PConfig() *P2PConfig {
 	return cfg
 }
 
-// AddrBookFile returns the full path to the address book.
+// AddrBookFile returns the full path to the address book
 func (cfg *P2PConfig) AddrBookFile() string {
 	return rootify(cfg.AddrBook, cfg.RootDir)
 }
@@ -793,25 +632,25 @@ func (cfg *P2PConfig) AddrBookFile() string {
 // returns an error if any check fails.
 func (cfg *P2PConfig) ValidateBasic() error {
 	if cfg.MaxNumInboundPeers < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_num_inbound_peers"}
+		return errors.New("max_num_inbound_peers can't be negative")
 	}
 	if cfg.MaxNumOutboundPeers < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_num_outbound_peers"}
+		return errors.New("max_num_outbound_peers can't be negative")
 	}
 	if cfg.FlushThrottleTimeout < 0 {
-		return cmterrors.ErrNegativeField{Field: "flush_throttle_timeout"}
+		return errors.New("flush_throttle_timeout can't be negative")
 	}
 	if cfg.PersistentPeersMaxDialPeriod < 0 {
-		return cmterrors.ErrNegativeField{Field: "persistent_peers_max_dial_period"}
+		return errors.New("persistent_peers_max_dial_period can't be negative")
 	}
 	if cfg.MaxPacketMsgPayloadSize < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_packet_msg_payload_size"}
+		return errors.New("max_packet_msg_payload_size can't be negative")
 	}
 	if cfg.SendRate < 0 {
-		return cmterrors.ErrNegativeField{Field: "send_rate"}
+		return errors.New("send_rate can't be negative")
 	}
 	if cfg.RecvRate < 0 {
-		return cmterrors.ErrNegativeField{Field: "recv_rate"}
+		return errors.New("recv_rate can't be negative")
 	}
 	return nil
 }
@@ -846,15 +685,6 @@ func DefaultFuzzConnConfig() *FuzzConnConfig {
 // implementation (previously called v0), and a prioritized mempool (v1), which
 // was removed (see https://github.com/cometbft/cometbft/issues/260).
 type MempoolConfig struct {
-	// The type of mempool for this node to use.
-	//
-	//  Possible types:
-	//  - "flood" : concurrent linked list mempool with flooding gossip protocol
-	//  (default)
-	//  - "nop"   : nop-mempool (short for no operation; the ABCI app is
-	//  responsible for storing, disseminating and proposing txs).
-	//  "create_empty_blocks=false" is not supported.
-	Type string `mapstructure:"type"`
 	// RootDir is the root directory for all data. This should be configured via
 	// the $CMTHOME env variable or --home cmd flag rather than overriding this
 	// struct field.
@@ -891,26 +721,15 @@ type MempoolConfig struct {
 	// Maximum size of a single transaction
 	// NOTE: the max size of a tx transmitted over the network is {max_tx_bytes}.
 	MaxTxBytes int `mapstructure:"max_tx_bytes"`
-	// Experimental parameters to limit gossiping txs to up to the specified number of peers.
-	// We use two independent upper values for persistent and non-persistent peers.
-	// Unconditional peers are not affected by this feature.
-	// If we are connected to more than the specified number of persistent peers, only send txs to
-	// ExperimentalMaxGossipConnectionsToPersistentPeers of them. If one of those
-	// persistent peers disconnects, activate another persistent peer.
-	// Similarly for non-persistent peers, with an upper limit of
-	// ExperimentalMaxGossipConnectionsToNonPersistentPeers.
-	// If set to 0, the feature is disabled for the corresponding group of peers, that is, the
-	// number of active connections to that group of peers is not bounded.
-	// For non-persistent peers, if enabled, a value of 10 is recommended based on experimental
-	// performance results using the default P2P configuration.
-	ExperimentalMaxGossipConnectionsToPersistentPeers    int `mapstructure:"experimental_max_gossip_connections_to_persistent_peers"`
-	ExperimentalMaxGossipConnectionsToNonPersistentPeers int `mapstructure:"experimental_max_gossip_connections_to_non_persistent_peers"`
+	// Maximum size of a batch of transactions to send to a peer
+	// Including space needed by encoding (one varint per transaction).
+	// XXX: Unused due to https://github.com/tendermint/tendermint/issues/5796
+	MaxBatchBytes int `mapstructure:"max_batch_bytes"`
 }
 
-// DefaultMempoolConfig returns a default configuration for the CometBFT mempool.
+// DefaultMempoolConfig returns a default configuration for the CometBFT mempool
 func DefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
-		Type:      MempoolTypeFlood,
 		Recheck:   true,
 		Broadcast: true,
 		WalPath:   "",
@@ -920,19 +739,17 @@ func DefaultMempoolConfig() *MempoolConfig {
 		MaxTxsBytes: 1024 * 1024 * 1024, // 1GB
 		CacheSize:   10000,
 		MaxTxBytes:  1024 * 1024, // 1MB
-		ExperimentalMaxGossipConnectionsToNonPersistentPeers: 0,
-		ExperimentalMaxGossipConnectionsToPersistentPeers:    0,
 	}
 }
 
-// TestMempoolConfig returns a configuration for testing the CometBFT mempool.
+// TestMempoolConfig returns a configuration for testing the CometBFT mempool
 func TestMempoolConfig() *MempoolConfig {
 	cfg := DefaultMempoolConfig()
 	cfg.CacheSize = 1000
 	return cfg
 }
 
-// WalDir returns the full path to the mempool's write-ahead log.
+// WalDir returns the full path to the mempool's write-ahead log
 func (cfg *MempoolConfig) WalDir() string {
 	return rootify(cfg.WalPath, cfg.RootDir)
 }
@@ -945,29 +762,17 @@ func (cfg *MempoolConfig) WalEnabled() bool {
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
 // returns an error if any check fails.
 func (cfg *MempoolConfig) ValidateBasic() error {
-	switch cfg.Type {
-	case MempoolTypeFlood, MempoolTypeNop:
-	case "": // allow empty string to be backwards compatible
-	default:
-		return fmt.Errorf("unknown mempool type: %q", cfg.Type)
-	}
 	if cfg.Size < 0 {
-		return cmterrors.ErrNegativeField{Field: "size"}
+		return errors.New("size can't be negative")
 	}
 	if cfg.MaxTxsBytes < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_txs_bytes"}
+		return errors.New("max_txs_bytes can't be negative")
 	}
 	if cfg.CacheSize < 0 {
-		return cmterrors.ErrNegativeField{Field: "cache_size"}
+		return errors.New("cache_size can't be negative")
 	}
 	if cfg.MaxTxBytes < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_tx_bytes"}
-	}
-	if cfg.ExperimentalMaxGossipConnectionsToPersistentPeers < 0 {
-		return cmterrors.ErrNegativeField{Field: "experimental_max_gossip_connections_to_persistent_peers"}
-	}
-	if cfg.ExperimentalMaxGossipConnectionsToNonPersistentPeers < 0 {
-		return cmterrors.ErrNegativeField{Field: "experimental_max_gossip_connections_to_non_persistent_peers"}
+		return errors.New("max_tx_bytes can't be negative")
 	}
 	return nil
 }
@@ -975,7 +780,7 @@ func (cfg *MempoolConfig) ValidateBasic() error {
 //-----------------------------------------------------------------------------
 // StateSyncConfig
 
-// StateSyncConfig defines the configuration for the CometBFT state sync service.
+// StateSyncConfig defines the configuration for the CometBFT state sync service
 type StateSyncConfig struct {
 	Enable              bool          `mapstructure:"enable"`
 	TempDir             string        `mapstructure:"temp_dir"`
@@ -997,7 +802,7 @@ func (cfg *StateSyncConfig) TrustHashBytes() []byte {
 	return bytes
 }
 
-// DefaultStateSyncConfig returns a default configuration for the state sync service.
+// DefaultStateSyncConfig returns a default configuration for the state sync service
 func DefaultStateSyncConfig() *StateSyncConfig {
 	return &StateSyncConfig{
 		TrustPeriod:         168 * time.Hour,
@@ -1007,7 +812,7 @@ func DefaultStateSyncConfig() *StateSyncConfig {
 	}
 }
 
-// TestStateSyncConfig returns a default configuration for the state sync service.
+// TestStateSyncConfig returns a default configuration for the state sync service
 func TestStateSyncConfig() *StateSyncConfig {
 	return DefaultStateSyncConfig()
 }
@@ -1016,33 +821,33 @@ func TestStateSyncConfig() *StateSyncConfig {
 func (cfg *StateSyncConfig) ValidateBasic() error {
 	if cfg.Enable {
 		if len(cfg.RPCServers) == 0 {
-			return cmterrors.ErrRequiredField{Field: "rpc_servers"}
+			return errors.New("rpc_servers is required")
 		}
 
 		if len(cfg.RPCServers) < 2 {
-			return ErrNotEnoughRPCServers
+			return errors.New("at least two rpc_servers entries is required")
 		}
 
 		for _, server := range cfg.RPCServers {
 			if len(server) == 0 {
-				return ErrEmptyRPCServerEntry
+				return errors.New("found empty rpc_servers entry")
 			}
 		}
 
 		if cfg.DiscoveryTime != 0 && cfg.DiscoveryTime < 5*time.Second {
-			return ErrInsufficientDiscoveryTime
+			return errors.New("discovery time must be 0s or greater than five seconds")
 		}
 
 		if cfg.TrustPeriod <= 0 {
-			return cmterrors.ErrRequiredField{Field: "trusted_period"}
+			return errors.New("trusted_period is required")
 		}
 
 		if cfg.TrustHeight <= 0 {
-			return cmterrors.ErrRequiredField{Field: "trusted_height"}
+			return errors.New("trusted_height is required")
 		}
 
 		if len(cfg.TrustHash) == 0 {
-			return cmterrors.ErrRequiredField{Field: "trusted_hash"}
+			return errors.New("trusted_hash is required")
 		}
 
 		_, err := hex.DecodeString(cfg.TrustHash)
@@ -1051,11 +856,11 @@ func (cfg *StateSyncConfig) ValidateBasic() error {
 		}
 
 		if cfg.ChunkRequestTimeout < 5*time.Second {
-			return ErrInsufficientChunkRequestTimeout
+			return errors.New("chunk_request_timeout must be at least 5 seconds")
 		}
 
 		if cfg.ChunkFetchers <= 0 {
-			return cmterrors.ErrRequiredField{Field: "chunk_fetchers"}
+			return errors.New("chunk_fetchers is required")
 		}
 	}
 
@@ -1065,12 +870,12 @@ func (cfg *StateSyncConfig) ValidateBasic() error {
 //-----------------------------------------------------------------------------
 // BlockSyncConfig
 
-// BlockSyncConfig (formerly known as FastSync) defines the configuration for the CometBFT block sync service.
+// BlockSyncConfig (formerly known as FastSync) defines the configuration for the CometBFT block sync service
 type BlockSyncConfig struct {
 	Version string `mapstructure:"version"`
 }
 
-// DefaultBlockSyncConfig returns a default configuration for the block sync service.
+// DefaultBlockSyncConfig returns a default configuration for the block sync service
 func DefaultBlockSyncConfig() *BlockSyncConfig {
 	return &BlockSyncConfig{
 		Version: "v0",
@@ -1085,12 +890,12 @@ func TestBlockSyncConfig() *BlockSyncConfig {
 // ValidateBasic performs basic validation.
 func (cfg *BlockSyncConfig) ValidateBasic() error {
 	switch cfg.Version {
-	case v0:
+	case "v0":
 		return nil
-	case v1, v2:
-		return ErrDeprecatedBlocksyncVersion{Version: cfg.Version, Allowed: []string{v0}}
+	case "v1", "v2":
+		return fmt.Errorf("blocksync version %s has been deprecated. Please use v0 instead", cfg.Version)
 	default:
-		return ErrUnknownBlocksyncVersion{cfg.Version}
+		return fmt.Errorf("unknown blocksync version %s", cfg.Version)
 	}
 }
 
@@ -1130,35 +935,33 @@ type ConsensusConfig struct {
 	CreateEmptyBlocksInterval time.Duration `mapstructure:"create_empty_blocks_interval"`
 
 	// Reactor sleep duration parameters
-	PeerGossipSleepDuration          time.Duration `mapstructure:"peer_gossip_sleep_duration"`
-	PeerQueryMaj23SleepDuration      time.Duration `mapstructure:"peer_query_maj23_sleep_duration"`
-	PeerGossipIntraloopSleepDuration time.Duration `mapstructure:"peer_gossip_intraloop_sleep_duration"` // upper bound on randomly selected values
+	PeerGossipSleepDuration     time.Duration `mapstructure:"peer_gossip_sleep_duration"`
+	PeerQueryMaj23SleepDuration time.Duration `mapstructure:"peer_query_maj23_sleep_duration"`
 
 	DoubleSignCheckHeight int64 `mapstructure:"double_sign_check_height"`
 }
 
-// DefaultConsensusConfig returns a default configuration for the consensus service.
+// DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		WalPath:                          filepath.Join(DefaultDataDir, "cs.wal", "wal"),
-		TimeoutPropose:                   3000 * time.Millisecond,
-		TimeoutProposeDelta:              500 * time.Millisecond,
-		TimeoutPrevote:                   1000 * time.Millisecond,
-		TimeoutPrevoteDelta:              500 * time.Millisecond,
-		TimeoutPrecommit:                 1000 * time.Millisecond,
-		TimeoutPrecommitDelta:            500 * time.Millisecond,
-		TimeoutCommit:                    1000 * time.Millisecond,
-		SkipTimeoutCommit:                false,
-		CreateEmptyBlocks:                true,
-		CreateEmptyBlocksInterval:        0 * time.Second,
-		PeerGossipSleepDuration:          100 * time.Millisecond,
-		PeerQueryMaj23SleepDuration:      2000 * time.Millisecond,
-		PeerGossipIntraloopSleepDuration: 0 * time.Second,
-		DoubleSignCheckHeight:            int64(0),
+		WalPath:                     filepath.Join(DefaultDataDir, "cs.wal", "wal"),
+		TimeoutPropose:              3000 * time.Millisecond,
+		TimeoutProposeDelta:         500 * time.Millisecond,
+		TimeoutPrevote:              1000 * time.Millisecond,
+		TimeoutPrevoteDelta:         500 * time.Millisecond,
+		TimeoutPrecommit:            1000 * time.Millisecond,
+		TimeoutPrecommitDelta:       500 * time.Millisecond,
+		TimeoutCommit:               1000 * time.Millisecond,
+		SkipTimeoutCommit:           false,
+		CreateEmptyBlocks:           true,
+		CreateEmptyBlocksInterval:   0 * time.Second,
+		PeerGossipSleepDuration:     100 * time.Millisecond,
+		PeerQueryMaj23SleepDuration: 2000 * time.Millisecond,
+		DoubleSignCheckHeight:       int64(0),
 	}
 }
 
-// TestConsensusConfig returns a configuration for testing the consensus service.
+// TestConsensusConfig returns a configuration for testing the consensus service
 func TestConsensusConfig() *ConsensusConfig {
 	cfg := DefaultConsensusConfig()
 	cfg.TimeoutPropose = 40 * time.Millisecond
@@ -1176,26 +979,26 @@ func TestConsensusConfig() *ConsensusConfig {
 	return cfg
 }
 
-// WaitForTxs returns true if the consensus should wait for transactions before entering the propose step.
+// WaitForTxs returns true if the consensus should wait for transactions before entering the propose step
 func (cfg *ConsensusConfig) WaitForTxs() bool {
 	return !cfg.CreateEmptyBlocks || cfg.CreateEmptyBlocksInterval > 0
 }
 
-// Propose returns the amount of time to wait for a proposal.
+// Propose returns the amount of time to wait for a proposal
 func (cfg *ConsensusConfig) Propose(round int32) time.Duration {
 	return time.Duration(
 		cfg.TimeoutPropose.Nanoseconds()+cfg.TimeoutProposeDelta.Nanoseconds()*int64(round),
 	) * time.Nanosecond
 }
 
-// Prevote returns the amount of time to wait for straggler votes after receiving any +2/3 prevotes.
+// Prevote returns the amount of time to wait for straggler votes after receiving any +2/3 prevotes
 func (cfg *ConsensusConfig) Prevote(round int32) time.Duration {
 	return time.Duration(
 		cfg.TimeoutPrevote.Nanoseconds()+cfg.TimeoutPrevoteDelta.Nanoseconds()*int64(round),
 	) * time.Nanosecond
 }
 
-// Precommit returns the amount of time to wait for straggler votes after receiving any +2/3 precommits.
+// Precommit returns the amount of time to wait for straggler votes after receiving any +2/3 precommits
 func (cfg *ConsensusConfig) Precommit(round int32) time.Duration {
 	return time.Duration(
 		cfg.TimeoutPrecommit.Nanoseconds()+cfg.TimeoutPrecommitDelta.Nanoseconds()*int64(round),
@@ -1208,7 +1011,7 @@ func (cfg *ConsensusConfig) Commit(t time.Time) time.Time {
 	return t.Add(cfg.TimeoutCommit)
 }
 
-// WalFile returns the full path to the write-ahead log file.
+// WalFile returns the full path to the write-ahead log file
 func (cfg *ConsensusConfig) WalFile() string {
 	if cfg.walFile != "" {
 		return cfg.walFile
@@ -1216,7 +1019,7 @@ func (cfg *ConsensusConfig) WalFile() string {
 	return rootify(cfg.WalPath, cfg.RootDir)
 }
 
-// SetWalFile sets the path to the write-ahead log file.
+// SetWalFile sets the path to the write-ahead log file
 func (cfg *ConsensusConfig) SetWalFile(walFile string) {
 	cfg.walFile = walFile
 }
@@ -1225,37 +1028,37 @@ func (cfg *ConsensusConfig) SetWalFile(walFile string) {
 // returns an error if any check fails.
 func (cfg *ConsensusConfig) ValidateBasic() error {
 	if cfg.TimeoutPropose < 0 {
-		return cmterrors.ErrNegativeField{Field: "timeout_propose"}
+		return errors.New("timeout_propose can't be negative")
 	}
 	if cfg.TimeoutProposeDelta < 0 {
-		return cmterrors.ErrNegativeField{Field: "timeout_propose_delta"}
+		return errors.New("timeout_propose_delta can't be negative")
 	}
 	if cfg.TimeoutPrevote < 0 {
-		return cmterrors.ErrNegativeField{Field: "timeout_prevote"}
+		return errors.New("timeout_prevote can't be negative")
 	}
 	if cfg.TimeoutPrevoteDelta < 0 {
-		return cmterrors.ErrNegativeField{Field: "timeout_prevote_delta"}
+		return errors.New("timeout_prevote_delta can't be negative")
 	}
 	if cfg.TimeoutPrecommit < 0 {
-		return cmterrors.ErrNegativeField{Field: "timeout_precommit"}
+		return errors.New("timeout_precommit can't be negative")
 	}
 	if cfg.TimeoutPrecommitDelta < 0 {
-		return cmterrors.ErrNegativeField{Field: "timeout_precommit_delta"}
+		return errors.New("timeout_precommit_delta can't be negative")
 	}
 	if cfg.TimeoutCommit < 0 {
-		return cmterrors.ErrNegativeField{Field: "timeout_commit"}
+		return errors.New("timeout_commit can't be negative")
 	}
 	if cfg.CreateEmptyBlocksInterval < 0 {
-		return cmterrors.ErrNegativeField{Field: "create_empty_blocks_interval"}
+		return errors.New("create_empty_blocks_interval can't be negative")
 	}
 	if cfg.PeerGossipSleepDuration < 0 {
-		return cmterrors.ErrNegativeField{Field: "peer_gossip_sleep_duration"}
+		return errors.New("peer_gossip_sleep_duration can't be negative")
 	}
 	if cfg.PeerQueryMaj23SleepDuration < 0 {
-		return cmterrors.ErrNegativeField{Field: "peer_query_maj23_sleep_duration"}
+		return errors.New("peer_query_maj23_sleep_duration can't be negative")
 	}
 	if cfg.DoubleSignCheckHeight < 0 {
-		return cmterrors.ErrNegativeField{Field: "double_sign_check_height"}
+		return errors.New("double_sign_check_height can't be negative")
 	}
 	return nil
 }
@@ -1270,30 +1073,6 @@ type StorageConfig struct {
 	// required for `/block_results` RPC queries, and to reindex events in the
 	// command-line tool.
 	DiscardABCIResponses bool `mapstructure:"discard_abci_responses"`
-	// Configuration related to storage pruning.
-	Pruning *PruningConfig `mapstructure:"pruning"`
-	// Compaction on pruning - enable or disable in-process compaction.
-	// If the DB backend supports it, this will force the DB to compact
-	// the database levels and save on storage space. Setting this to true
-	// is most beneficial when used in combination with pruning as it will
-	// phyisically delete the entries marked for deletion.
-	// false by default (forcing compaction is disabled).
-	Compact bool `mapstructure:"compact"`
-	// Compaction interval - number of blocks to try explicit compaction on.
-	// This parameter should be tuned depending on the number of items
-	// you expect to delete between two calls to forced compaction.
-	// If your retain height is 1 block, it is too much of an overhead
-	// to try compaction every block. But it should also not be a very
-	// large multiple of your retain height as it might occur bigger overheads.
-	// 1000 by default.
-	CompactionInterval int64 `mapstructure:"compaction_interval"`
-	// Hex representation of the hash of the genesis file.
-	// This is an optional parameter set when an operator provides
-	// a hash via the command line.
-	// It is used to verify the hash of the actual genesis file.
-	// Note that if the provided has does not match the hash of the genesis file
-	// the node will report an error and not boot.
-	GenesisHash string `mapstructure:"genesis_hash"`
 }
 
 // DefaultStorageConfig returns the default configuration options relating to
@@ -1301,10 +1080,6 @@ type StorageConfig struct {
 func DefaultStorageConfig() *StorageConfig {
 	return &StorageConfig{
 		DiscardABCIResponses: false,
-		Pruning:              DefaultPruningConfig(),
-		Compact:              false,
-		CompactionInterval:   1000,
-		GenesisHash:          "",
 	}
 }
 
@@ -1313,16 +1088,7 @@ func DefaultStorageConfig() *StorageConfig {
 func TestStorageConfig() *StorageConfig {
 	return &StorageConfig{
 		DiscardABCIResponses: false,
-		Pruning:              TestPruningConfig(),
-		GenesisHash:          "",
 	}
-}
-
-func (cfg *StorageConfig) ValidateBasic() error {
-	if err := cfg.Pruning.ValidateBasic(); err != nil {
-		return fmt.Errorf("error in [pruning] section: %w", err)
-	}
-	return nil
 }
 
 // -----------------------------------------------------------------------------
@@ -1409,7 +1175,7 @@ func TestInstrumentationConfig() *InstrumentationConfig {
 // returns an error if any check fails.
 func (cfg *InstrumentationConfig) ValidateBasic() error {
 	if cfg.MaxOpenConnections < 0 {
-		return cmterrors.ErrNegativeField{Field: "max_open_connections"}
+		return errors.New("max_open_connections can't be negative")
 	}
 	return nil
 }
@@ -1421,7 +1187,7 @@ func (cfg *InstrumentationConfig) IsPrometheusEnabled() bool {
 //-----------------------------------------------------------------------------
 // Utils
 
-// helper function to make config creation independent of root dir.
+// helper function to make config creation independent of root dir
 func rootify(path, root string) string {
 	if filepath.IsAbs(path) {
 		return path
@@ -1442,90 +1208,4 @@ func getDefaultMoniker() string {
 		moniker = "anonymous"
 	}
 	return moniker
-}
-
-//-----------------------------------------------------------------------------
-// PruningConfig
-
-type PruningConfig struct {
-	// The time period between automated background pruning operations.
-	Interval time.Duration `mapstructure:"interval"`
-	// Data companion-related pruning configuration.
-	DataCompanion *DataCompanionPruningConfig `mapstructure:"data_companion"`
-}
-
-func DefaultPruningConfig() *PruningConfig {
-	return &PruningConfig{
-		Interval:      DefaultPruningInterval,
-		DataCompanion: DefaultDataCompanionPruningConfig(),
-	}
-}
-
-func TestPruningConfig() *PruningConfig {
-	return &PruningConfig{
-		Interval:      DefaultPruningInterval,
-		DataCompanion: TestDataCompanionPruningConfig(),
-	}
-}
-
-func (cfg *PruningConfig) ValidateBasic() error {
-	if cfg.Interval <= 0 {
-		return errors.New("interval must be > 0")
-	}
-	if err := cfg.DataCompanion.ValidateBasic(); err != nil {
-		return fmt.Errorf("error in [data_companion] section: %w", err)
-	}
-	return nil
-}
-
-//-----------------------------------------------------------------------------
-// DataCompanionPruningConfig
-
-type DataCompanionPruningConfig struct {
-	// Whether automatic pruning respects values set by the data companion.
-	// Disabled by default. All other parameters in this section are ignored
-	// when this is disabled.
-	//
-	// If disabled, only the application retain height will influence block
-	// pruning (but not block results pruning). Only enabling this at a later
-	// stage will potentially mean that blocks below the application-set retain
-	// height at the time will not be available to the data companion.
-	Enabled bool `mapstructure:"enabled"`
-	// The initial value for the data companion block retain height if the data
-	// companion has not yet explicitly set one. If the data companion has
-	// already set a block retain height, this is ignored.
-	InitialBlockRetainHeight int64 `mapstructure:"initial_block_retain_height"`
-	// The initial value for the data companion block results retain height if
-	// the data companion has not yet explicitly set one. If the data companion
-	// has already set a block results retain height, this is ignored.
-	InitialBlockResultsRetainHeight int64 `mapstructure:"initial_block_results_retain_height"`
-}
-
-func DefaultDataCompanionPruningConfig() *DataCompanionPruningConfig {
-	return &DataCompanionPruningConfig{
-		Enabled:                         false,
-		InitialBlockRetainHeight:        0,
-		InitialBlockResultsRetainHeight: 0,
-	}
-}
-
-func TestDataCompanionPruningConfig() *DataCompanionPruningConfig {
-	return &DataCompanionPruningConfig{
-		Enabled:                         false,
-		InitialBlockRetainHeight:        0,
-		InitialBlockResultsRetainHeight: 0,
-	}
-}
-
-func (cfg *DataCompanionPruningConfig) ValidateBasic() error {
-	if !cfg.Enabled {
-		return nil
-	}
-	if cfg.InitialBlockRetainHeight < 0 {
-		return errors.New("initial_block_retain_height cannot be negative")
-	}
-	if cfg.InitialBlockResultsRetainHeight < 0 {
-		return errors.New("initial_block_results_retain_height cannot be negative")
-	}
-	return nil
 }

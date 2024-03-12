@@ -12,6 +12,7 @@ func GenesisDoc(
 	consensusParams *types.ConsensusParams,
 	chainID string,
 ) *types.GenesisDoc {
+
 	genesisValidators := make([]types.GenesisValidator, len(validators))
 
 	for i := range validators {

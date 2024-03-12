@@ -6,6 +6,7 @@ import (
 	"time"
 
 	dbm "github.com/cometbft/cometbft-db"
+
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/light"
 	"github.com/cometbft/cometbft/light/provider"
@@ -21,7 +22,7 @@ import (
 //
 // Remember that none of these benchmarks account for network latency.
 var (
-	benchmarkFullNode = mockp.New(genMockNode(1000, 100, 1, bTime))
+	benchmarkFullNode = mockp.New(genMockNode(chainID, 1000, 100, 1, bTime))
 	genesisBlock, _   = benchmarkFullNode.LightBlock(context.Background(), 1)
 )
 

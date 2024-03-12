@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/crypto"
-	cmtnet "github.com/cometbft/cometbft/internal/net"
+	cmtnet "github.com/cometbft/cometbft/libs/net"
 	p2pconn "github.com/cometbft/cometbft/p2p/conn"
 )
 

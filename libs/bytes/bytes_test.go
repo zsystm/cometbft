@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // This is a trivial test for protobuf compatibility.
@@ -15,20 +14,20 @@ func TestMarshal(t *testing.T) {
 	bz := []byte("hello world")
 	dataB := HexBytes(bz)
 	bz2, err := dataB.Marshal()
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, bz, bz2)
 
 	var dataB2 HexBytes
 	err = (&dataB2).Unmarshal(bz)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, dataB, dataB2)
 }
 
 // Test that the hex encoding works.
 func TestJSONMarshal(t *testing.T) {
 	type TestStruct struct {
-		B1 []byte   `json:"B1" yaml:"B1"` // normal bytes
-		B2 HexBytes `json:"B2" yaml:"B2"` // hex bytes
+		B1 []byte
+		B2 HexBytes
 	}
 
 	cases := []struct {
@@ -50,7 +49,7 @@ func TestJSONMarshal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assert.Equal(t, tc.expected, string(jsonBytes))
+			assert.Equal(t, string(jsonBytes), tc.expected)
 
 			// TODO do fuzz testing to ensure that unmarshal fails
 
@@ -66,7 +65,6 @@ func TestJSONMarshal(t *testing.T) {
 	}
 }
 
-// Test that the hex encoding works.
 func TestHexBytes_String(t *testing.T) {
 	hs := HexBytes([]byte("test me"))
 	if _, err := strconv.ParseInt(hs.String(), 16, 64); err != nil {

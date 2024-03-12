@@ -6,12 +6,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	"github.com/cometbft/cometbft/light"
 	"github.com/cometbft/cometbft/types"
-	cmttime "github.com/cometbft/cometbft/types/time"
 )
 
 const (
@@ -159,15 +157,16 @@ func TestVerifyAdjacentHeaders(t *testing.T) {
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			err := light.VerifyAdjacent(header, tc.newHeader, tc.newVals, tc.trustingPeriod, tc.now, maxClockDrift)
 			switch {
-			case tc.expErr != nil && assert.Error(t, err): //nolint:testifylint // require.Error doesn't work with the logic here
+			case tc.expErr != nil && assert.Error(t, err):
 				assert.Equal(t, tc.expErr, err)
 			case tc.expErrText != "":
 				assert.Contains(t, err.Error(), tc.expErrText)
 			default:
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}
+
 }
 
 func TestVerifyNonAdjacentHeaders(t *testing.T) {
@@ -275,12 +274,12 @@ func TestVerifyNonAdjacentHeaders(t *testing.T) {
 				light.DefaultTrustLevel)
 
 			switch {
-			case tc.expErr != nil && assert.Error(t, err): //nolint:testifylint // require.Error doesn't work with the logic here
+			case tc.expErr != nil && assert.Error(t, err):
 				assert.Equal(t, tc.expErr, err)
 			case tc.expErrText != "":
 				assert.Contains(t, err.Error(), tc.expErrText)
 			default:
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -301,9 +300,9 @@ func TestVerifyReturnsErrorIfTrustLevelIsInvalid(t *testing.T) {
 			hash("app_hash"), hash("cons_hash"), hash("results_hash"), 0, len(keys))
 	)
 
-	err := light.Verify(header, vals, header, vals, 2*time.Hour, cmttime.Now(), maxClockDrift,
+	err := light.Verify(header, vals, header, vals, 2*time.Hour, time.Now(), maxClockDrift,
 		cmtmath.Fraction{Numerator: 2, Denominator: 1})
-	require.Error(t, err)
+	assert.Error(t, err)
 }
 
 func TestValidateTrustLevel(t *testing.T) {
@@ -328,9 +327,9 @@ func TestValidateTrustLevel(t *testing.T) {
 	for _, tc := range testCases {
 		err := light.ValidateTrustLevel(tc.lvl)
 		if !tc.valid {
-			require.Error(t, err)
+			assert.Error(t, err)
 		} else {
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}
 }

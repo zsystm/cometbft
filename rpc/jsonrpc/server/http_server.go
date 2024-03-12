@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	types "github.com/cometbft/cometbft/rpc/jsonrpc/types"
-	cmttime "github.com/cometbft/cometbft/types/time"
 )
 
 // Config is a RPC server configuration.
@@ -150,7 +148,7 @@ func writeRPCResponseHTTP(w http.ResponseWriter, headers []httpHeader, res ...ty
 	for _, header := range headers {
 		w.Header().Set(header.name, header.value)
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(200)
 	_, err = w.Write(jsonBytes)
 	return err
 }
@@ -164,21 +162,21 @@ func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Wrap the ResponseWriter to remember the status
 		rww := &responseWriterWrapper{-1, w}
-		begin := cmttime.Now()
+		begin := time.Now()
 
-		rww.Header().Set("X-Server-Time", strconv.FormatInt(begin.Unix(), 10))
+		rww.Header().Set("X-Server-Time", fmt.Sprintf("%v", begin.Unix()))
 
 		defer func() {
 			// Handle any panics in the panic handler below. Does not use the logger, since we want
 			// to avoid any further panics. However, we try to return a 500, since it otherwise
 			// defaults to 200 and there is no other way to terminate the connection. If that
 			// should panic for whatever reason then the Go HTTP server will handle it and
-			// terminate the connection - panicking is the de-facto and only way to get the Go HTTP
+			// terminate the connection - panicing is the de-facto and only way to get the Go HTTP
 			// server to terminate the request and close the connection/stream:
 			// https://github.com/golang/go/issues/17790#issuecomment-258481416
 			if e := recover(); e != nil {
 				fmt.Fprintf(os.Stderr, "Panic during RPC panic recovery: %v\n%v\n", e, string(debug.Stack()))
-				w.WriteHeader(http.StatusInternalServerError)
+				w.WriteHeader(500)
 			}
 		}()
 
@@ -190,7 +188,7 @@ func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler 
 				// If RPCResponse
 				if res, ok := e.(types.RPCResponse); ok {
 					if wErr := WriteRPCResponseHTTP(rww, res); wErr != nil {
-						logger.Error("failed to write response", "err", wErr)
+						logger.Error("failed to write response", "res", res, "err", wErr)
 					}
 				} else {
 					// Panics can contain anything, attempt to normalize it as an error.
@@ -209,13 +207,13 @@ func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler 
 
 					res := types.RPCInternalError(types.JSONRPCIntID(-1), err)
 					if wErr := WriteRPCResponseHTTPError(rww, http.StatusInternalServerError, res); wErr != nil {
-						logger.Error("failed to write response", "err", wErr)
+						logger.Error("failed to write response", "res", res, "err", wErr)
 					}
 				}
 			}
 
 			// Finally, log.
-			durationMS := cmttime.Since(begin).Nanoseconds() / 1000000
+			durationMS := time.Since(begin).Nanoseconds() / 1000000
 			if rww.Status == -1 {
 				rww.Status = 200
 			}
@@ -232,7 +230,7 @@ func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler 
 	})
 }
 
-// Remember the status for logging.
+// Remember the status for logging
 type responseWriterWrapper struct {
 	Status int
 	http.ResponseWriter
@@ -243,7 +241,7 @@ func (w *responseWriterWrapper) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
-// implements http.Hijacker.
+// implements http.Hijacker
 func (w *responseWriterWrapper) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return w.ResponseWriter.(http.Hijacker).Hijack()
 }

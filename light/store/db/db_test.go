@@ -3,17 +3,18 @@ package db
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	dbm "github.com/cometbft/cometbft-db"
-	cmtversion "github.com/cometbft/cometbft/api/cometbft/version/v1"
+
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/tmhash"
-	cmtrand "github.com/cometbft/cometbft/internal/rand"
+	cmtrand "github.com/cometbft/cometbft/libs/rand"
+	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/types"
-	cmttime "github.com/cometbft/cometbft/types/time"
 	"github.com/cometbft/cometbft/version"
 )
 
@@ -176,7 +177,7 @@ func randLightBlock(height int64) *types.LightBlock {
 				Version:            cmtversion.Consensus{Block: version.BlockProtocol, App: 0},
 				ChainID:            cmtrand.Str(12),
 				Height:             height,
-				Time:               cmttime.Now(),
+				Time:               time.Now(),
 				LastBlockID:        types.BlockID{},
 				LastCommitHash:     crypto.CRandBytes(tmhash.Size),
 				DataHash:           crypto.CRandBytes(tmhash.Size),

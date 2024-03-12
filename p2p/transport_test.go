@@ -1,7 +1,7 @@
 package p2p
 
 import (
-	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"reflect"
@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	tmp2p "github.com/cometbft/cometbft/api/cometbft/p2p/v1"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/internal/protoio"
+	"github.com/cometbft/cometbft/libs/protoio"
 	"github.com/cometbft/cometbft/p2p/conn"
+	tmp2p "github.com/cometbft/cometbft/proto/tendermint/p2p"
 )
 
 var defaultNodeName = "host_peer"
@@ -47,7 +47,7 @@ func TestTransportMultiplexConnFilter(t *testing.T) {
 		func(_ ConnSet, _ net.Conn, _ []net.IP) error { return nil },
 		func(_ ConnSet, _ net.Conn, _ []net.IP) error { return nil },
 		func(_ ConnSet, _ net.Conn, _ []net.IP) error {
-			return errors.New("rejected")
+			return fmt.Errorf("rejected")
 		},
 	)(mt)
 
@@ -296,7 +296,7 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 			// Fast peer connected.
 		case <-time.After(200 * time.Millisecond):
 			// We error if the fast peer didn't succeed.
-			errc <- errors.New("fast peer timed out")
+			errc <- fmt.Errorf("fast peer timed out")
 		}
 
 		sc, err := upgradeSecretConn(c, 200*time.Millisecond, ed25519.GenPrivKey())
@@ -319,11 +319,13 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 	go func() {
 		<-slowc
 
-		dialer := newMultiplexTransport(
-			fastNodeInfo,
-			NodeKey{
-				PrivKey: fastNodePV,
-			},
+		var (
+			dialer = newMultiplexTransport(
+				fastNodeInfo,
+				NodeKey{
+					PrivKey: fastNodePV,
+				},
+			)
 		)
 		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
 
@@ -586,8 +588,10 @@ func TestTransportHandshake(t *testing.T) {
 			}
 		}(c)
 		go func(c net.Conn) {
-			// ni   DefaultNodeInfo
-			var pbni tmp2p.DefaultNodeInfo
+			var (
+				// ni   DefaultNodeInfo
+				pbni tmp2p.DefaultNodeInfo
+			)
 
 			protoReader := protoio.NewDelimitedReader(c, MaxNodeInfoSize())
 			_, err := protoReader.ReadMsg(&pbni)
@@ -632,9 +636,8 @@ func TestTransportAddChannel(t *testing.T) {
 	}
 }
 
-// create listener.
+// create listener
 func testSetupMultiplexTransport(t *testing.T) *MultiplexTransport {
-	t.Helper()
 	var (
 		pv = ed25519.GenPrivKey()
 		id = PubKeyToID(pv.PubKey())
@@ -670,8 +673,8 @@ func (a *testTransportAddr) String() string  { return "test.local:1234" }
 
 type testTransportConn struct{}
 
-func (*testTransportConn) Close() error {
-	return errors.New("close() not implemented")
+func (c *testTransportConn) Close() error {
+	return fmt.Errorf("close() not implemented")
 }
 
 func (c *testTransportConn) LocalAddr() net.Addr {
@@ -682,22 +685,22 @@ func (c *testTransportConn) RemoteAddr() net.Addr {
 	return &testTransportAddr{}
 }
 
-func (*testTransportConn) Read(_ []byte) (int, error) {
-	return -1, errors.New("read() not implemented")
+func (c *testTransportConn) Read(_ []byte) (int, error) {
+	return -1, fmt.Errorf("read() not implemented")
 }
 
-func (*testTransportConn) SetDeadline(_ time.Time) error {
-	return errors.New("setDeadline() not implemented")
+func (c *testTransportConn) SetDeadline(_ time.Time) error {
+	return fmt.Errorf("setDeadline() not implemented")
 }
 
-func (*testTransportConn) SetReadDeadline(_ time.Time) error {
-	return errors.New("setReadDeadline() not implemented")
+func (c *testTransportConn) SetReadDeadline(_ time.Time) error {
+	return fmt.Errorf("setReadDeadline() not implemented")
 }
 
-func (*testTransportConn) SetWriteDeadline(_ time.Time) error {
-	return errors.New("setWriteDeadline() not implemented")
+func (c *testTransportConn) SetWriteDeadline(_ time.Time) error {
+	return fmt.Errorf("setWriteDeadline() not implemented")
 }
 
-func (*testTransportConn) Write(_ []byte) (int, error) {
-	return -1, errors.New("write() not implemented")
+func (c *testTransportConn) Write(_ []byte) (int, error) {
+	return -1, fmt.Errorf("write() not implemented")
 }

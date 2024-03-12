@@ -20,7 +20,7 @@ function getCode() {
 	fi
 
 	if [[ $(echo $R | jq 'has("code")') == "true" ]]; then
-		# this won't actually work if there's an error ...
+		# this wont actually work if theres an error ...
 		echo "$R" | jq ".code"
 	else
 		# protobuf auto adds `omitempty` to everything so code OK and empty data/log

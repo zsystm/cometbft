@@ -7,12 +7,11 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	mempl "github.com/cometbft/cometbft/mempool"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/jsonrpc/types"
 	"github.com/cometbft/cometbft/types"
 )
-
-var ErrEndpointClosedCatchingUp = errors.New("endpoint is closed while node is catching up")
 
 //-----------------------------------------------------------------------------
 // NOTE: tx should be signed, but this is only checked at the app level (not by CometBFT!)
@@ -21,10 +20,7 @@ var ErrEndpointClosedCatchingUp = errors.New("endpoint is closed while node is c
 // CheckTx nor transaction results.
 // More: https://docs.cometbft.com/main/rpc/#/Tx/broadcast_tx_async
 func (env *Environment) BroadcastTxAsync(_ *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	if env.MempoolReactor.WaitSync() {
-		return nil, ErrEndpointClosedCatchingUp
-	}
-	_, err := env.Mempool.CheckTx(tx)
+	err := env.Mempool.CheckTx(tx, nil, mempl.TxInfo{})
 	if err != nil {
 		return nil, err
 	}
@@ -35,21 +31,17 @@ func (env *Environment) BroadcastTxAsync(_ *rpctypes.Context, tx types.Tx) (*cty
 // the transaction result.
 // More: https://docs.cometbft.com/main/rpc/#/Tx/broadcast_tx_sync
 func (env *Environment) BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	if env.MempoolReactor.WaitSync() {
-		return nil, ErrEndpointClosedCatchingUp
-	}
-
-	resCh := make(chan *abci.CheckTxResponse, 1)
-	reqRes, err := env.Mempool.CheckTx(tx)
+	resCh := make(chan *abci.ResponseCheckTx, 1)
+	err := env.Mempool.CheckTx(tx, func(res *abci.ResponseCheckTx) {
+		select {
+		case <-ctx.Context().Done():
+		case resCh <- res:
+		}
+	}, mempl.TxInfo{})
 	if err != nil {
 		return nil, err
 	}
-	reqRes.SetCallback(func(res *abci.Response) {
-		select {
-		case <-ctx.Context().Done():
-		case resCh <- reqRes.Response.GetCheckTx():
-		}
-	})
+
 	select {
 	case <-ctx.Context().Done():
 		return nil, fmt.Errorf("broadcast confirmation not received: %w", ctx.Context().Err())
@@ -67,10 +59,6 @@ func (env *Environment) BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ct
 // BroadcastTxCommit returns with the responses from CheckTx and ExecTxResult.
 // More: https://docs.cometbft.com/main/rpc/#/Tx/broadcast_tx_commit
 func (env *Environment) BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-	if env.MempoolReactor.WaitSync() {
-		return nil, ErrEndpointClosedCatchingUp
-	}
-
 	subscriber := ctx.RemoteAddr()
 
 	if env.EventBus.NumClients() >= env.Config.MaxSubscriptionClients {
@@ -96,18 +84,17 @@ func (env *Environment) BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*
 	}()
 
 	// Broadcast tx and wait for CheckTx result
-	checkTxResCh := make(chan *abci.CheckTxResponse, 1)
-	reqRes, err := env.Mempool.CheckTx(tx)
+	checkTxResCh := make(chan *abci.ResponseCheckTx, 1)
+	err = env.Mempool.CheckTx(tx, func(res *abci.ResponseCheckTx) {
+		select {
+		case <-ctx.Context().Done():
+		case checkTxResCh <- res:
+		}
+	}, mempl.TxInfo{})
 	if err != nil {
 		env.Logger.Error("Error on broadcastTxCommit", "err", err)
 		return nil, fmt.Errorf("error on broadcastTxCommit: %v", err)
 	}
-	reqRes.SetCallback(func(res *abci.Response) {
-		select {
-		case <-ctx.Context().Done():
-		case checkTxResCh <- reqRes.Response.GetCheckTx():
-		}
-	})
 	select {
 	case <-ctx.Context().Done():
 		return nil, fmt.Errorf("broadcast confirmation not received: %w", ctx.Context().Err())
@@ -186,9 +173,9 @@ func (env *Environment) NumUnconfirmedTxs(*rpctypes.Context) (*ctypes.ResultUnco
 // be added to the mempool either.
 // More: https://docs.cometbft.com/main/rpc/#/Tx/check_tx
 func (env *Environment) CheckTx(_ *rpctypes.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := env.ProxyAppMempool.CheckTx(context.TODO(), &abci.CheckTxRequest{Tx: tx, Type: abci.CHECK_TX_TYPE_CHECK})
+	res, err := env.ProxyAppMempool.CheckTx(context.TODO(), &abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
-	return &ctypes.ResultCheckTx{CheckTxResponse: *res}, nil
+	return &ctypes.ResultCheckTx{ResponseCheckTx: *res}, nil
 }

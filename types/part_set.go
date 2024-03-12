@@ -6,20 +6,18 @@ import (
 	"fmt"
 	"io"
 
-	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	"github.com/cometbft/cometbft/crypto/merkle"
-	"github.com/cometbft/cometbft/internal/bits"
-	cmtsync "github.com/cometbft/cometbft/internal/sync"
+	"github.com/cometbft/cometbft/libs/bits"
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
+	cmtsync "github.com/cometbft/cometbft/libs/sync"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 )
 
 var (
 	ErrPartSetUnexpectedIndex = errors.New("error part set unexpected index")
 	ErrPartSetInvalidProof    = errors.New("error part set invalid proof")
-	ErrPartTooBig             = errors.New("error part size too big")
-	ErrPartInvalidSize        = errors.New("error inner part with invalid size")
 )
 
 type Part struct {
@@ -31,11 +29,7 @@ type Part struct {
 // ValidateBasic performs basic validation.
 func (part *Part) ValidateBasic() error {
 	if len(part.Bytes) > int(BlockPartSizeBytes) {
-		return ErrPartTooBig
-	}
-	// All parts except the last one should have the same constant size.
-	if int64(part.Index) < part.Proof.Total-1 && len(part.Bytes) != int(BlockPartSizeBytes) {
-		return ErrPartInvalidSize
+		return fmt.Errorf("too big: %d bytes, max: %d", len(part.Bytes), BlockPartSizeBytes)
 	}
 	if err := part.Proof.ValidateBasic(); err != nil {
 		return fmt.Errorf("wrong Proof: %w", err)
@@ -52,7 +46,7 @@ func (part *Part) String() string {
 
 // StringIndented returns an indented Part.
 //
-// See merkle.Proof#StringIndented.
+// See merkle.Proof#StringIndented
 func (part *Part) StringIndented(indent string) string {
 	return fmt.Sprintf(`Part{#%v
 %s  Bytes: %X...
@@ -105,7 +99,7 @@ type PartSetHeader struct {
 // String returns a string representation of PartSetHeader.
 //
 // 1. total number of parts
-// 2. first 6 bytes of the hash.
+// 2. first 6 bytes of the hash
 func (psh PartSetHeader) String() string {
 	return fmt.Sprintf("%v:%X", psh.Total, cmtbytes.Fingerprint(psh.Hash))
 }
@@ -127,7 +121,7 @@ func (psh PartSetHeader) ValidateBasic() error {
 	return nil
 }
 
-// ToProto converts PartSetHeader to protobuf.
+// ToProto converts PartSetHeader to protobuf
 func (psh *PartSetHeader) ToProto() cmtproto.PartSetHeader {
 	if psh == nil {
 		return cmtproto.PartSetHeader{}
@@ -139,7 +133,7 @@ func (psh *PartSetHeader) ToProto() cmtproto.PartSetHeader {
 	}
 }
 
-// PartSetHeaderFromProto sets a protobuf PartSetHeader to the given pointer.
+// FromProto sets a protobuf PartSetHeader to the given pointer
 func PartSetHeaderFromProto(ppsh *cmtproto.PartSetHeader) (*PartSetHeader, error) {
 	if ppsh == nil {
 		return nil, errors.New("nil PartSetHeader")
@@ -172,11 +166,11 @@ type PartSet struct {
 	byteSize int64
 }
 
-// NewPartSetFromData returns an immutable, full PartSet from the data bytes.
+// Returns an immutable, full PartSet from the data bytes.
 // The data bytes are split into "partSize" chunks, and merkle tree computed.
 // CONTRACT: partSize is greater than zero.
 func NewPartSetFromData(data []byte, partSize uint32) *PartSet {
-	// divide data into parts of size `partSize`
+	// divide data into 4kb parts.
 	total := (uint32(len(data)) + partSize - 1) / partSize
 	parts := make([]*Part, total)
 	partsBytes := make([][]byte, total)
@@ -205,7 +199,7 @@ func NewPartSetFromData(data []byte, partSize uint32) *PartSet {
 	}
 }
 
-// NewPartSetFromHeader returns an empty PartSet ready to be populated.
+// Returns an empty PartSet ready to be populated.
 func NewPartSetFromHeader(header PartSetHeader) *PartSet {
 	return &PartSet{
 		total:         header.Total,
@@ -276,12 +270,9 @@ func (ps *PartSet) Total() uint32 {
 }
 
 func (ps *PartSet) AddPart(part *Part) (bool, error) {
-	// TODO: remove this? would be preferable if this only returned (false, nil)
-	// when its a duplicate block part
 	if ps == nil {
 		return false, nil
 	}
-
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
@@ -293,11 +284,6 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	// If part already exists, return false.
 	if ps.parts[part.Index] != nil {
 		return false, nil
-	}
-
-	// The proof should be compatible with the number of parts.
-	if part.Proof.Total != int64(ps.total) {
-		return false, ErrPartSetInvalidProof
 	}
 
 	// Check hash proof
@@ -367,7 +353,7 @@ func (psr *PartSetReader) Read(p []byte) (n int, err error) {
 
 // StringShort returns a short version of String.
 //
-// (Count of Total).
+// (Count of Total)
 func (ps *PartSet) StringShort() string {
 	if ps == nil {
 		return "nil-PartSet"

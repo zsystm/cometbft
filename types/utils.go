@@ -17,7 +17,7 @@ func isTypedNil(o interface{}) bool {
 	}
 }
 
-// isEmpty returns true if it has zero length.
+// Returns true if it has zero length.
 func isEmpty(o interface{}) bool {
 	rv := reflect.ValueOf(o)
 	switch rv.Kind() {
