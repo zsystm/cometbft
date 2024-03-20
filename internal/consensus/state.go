@@ -222,6 +222,11 @@ func OfflineStateSyncHeight(height int64) StateOption {
 	return func(cs *State) { cs.offlineStateSyncHeight = height }
 }
 
+// SetWAL sets the WAL implementation used.
+func SetWAL(wal WAL) StateOption {
+	return func(cs *State) { cs.wal = wal }
+}
+
 // String returns a string.
 func (*State) String() string {
 	// better not to access shared variables

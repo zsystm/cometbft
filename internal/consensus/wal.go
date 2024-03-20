@@ -433,3 +433,18 @@ func (nilWAL) SearchForEndHeight(int64, *WALSearchOptions) (rd io.ReadCloser, fo
 func (nilWAL) Start() error { return nil }
 func (nilWAL) Stop() error  { return nil }
 func (nilWAL) Wait()        {}
+
+// NoopWAL is a mock WAL, that does nothing.
+type NoopWAL struct{}
+
+var _ WAL = NoopWAL{}
+
+func (NoopWAL) Write(WALMessage) error     { return nil }
+func (NoopWAL) WriteSync(WALMessage) error { return nil }
+func (NoopWAL) FlushAndSync() error        { return nil }
+func (NoopWAL) SearchForEndHeight(int64, *WALSearchOptions) (rd io.ReadCloser, found bool, err error) {
+	return nil, false, nil
+}
+func (NoopWAL) Start() error { return nil }
+func (NoopWAL) Stop() error  { return nil }
+func (NoopWAL) Wait()        {}
