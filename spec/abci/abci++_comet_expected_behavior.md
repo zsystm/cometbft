@@ -57,9 +57,9 @@ consensus-exec      = (inf)consensus-height
 consensus-height    = *consensus-round finalize-block commit
 consensus-round     = proposer / non-proposer
 
-proposer            = *got-vote [prepare-proposal [process-proposal]] [extend]
-extend              = *got-vote extend-vote *got-vote
-non-proposer        = *got-vote [process-proposal] [extend]
+proposer            = *got-vote [prepare-proposal [process-proposal]] *got-vote [extend]
+extend              = extend-vote *got-vote
+non-proposer        = *got-vote [process-proposal] *got-vote [extend]
 
 init-chain          = %s"<InitChain>"
 offer-snapshot      = %s"<OfferSnapshot>"
@@ -182,8 +182,8 @@ did not store any state CometBFT calls `InitChain`. After this, CometBFT enters 
   of this height.
 
 >```abnf
->proposer            = *got-vote [prepare-proposal [process-proposal]] [extend]
->extend              = *got-vote extend-vote *got-vote
+>proposer            = *got-vote [prepare-proposal [process-proposal]] *got-vote [extend]
+>extend              = extend-vote *got-vote
 >```
 
 * Also for every round, if the local process is _not_ the proposer of the current round, CometBFT
@@ -194,7 +194,7 @@ did not store any state CometBFT calls `InitChain`. After this, CometBFT enters 
   rounds of this height received.
 
 >```abnf
->non-proposer        = *got-vote [process-proposal] [extend]
+>non-proposer        = *got-vote [process-proposal] *got-vote [extend]
 >```
 
 * Finally, the grammar describes all its terminal symbols, which denote the different ABCI method calls that
