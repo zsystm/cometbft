@@ -1,13 +1,13 @@
 # Fdb version 3
-["bibtex paper"] 0 "paper.aux" "paper.bbl" "paper" 1712331483
+["bibtex paper"] 0 "paper.aux" "paper.bbl" "paper" 1712594107
   "./IEEEtran.bst" 1703240876 59216 09108d17e46b18afb0eb9c4773353880 ""
   "lit.bib" 1703240876 50121 7d0003a251d736a47e07b999f1373581 ""
   "paper.aux" 0 -1 0 "pdflatex"
   (generated)
-  "paper.bbl"
   "paper.blg"
-["pdflatex"] 1712331481 "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.tex" "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.pdf" "paper" 1712331483
-  "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.aux" 1712331481 8 a94a2480d3289e625eea47cd1b285758 ""
+  "paper.bbl"
+["pdflatex"] 1712594105 "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.tex" "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.pdf" "paper" 1712594107
+  "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.aux" 1712594105 8 a94a2480d3289e625eea47cd1b285758 ""
   "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.tex" 1710953917 5033 6e730edfcab49c6251279ad8bdb86db2 ""
   "/usr/local/texlive/2020/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2020/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -205,7 +205,7 @@
   "IEEEtran.cls" 1703240876 202660 0afa78d388c859e474301101b339b9ae ""
   "algorithmicplus.sty" 1703240876 7727 34288b87094caa937a5890383a5959e4 ""
   "conclusion.tex" 1703240876 1232 9cb4f7732e757b55e706da94664a1b0f ""
-  "consensus.tex" 1712331481 22344 ffb15a529f03225bb5cf0e7a64af3143 ""
+  "consensus.tex" 1712594105 22320 6003b400bb56c0b982fa6b93017bda48 ""
   "definitions.tex" 1703240876 7421 a598accb13ed72663f0daa97654049f6 ""
   "homodel.sty" 1703240876 1087 3127fbd7e650757c40c044aa5213499e ""
   "intro.tex" 1703240876 8200 b97b020b958119a51993837c63bc9859 ""
@@ -216,8 +216,8 @@
   "rounddiag.sty" 1703240876 1935 57a072c5463cc882798f339840676507 ""
   "technote.sty" 1703240876 3479 0a92769522ba086925f18e2aac9df715 ""
   (generated)
-  "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.log"
-  "paper.pdf"
-  "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.pdf"
-  "paper.aux"
   "paper.log"
+  "paper.aux"
+  "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.pdf"
+  "paper.pdf"
+  "/Users/nenadmilosevic/Desktop/Informal/cometbft/spec/consensus/consensus-paper/paper.log"

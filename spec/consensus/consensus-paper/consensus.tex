@@ -110,9 +110,9 @@
 
 		\SPACE 
 		\color{black}\UPON{$\li{\Proposal,h_p,round_p, v, *}$ \From\ $\coord(h_p,round_p)$
-			\textbf{AND} $2f+1$ $\li{\Prevote,h_p, round_p,id(v)}$  \With\ $valid(v) \wedge step_p \le \prevote$ for the first time}
+			\textbf{AND} $2f+1$ $\li{\Prevote,h_p, round_p,id(v)}$  \With\ $valid(v)$ for the first time}
 		\label{line:tab:recvPrevote} 
-		\IF{$step_p = \prevote$}	
+		\IF{$step_p \leq \prevote$}	
 			\STATE $lockedValue_p \assign v$                \label{line:tab:setLockedValue} 
 			\STATE $lockedRound_p \assign round_p$   \label{line:tab:setLockedRound} 
 			\STATE \Broadcast \ $\li{\Precommit,h_p,round_p,id(v))}$  
@@ -163,8 +163,8 @@
 		
 		\SHORTSPACE 
 		\FUNCTION{$OnTimeoutPrevote(height,round)$} \label{line:tab:onTimeoutPrevote} 
-		\IF{$height = h_p \wedge round = round_p \wedge step_p = \prevote$} 
-			\STATE \Broadcast \ $\li{\Precommit,h_p,round_p,\nil}$   
+		\IF{$height = h_p \wedge round = round_p \wedge step_p = \precommit$} 
+			\STATE \Broadcast \ $\li{\Prevote,h_p,round_p,\nil}$   
 			\label{line:tab:precommit-nil-onTimeout}
 		\ENDIF	
 		\ENDFUNCTION
