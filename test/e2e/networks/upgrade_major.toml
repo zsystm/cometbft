@@ -1,0 +1,15 @@
+initial_height = 1000
+vote_extensions_update_height = 1004
+vote_extensions_enable_height = 1007
+pbts_update_height = 1006
+pbts_enable_height = 1009
+evidence = 5
+initial_state = { initial01 = "a", initial02 = "b", initial03 = "c" }
+abci_protocol = "tcp"
+upgrade_version = "cometbft/e2e-node:local-version"
+
+[node.validator]
+mode = "validator"
+version = "cometbft/e2e-node:v0.38.x"
+perturb = ["upgrade"]
+send_no_load = true
