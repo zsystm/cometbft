@@ -209,6 +209,7 @@ type ManifestNode struct {
 	// kill:       kills the node with SIGKILL then restarts it
 	// pause:      temporarily pauses (freezes) the node
 	// restart:    restarts the node, shutting it down with SIGTERM
+	// upgrade:    upgrades the node version to a specified version, if not specified uses 'cometbft/e2e-node:local-version'
 	Perturb []string `toml:"perturb"`
 
 	// SendNoLoad determines if the e2e test should send load to this node.
