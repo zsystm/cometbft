@@ -6,7 +6,7 @@ option go_package = "github.com/cometbft/cometbft/api/cometbft/types/v1beta1";
 import "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 import "cometbft/crypto/v1beta1/proof.proto";
-import "cometbft/version/v1/types.proto";
+import "cometbft/version/v1beta1/types.proto";
 import "cometbft/types/v1beta1/validator.proto";
 
 // SignedMsgType is a type of signed message in the consensus.
