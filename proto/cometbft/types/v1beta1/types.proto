@@ -34,7 +34,7 @@ message PartSetHeader {
 message Part {
   uint32                   index = 1;
   bytes                    bytes = 2;
-  cometbft.crypto.v1.Proof proof = 3 [(gogoproto.nullable) = false];
+  cometbft.crypto.v1beta1.Proof proof = 3 [(gogoproto.nullable) = false];
 }
 
 // BlockID defines the unique ID of a block as its hash and its `PartSetHeader`.
@@ -48,7 +48,7 @@ message BlockID {
 // Header defines the structure of a block header.
 message Header {
   // basic block info
-  cometbft.version.v1.Consensus version  = 1 [(gogoproto.nullable) = false];
+  cometbft.version.v1beta1.Consensus version  = 1 [(gogoproto.nullable) = false];
   string                        chain_id = 2 [(gogoproto.customname) = "ChainID"];
   int64                         height   = 3;
   google.protobuf.Timestamp     time     = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
@@ -148,5 +148,5 @@ message BlockMeta {
 message TxProof {
   bytes                    root_hash = 1;
   bytes                    data      = 2;
-  cometbft.crypto.v1.Proof proof     = 3;
+  cometbft.crypto.v1beta1.Proof proof     = 3;
 }

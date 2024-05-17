@@ -40,7 +40,7 @@ message ABCIResponsesInfo {
 
 // Version is a message for storing versioning information.
 message Version {
-  cometbft.version.v1.Consensus consensus = 1 [(gogoproto.nullable) = false];
+  cometbft.version.v1beta1.Consensus consensus = 1 [(gogoproto.nullable) = false];
   string                        software  = 2;
 }
 

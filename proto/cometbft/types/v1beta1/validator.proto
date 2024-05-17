@@ -31,7 +31,7 @@ message ValidatorSet {
 // Validator represents a node participating in the consensus protocol.
 message Validator {
   bytes                        address           = 1;
-  cometbft.crypto.v1.PublicKey pub_key           = 2 [(gogoproto.nullable) = false];
+  cometbft.crypto.v1beta1.PublicKey pub_key           = 2 [(gogoproto.nullable) = false];
   int64                        voting_power      = 3;
   int64                        proposer_priority = 4;
 }
@@ -40,6 +40,6 @@ message Validator {
 // Address is removed because it's redundant with the pubkey.
 // Proposer priority is removed because it changes every round.
 message SimpleValidator {
-  cometbft.crypto.v1.PublicKey pub_key      = 1;
+  cometbft.crypto.v1beta1.PublicKey pub_key      = 1;
   int64                        voting_power = 2;
 }
