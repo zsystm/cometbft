@@ -1,8 +1,8 @@
 syntax = "proto3";
 package cometbft.privval.v1beta2;
 
-import "cometbft/crypto/v1/keys.proto";
-import "cometbft/types/v1/types.proto";
+import "cometbft/crypto/v1beta1/keys.proto";
+import "cometbft/types/v1beta1/types.proto";
 import "gogoproto/gogo.proto";
 
 option go_package = "github.com/cometbft/cometbft/api/cometbft/privval/v1beta2";
@@ -36,31 +36,31 @@ message PubKeyRequest {
 
 // PubKeyResponse is a response message containing the public key.
 message PubKeyResponse {
-  cometbft.crypto.v1.PublicKey pub_key = 1 [(gogoproto.nullable) = false];
+  cometbft.crypto.v1beta1.PublicKey pub_key = 1 [(gogoproto.nullable) = false];
   RemoteSignerError            error   = 2;
 }
 
 // SignVoteRequest is a request to sign a vote
 message SignVoteRequest {
-  cometbft.types.v1.Vote vote     = 1;
+  cometbft.types.v1beta1.Vote vote     = 1;
   string                 chain_id = 2;
 }
 
 // SignedVoteResponse is a response containing a signed vote or an error
 message SignedVoteResponse {
-  cometbft.types.v1.Vote vote  = 1 [(gogoproto.nullable) = false];
+  cometbft.types.v1beta1.Vote vote  = 1 [(gogoproto.nullable) = false];
   RemoteSignerError      error = 2;
 }
 
 // SignProposalRequest is a request to sign a proposal
 message SignProposalRequest {
-  cometbft.types.v1.Proposal proposal = 1;
+  cometbft.types.v1beta1.Proposal proposal = 1;
   string                     chain_id = 2;
 }
 
 // SignedProposalResponse is response containing a signed proposal or an error
 message SignedProposalResponse {
-  cometbft.types.v1.Proposal proposal = 1 [(gogoproto.nullable) = false];
+  cometbft.types.v1beta1.Proposal proposal = 1 [(gogoproto.nullable) = false];
   RemoteSignerError          error    = 2;
 }
 
