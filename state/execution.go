@@ -238,8 +238,9 @@ func (blockExec *BlockExecutor) applyBlock(state State, blockID types.BlockID, b
 		return state, err
 	}
 
+	fName, tFormat := "(blockExec *BlockExecutor).applyBlock", "15:04:05.000"
 	blockExec.logger.Info(
-		"finalized block",
+		fmt.Sprintf("[%s]%s::finalized block", time.Now().Format(tFormat), fName),
 		"height", block.Height,
 		"num_txs_res", len(abciResponse.TxResults),
 		"num_val_updates", len(abciResponse.ValidatorUpdates),

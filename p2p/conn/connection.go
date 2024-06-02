@@ -12,8 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cosmos/gogoproto/proto"
-
 	"github.com/cometbft/cometbft/config"
 	flow "github.com/cometbft/cometbft/libs/flowrate"
 	"github.com/cometbft/cometbft/libs/log"
@@ -22,6 +20,7 @@ import (
 	cmtsync "github.com/cometbft/cometbft/libs/sync"
 	"github.com/cometbft/cometbft/libs/timer"
 	tmp2p "github.com/cometbft/cometbft/proto/tendermint/p2p"
+	"github.com/cosmos/gogoproto/proto"
 )
 
 const (
@@ -429,6 +428,7 @@ func (c *MConnection) CanSend(chID byte) bool {
 func (c *MConnection) sendRoutine() {
 	defer c._recover()
 
+	//fName, tFormat := "(c *MConnection).sendRoutine", "15:04:05.000"
 	protoWriter := protoio.NewDelimitedWriter(c.bufConnWriter)
 
 FOR_LOOP:
@@ -480,6 +480,7 @@ FOR_LOOP:
 		case <-c.quitSendRoutine:
 			break FOR_LOOP
 		case <-c.send:
+			//c.Logger.Info(fmt.Sprintf("[%s]%s:: sendSomePacketMsgs", time.Now().Format(tFormat), fName))
 			// Send some PacketMsgs
 			eof := c.sendSomePacketMsgs(protoWriter)
 			if !eof {
