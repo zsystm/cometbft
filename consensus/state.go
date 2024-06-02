@@ -2416,7 +2416,7 @@ func (cs *State) addVote(vote *types.Vote, peerID p2p.ID) (added bool, err error
 			"data", precommits.LogString())
 		cs.Logger.Info(fmt.Sprintf(
 			"[%s]%s::added vote to precommit", time.Now().Format(tFormat), fName),
-			"precommits", precommits.LogString(), "precommits_vote_strings", precommits.VoteStrings(), "maj", precommits.HasTwoThirdsMajority())
+			"precommits", precommits.LogString(), "precommits_vote_strings", precommits.VoteStrings(), "maj", precommits.HasTwoThirdsMajority(), "vote", vote)
 
 		blockID, ok := precommits.TwoThirdsMajority()
 		if ok {
