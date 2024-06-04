@@ -719,6 +719,7 @@ func (cs *State) updateToState(state sm.State) {
 	cs.updateHeight(height)
 	cs.updateRoundStep(0, cstypes.RoundStepNewHeight)
 
+	fName, tFormat := "(cs *State).updateToState", "15:04:05.000"
 	if cs.CommitTime.IsZero() {
 		// "Now" makes it easier to sync up dev nodes.
 		// We add timeoutCommit to allow transactions
@@ -729,7 +730,11 @@ func (cs *State) updateToState(state sm.State) {
 	} else {
 		cs.StartTime = cs.config.Commit(cs.CommitTime)
 	}
-
+	if cs.Logger != nil {
+		cs.Logger.Info(fmt.Sprintf(
+			"[%s]%s::done state transition and set new height start time considering timeout commit", time.Now().Format(tFormat), fName),
+			"start_time", cs.StartTime.Format(tFormat))
+	}
 	cs.Validators = validators
 	cs.Proposal = nil
 	cs.ProposalBlock = nil

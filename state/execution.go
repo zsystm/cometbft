@@ -390,6 +390,8 @@ func (blockExec *BlockExecutor) Commit(
 	block *types.Block,
 	abciResponse *abci.ResponseFinalizeBlock,
 ) (int64, error) {
+	fName, tFormat := "(blockExec *BlockExecutor).Commit", "15:04:05.000"
+	blockExec.logger.Info(fmt.Sprintf("[%s]%s::start commit block", time.Now().Format(tFormat), fName))
 	blockExec.mempool.Lock()
 	defer blockExec.mempool.Unlock()
 
@@ -414,7 +416,12 @@ func (blockExec *BlockExecutor) Commit(
 		"height", block.Height,
 		"block_app_hash", fmt.Sprintf("%X", block.AppHash),
 	)
+	blockExec.logger.Info(fmt.Sprintf("[%s]%s::finished commit block", time.Now().Format(tFormat), fName))
 
+	blockExec.logger.Info(fmt.Sprintf(
+		"[%s]%s::start update mempool", time.Now().Format(tFormat), fName),
+		"mempool_size", blockExec.mempool.Size(),
+	)
 	// Update mempool.
 	err = blockExec.mempool.Update(
 		block.Height,
@@ -422,6 +429,10 @@ func (blockExec *BlockExecutor) Commit(
 		abciResponse.TxResults,
 		TxPreCheck(state),
 		TxPostCheck(state),
+	)
+	blockExec.logger.Info(fmt.Sprintf(
+		"[%s]%s::finished update mempool", time.Now().Format(tFormat), fName),
+		"mempool_size", blockExec.mempool.Size(),
 	)
 
 	return res.RetainHeight, err
