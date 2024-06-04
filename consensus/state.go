@@ -2013,9 +2013,6 @@ func (cs *State) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (add
 	fName, tFormat := "(cs *State).addProposalBlockPart", "15:04:05.000"
 	height, round, part := msg.Height, msg.Round, msg.Part
 
-	cs.Logger.Info(fmt.Sprintf(
-		"[%s]%s::got block part", time.Now().Format(tFormat), fName,
-	), "peer_iD", peerID, "msg_height", height, "msg_round", round, "msg_part", msg.Part, "cs_height", cs.Height, "cs_round", cs.Round, "cs_step", cs.Step)
 	// Blocks might be reused, so round mismatch is OK
 	if cs.Height != height {
 		cs.Logger.Debug("received block part from wrong height", "height", height, "round", round)
@@ -2065,6 +2062,9 @@ func (cs *State) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (add
 			cs.ProposalBlockParts.ByteSize(), maxBytes,
 		)
 	}
+	cs.Logger.Info(fmt.Sprintf(
+		"[%s]%s::added block part", time.Now().Format(tFormat), fName,
+	), "peer_id", peerID, "msg_height", height, "msg_round", round, "msg_part", msg.Part, "cs_height", cs.Height, "cs_round", cs.Round, "cs_step", cs.Step)
 	if added && cs.ProposalBlockParts.IsComplete() {
 		bz, err := io.ReadAll(cs.ProposalBlockParts.GetReader())
 		if err != nil {
@@ -2086,7 +2086,7 @@ func (cs *State) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (add
 
 		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
 		cs.Logger.Info(fmt.Sprintf("[%s]%s::received complete proposal block", time.Now().Format(tFormat), fName),
-			"cs.ProposalBlock.height", cs.ProposalBlock.Height, "cs.ProposalBlock.Hash", cs.ProposalBlock.Hash(), "cs.ProposalBlock.ProposerAddress", cs.ProposalBlock.ProposerAddress)
+			"cs.ProposalBlock.height", cs.ProposalBlock.Height, "cs.ProposalBlock.Hash", cs.ProposalBlock.Hash(), "proposer", cs.ProposalBlock.ProposerAddress)
 
 		if err := cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent()); err != nil {
 			cs.Logger.Error("failed publishing event complete proposal", "err", err)
