@@ -559,9 +559,8 @@ OUTER_LOOP:
 				}
 				logger.Debug("Sending block part", "height", prs.Height, "round", prs.Round)
 				logger.Info(fmt.Sprintf(
-					"[%s]%s::sending block part which peer %s does not have (idx: %d, len: %d, total: %d)",
-					time.Now().Format(tFormat), fName, peer.String(), index, rs.ProposalBlockParts.Count(), rs.ProposalBlockParts.Total()),
-					"prs.Height", prs.Height, "prs.Round", prs.Round)
+					"[%s]%s::sending block part which peer does not have", time.Now().Format(tFormat), fName),
+					"prs.Height", prs.Height, "prs.Round", prs.Round, "msg_part", part, "total_parts", rs.ProposalBlockParts.Total(), "peer_id", peer.ID())
 				if peer.Send(p2p.Envelope{
 					ChannelID: DataChannel,
 					Message: &cmtcons.BlockPart{
@@ -1189,9 +1188,9 @@ func (ps *PeerState) PickSendVote(votes types.VoteSetReader) bool {
 	if vote, ok := ps.PickVoteToSend(votes); ok {
 		ps.logger.Debug("Sending vote message", "ps", ps, "vote", vote)
 		ps.logger.Info(fmt.Sprintf(
-			"[%s]%s::sending vote message to peer %s (votes size: %d)",
-			time.Now().Format(tFormat), fName, ps.peer.String(), votes.Size()),
-			"vote_type", vote.Type, "vote.validator_index", vote.ValidatorIndex, "vote_height", vote.Height, "vote_round", vote.Round, "vote_timestamp", vote.Timestamp)
+			"[%s]%s::sending vote message to peer (votes size: %d)",
+			time.Now().Format(tFormat), fName, votes.Size()),
+			"vote", vote, "peer_id", ps.peer.ID())
 		if ps.peer.Send(p2p.Envelope{
 			ChannelID: VoteChannel,
 			Message: &cmtcons.Vote{

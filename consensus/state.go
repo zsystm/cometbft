@@ -733,7 +733,7 @@ func (cs *State) updateToState(state sm.State) {
 	if cs.Logger != nil {
 		cs.Logger.Info(fmt.Sprintf(
 			"[%s]%s::done state transition and set new height start time considering timeout commit", time.Now().Format(tFormat), fName),
-			"start_time", cs.StartTime.Format(tFormat))
+			"start_time", cs.StartTime.Local().Format(tFormat))
 	}
 	cs.Validators = validators
 	cs.Proposal = nil
